@@ -1,13 +1,18 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import FileSidebar from './components/FileSidebar';
 import ChatArea from './components/ChatArea';
+import LoginPage from './components/LoginPage';
 import { FileContext, Message, ChatSession } from './types';
 import { generateResponse } from './services/geminiService';
-import { ZGLogo, SunIcon, MoonIcon } from './components/Icons';
+import { ZGLogo, SunIcon, MoonIcon, LoadingIcon } from './components/Icons';
 import { fileToBase64 } from './utils/fileHelpers';
 import { INITIAL_COURSES } from './data/courses';
+import { useAuth } from './contexts/AuthContext';
 
 const App: React.FC = () => {
+  const { user, isLoading: isAuthLoading } = useAuth();
+
   // Initialize files with the pre-loaded courses
   const [files, setFiles] = useState<FileContext[]>(INITIAL_COURSES);
   
@@ -23,7 +28,8 @@ const App: React.FC = () => {
   const [currentSessionId, setCurrentSessionId] = useState<string>('default');
 
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState<string[]>([]); // New state for images waiting to be sent
+  const [isProcessing, setIsProcessing] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -49,6 +55,7 @@ const App: React.FC = () => {
     setSessions(prev => [newSession, ...prev]);
     setCurrentSessionId(newId);
     setInput('');
+    setPendingAttachments([]);
   };
 
   const deleteSession = (id: string) => {
@@ -96,18 +103,27 @@ const App: React.FC = () => {
     if (!filesList || filesList.length === 0) return;
 
     const newFiles: FileContext[] = [];
+    const newAttachments: string[] = [];
     
     for (let i = 0; i < filesList.length; i++) {
       const file = filesList[i];
       try {
         const base64Data = await fileToBase64(file);
+        
+        // Add to global knowledge base
         newFiles.push({
           id: Math.random().toString(36).substring(7),
           name: file.name,
           type: file.type,
-          data: base64Data,
+          data: base64Data, // Raw base64 for API
           size: file.size
         });
+
+        // If it's an image, add to pending attachments for UI preview
+        if (file.type.startsWith('image/')) {
+          newAttachments.push(`data:${file.type};base64,${base64Data}`);
+        }
+
       } catch (err) {
         console.error("Error reading file", file.name, err);
         alert(`فشل تحميل الملف: ${file.name}`);
@@ -115,15 +131,21 @@ const App: React.FC = () => {
     }
 
     setFiles(prev => [...prev, ...newFiles]);
+    setPendingAttachments(prev => [...prev, ...newAttachments]);
   }, []);
 
+  const removePendingAttachment = (index: number) => {
+    setPendingAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && pendingAttachments.length === 0) || isProcessing) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
       content: input,
+      attachments: pendingAttachments.length > 0 ? [...pendingAttachments] : undefined,
       timestamp: Date.now()
     };
 
@@ -131,7 +153,7 @@ const App: React.FC = () => {
     let newTitle = undefined;
     if (messages.length === 0) {
       // Use first 5 words as title
-      newTitle = input.split(' ').slice(0, 5).join(' ');
+      newTitle = input.split(' ').slice(0, 5).join(' ') || 'صورة مرفقة';
     }
 
     // Optimistic update
@@ -139,7 +161,8 @@ const App: React.FC = () => {
     updateCurrentSessionMessages(updatedMessages, newTitle);
     
     setInput('');
-    setIsLoading(true);
+    setPendingAttachments([]); // Clear pending attachments
+    setIsProcessing(true);
 
     try {
       const responseText = await generateResponse(
@@ -167,9 +190,21 @@ const App: React.FC = () => {
       };
       updateCurrentSessionMessages([...updatedMessages, errorMessage], newTitle);
     } finally {
-      setIsLoading(false);
+      setIsProcessing(false);
     }
   };
+
+  if (isAuthLoading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-gray-50">
+        <LoadingIcon />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage />;
+  }
 
   return (
     <div className={`${isDarkMode ? 'dark' : ''} h-screen w-full`}>
@@ -231,10 +266,12 @@ const App: React.FC = () => {
             messages={messages}
             input={input}
             setInput={setInput}
-            isLoading={isLoading}
+            isLoading={isProcessing}
             onSend={handleSendMessage}
             onToggleSidebar={() => setIsSidebarOpen(true)}
             onUpload={handleFileUpload}
+            pendingAttachments={pendingAttachments}
+            onRemoveAttachment={removePendingAttachment}
             isDarkMode={isDarkMode}
             toggleTheme={toggleTheme}
           />

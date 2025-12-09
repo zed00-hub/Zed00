@@ -1,7 +1,8 @@
+
 import React, { useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Message } from '../types';
-import { BotIcon, UserIcon, SendIcon, LoadingIcon, AttachIcon, FileIcon, ZGLogo, SunIcon, MoonIcon } from './Icons';
+import { BotIcon, UserIcon, SendIcon, LoadingIcon, AttachIcon, FileIcon, ZGLogo, SunIcon, MoonIcon, XIcon } from './Icons';
 
 interface ChatAreaProps {
   messages: Message[];
@@ -11,6 +12,8 @@ interface ChatAreaProps {
   onSend: () => void;
   onToggleSidebar: () => void;
   onUpload: (files: FileList | null) => void;
+  pendingAttachments?: string[];
+  onRemoveAttachment?: (index: number) => void;
   isDarkMode: boolean;
   toggleTheme: () => void;
 }
@@ -23,6 +26,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   onSend,
   onToggleSidebar,
   onUpload,
+  pendingAttachments = [],
+  onRemoveAttachment,
   isDarkMode,
   toggleTheme
 }) => {
@@ -36,7 +41,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isLoading]);
+  }, [messages, isLoading, pendingAttachments]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -126,6 +131,20 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                   ? 'bg-indigo-600 text-white rounded-br-none' 
                   : 'bg-white dark:bg-dark-surface text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 rounded-bl-none'
               }`}>
+                 {/* Attachments within Message Bubble */}
+                 {msg.attachments && msg.attachments.length > 0 && (
+                   <div className="flex flex-wrap gap-2 mb-3">
+                     {msg.attachments.map((imgSrc, idx) => (
+                       <img 
+                         key={idx} 
+                         src={imgSrc} 
+                         alt="مرفق" 
+                         className="max-h-60 rounded-lg border border-white/20 shadow-sm object-contain bg-black/10" 
+                       />
+                     ))}
+                   </div>
+                 )}
+
                  {msg.role === 'model' ? (
                    <div 
                      dir="auto"
@@ -162,6 +181,24 @@ const ChatArea: React.FC<ChatAreaProps> = ({
 
       {/* Input Area */}
       <div className="p-4 bg-white dark:bg-dark-surface border-t border-gray-100 dark:border-gray-800 transition-colors duration-300">
+        
+        {/* Pending Attachments Preview */}
+        {pendingAttachments.length > 0 && (
+          <div className="flex gap-2 mb-2 overflow-x-auto py-2">
+            {pendingAttachments.map((img, index) => (
+              <div key={index} className="relative shrink-0 group">
+                <img src={img} alt="preview" className="h-16 w-16 object-cover rounded-lg border border-gray-200 dark:border-gray-600" />
+                <button 
+                  onClick={() => onRemoveAttachment && onRemoveAttachment(index)}
+                  className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-md hover:scale-110 transition-transform"
+                >
+                  <XIcon />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="max-w-4xl mx-auto flex items-end gap-2 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-2xl p-2 focus-within:ring-2 focus-within:ring-medical-500/20 focus-within:border-medical-500 transition-all shadow-sm">
           
           {/* Student Upload Button */}
@@ -200,9 +237,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({
           
           <button 
             onClick={onSend}
-            disabled={!input.trim() || isLoading}
+            disabled={(!input.trim() && pendingAttachments.length === 0) || isLoading}
             className={`p-3 rounded-xl flex items-center justify-center transition-all duration-200 ${
-              input.trim() && !isLoading
+              (input.trim() || pendingAttachments.length > 0) && !isLoading
                 ? 'bg-medical-600 text-white shadow-md hover:bg-medical-700 hover:scale-105' 
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
             }`}

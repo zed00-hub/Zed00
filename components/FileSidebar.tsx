@@ -1,6 +1,8 @@
+
 import React, { useState } from 'react';
 import { FileContext, ChatSession } from '../types';
-import { FileIcon, TrashIcon, CloseIcon, BookOpen, SearchIcon, PlusIcon, ChatIcon, LayersIcon, EditIcon, CheckIcon, XIcon } from './Icons';
+import { useAuth } from '../contexts/AuthContext';
+import { FileIcon, TrashIcon, CloseIcon, BookOpen, SearchIcon, PlusIcon, ChatIcon, LayersIcon, EditIcon, CheckIcon, XIcon, LogOutIcon } from './Icons';
 import { formatFileSize } from '../utils/fileHelpers';
 
 interface SidebarProps {
@@ -30,6 +32,7 @@ const FileSidebar: React.FC<SidebarProps> = ({
   onDeleteChat,
   onRenameChat
 }) => {
+  const { user, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'chats' | 'files'>('chats');
   
@@ -321,6 +324,32 @@ const FileSidebar: React.FC<SidebarProps> = ({
                      لا توجد ملفات للعرض
                    </div>
                 )}
+              </div>
+            )}
+          </div>
+
+          {/* User Profile Section */}
+          <div className="p-4 border-t border-gray-100 dark:border-dark-border bg-gray-50/50 dark:bg-dark-surface shrink-0">
+            {user && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <img 
+                    src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}&background=0ea5e9&color=fff`} 
+                    alt="User" 
+                    className="w-10 h-10 rounded-full border-2 border-white shadow-sm"
+                  />
+                  <div>
+                    <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{user.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[120px]">{user.email}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={logout}
+                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                  title="تسجيل الخروج"
+                >
+                  <LogOutIcon />
+                </button>
               </div>
             )}
           </div>

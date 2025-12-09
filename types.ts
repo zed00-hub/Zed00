@@ -14,6 +14,7 @@ export interface Message {
   content: string;
   timestamp: number;
   isError?: boolean;
+  attachments?: string[]; // Array of Data URLs (images)
 }
 
 export interface ChatSession {
@@ -27,4 +28,11 @@ export interface ChatState {
   sessions: ChatSession[];
   currentSessionId: string;
   isLoading: boolean;
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
 }
