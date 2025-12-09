@@ -207,20 +207,22 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className={`${isDarkMode ? 'dark' : ''} h-screen w-full`}>
-      <div className="flex h-full bg-gray-100 dark:bg-dark-bg text-right overflow-hidden font-sans transition-colors duration-300">
+      <div className={`${isDarkMode ? 'dark' : ''} h-screen w-full`}>
+      <div className="flex h-full bg-gradient-to-br from-gray-50 via-slate-50 to-gray-100 dark:from-dark-bg dark:via-slate-900 dark:to-slate-800 text-right overflow-hidden font-sans transition-colors duration-300">
         {/* Sidebar (Desktop: always visible, Mobile: toggleable) */}
-        <div className="hidden md:flex md:flex-col w-80 bg-white dark:bg-dark-surface border-l border-gray-200 dark:border-dark-border z-10 transition-colors duration-300">
-          <div className="h-16 flex items-center justify-between px-6 border-b border-gray-100 dark:border-dark-border shrink-0">
+        <div className="hidden md:flex md:flex-col w-80 bg-white/95 dark:bg-dark-surface/95 backdrop-blur-xl border-l border-gray-200/50 dark:border-dark-border/50 z-10 transition-colors duration-300 shadow-xl">
+          <div className="h-18 flex items-center justify-between px-6 py-4 border-b border-gray-200/50 dark:border-dark-border/50 shrink-0 bg-gradient-to-r from-gray-50/50 to-white dark:from-dark-bg/50 dark:to-dark-surface/50">
              <div className="flex items-center gap-3">
-               <ZGLogo />
+               <div className="p-1.5 bg-gradient-to-br from-medical-100 to-medical-200 dark:from-medical-900/40 dark:to-medical-800/40 rounded-xl shadow-sm">
+                 <ZGLogo />
+               </div>
                <h1 className="text-xl font-bold text-gray-800 dark:text-dark-text">Paramedical AI</h1>
              </div>
              
              {/* Desktop Theme Toggle */}
              <button 
                onClick={toggleTheme}
-               className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 transition-colors"
+               className="p-2.5 rounded-xl text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700/80 transition-all hover:scale-110 active:scale-95 shadow-sm"
                title="Toggle Theme"
              >
                {isDarkMode ? <SunIcon /> : <MoonIcon />}
@@ -261,7 +263,7 @@ const App: React.FC = () => {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-dark-bg transition-colors duration-300">
+        <div className="flex-1 flex flex-col min-w-0 bg-gradient-to-br from-slate-50/50 via-white to-gray-50/50 dark:from-dark-bg dark:via-slate-900 dark:to-slate-800 transition-colors duration-300">
           <ChatArea 
             messages={messages}
             input={input}
