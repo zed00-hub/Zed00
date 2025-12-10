@@ -1,5 +1,6 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import FileSidebar from './components/FileSidebar';
 import ChatArea from './components/ChatArea';
 import LoginPage from './components/LoginPage';
@@ -15,6 +16,15 @@ import { saveSessionToFirestore, loadSessionsFromFirestore, deleteSessionFromFir
 
 const App: React.FC = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const appMode = location.pathname.includes('quiz') ? 'quiz' : 'chat';
+
+  const handleModeChange = (mode: 'chat' | 'quiz') => {
+    if (mode === 'chat') navigate('/conversation');
+    else navigate('/quiz');
+  };
 
   // Initialize files with the pre-loaded courses
   const [files, setFiles] = useState<FileContext[]>(INITIAL_COURSES);
@@ -100,7 +110,6 @@ const App: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [appMode, setAppMode] = useState<'chat' | 'quiz'>('chat');
 
   // Helper to get current session object
   const currentSession = sessions.find(s => s.id === currentSessionId) || sessions[0];
@@ -367,7 +376,7 @@ const App: React.FC = () => {
               onRenameChat={renameSession}
               // App Mode
               appMode={appMode}
-              onModeChange={setAppMode}
+              onModeChange={handleModeChange}
             />
           </div>
         </div>
@@ -388,7 +397,7 @@ const App: React.FC = () => {
             onRenameChat={renameSession}
             // App Mode
             appMode={appMode}
-            onModeChange={setAppMode}
+            onModeChange={handleModeChange}
           />
         </div>
 
@@ -399,7 +408,7 @@ const App: React.FC = () => {
           <div className="flex justify-center pt-4 pb-2">
             <div className="bg-gray-100 dark:bg-dark-surface p-1 rounded-xl flex shadow-inner">
               <button
-                onClick={() => setAppMode('chat')}
+                onClick={() => handleModeChange('chat')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${appMode === 'chat'
                   ? 'bg-white dark:bg-dark-bg text-medical-600 shadow-sm'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
@@ -409,7 +418,7 @@ const App: React.FC = () => {
                 <span>محادثة</span>
               </button>
               <button
-                onClick={() => setAppMode('quiz')}
+                onClick={() => handleModeChange('quiz')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${appMode === 'quiz'
                   ? 'bg-white dark:bg-dark-bg text-medical-600 shadow-sm'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
@@ -421,34 +430,44 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {appMode === 'chat' ? (
-            <ChatArea
-              messages={messages}
-              input={input}
-              setInput={setInput}
-              isLoading={isProcessing}
-              onSend={handleSendMessage}
-              onToggleSidebar={() => setIsSidebarOpen(true)}
-              onUpload={handleFileUpload}
-              pendingAttachments={pendingAttachments}
-              onRemoveAttachment={removePendingAttachment}
-              isDarkMode={isDarkMode}
-              toggleTheme={toggleTheme}
+          <Routes>
+            <Route
+              path="/conversation"
+              element={
+                <ChatArea
+                  messages={messages}
+                  input={input}
+                  setInput={setInput}
+                  isLoading={isProcessing}
+                  onSend={handleSendMessage}
+                  onToggleSidebar={() => setIsSidebarOpen(true)}
+                  onUpload={handleFileUpload}
+                  pendingAttachments={pendingAttachments}
+                  onRemoveAttachment={removePendingAttachment}
+                  isDarkMode={isDarkMode}
+                  toggleTheme={toggleTheme}
+                />
+              }
             />
-          ) : (
-            <div className="flex-1 overflow-hidden relative">
-              <div className="absolute inset-0">
-                <QuizContainer files={files} />
-              </div>
-              {/* Mobile Sidebar Toggle for Quiz Mode */}
-              <button
-                onClick={() => setIsSidebarOpen(true)}
-                className="md:hidden absolute top-4 right-4 p-2 rounded-lg bg-white/80 dark:bg-dark-surface/80 shadow-sm z-50 text-gray-500"
-              >
-                <ZGLogo />
-              </button>
-            </div>
-          )}
+            <Route
+              path="/quiz"
+              element={
+                <div className="flex-1 overflow-hidden relative">
+                  <div className="absolute inset-0">
+                    <QuizContainer files={files} />
+                  </div>
+                  {/* Mobile Sidebar Toggle for Quiz Mode */}
+                  <button
+                    onClick={() => setIsSidebarOpen(true)}
+                    className="md:hidden absolute top-4 right-4 p-2 rounded-lg bg-white/80 dark:bg-dark-surface/80 shadow-sm z-50 text-gray-500"
+                  >
+                    <ZGLogo />
+                  </button>
+                </div>
+              }
+            />
+            <Route path="*" element={<Navigate to="/conversation" replace />} />
+          </Routes>
         </div>
       </div>
     </div>
