@@ -166,6 +166,8 @@ const App: React.FC = () => {
   };
 
   const updateCurrentSessionMessages = (newMessages: Message[], newTitle?: string) => {
+    console.log("updateCurrentSessionMessages: Called with", newMessages.length, "messages, title:", newTitle, "sessionId:", currentSessionId, "userId:", user?.id);
+
     let updatedSession: ChatSession | undefined;
     setSessions(prev => prev.map(session => {
       if (session.id === currentSessionId) {
@@ -175,18 +177,21 @@ const App: React.FC = () => {
           title: newTitle || session.title,
           timestamp: Date.now()
         };
+        console.log("updateCurrentSessionMessages: Updated session:", updatedSession.id, "with title:", updatedSession.title);
         return updatedSession;
       }
       return session;
     }));
 
     if (updatedSession && user?.id) {
-      console.log("updateCurrentSessionMessages: Saving session with", newMessages.length, "messages");
+      console.log("updateCurrentSessionMessages: Saving session with", newMessages.length, "messages to Firestore");
       saveSessionToFirestore(user.id, updatedSession).then(() => {
-        console.log("updateCurrentSessionMessages: Session saved successfully");
+        console.log("updateCurrentSessionMessages: Session saved successfully to Firestore");
       }).catch(err => {
         console.error("updateCurrentSessionMessages: Failed to save session:", err);
       });
+    } else {
+      console.log("updateCurrentSessionMessages: NOT saving - updatedSession:", !!updatedSession, "userId:", user?.id);
     }
   };
 
