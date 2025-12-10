@@ -181,7 +181,12 @@ const App: React.FC = () => {
     }));
 
     if (updatedSession && user?.id) {
-      saveSessionToFirestore(user.id, updatedSession);
+      console.log("updateCurrentSessionMessages: Saving session with", newMessages.length, "messages");
+      saveSessionToFirestore(user.id, updatedSession).then(() => {
+        console.log("updateCurrentSessionMessages: Session saved successfully");
+      }).catch(err => {
+        console.error("updateCurrentSessionMessages: Failed to save session:", err);
+      });
     }
   };
 
