@@ -10,7 +10,7 @@ interface SidebarProps {
   setFiles: React.Dispatch<React.SetStateAction<FileContext[]>>;
   isOpen: boolean;
   onClose: () => void;
-  
+
   // Chat Session Props
   sessions: ChatSession[];
   currentSessionId: string;
@@ -18,24 +18,30 @@ interface SidebarProps {
   onSwitchChat: (id: string) => void;
   onDeleteChat: (id: string) => void;
   onRenameChat: (id: string, newTitle: string) => void;
+
+  // App Mode
+  appMode: 'chat' | 'quiz';
+  onModeChange: (mode: 'chat' | 'quiz') => void;
 }
 
-const FileSidebar: React.FC<SidebarProps> = ({ 
-  files, 
-  setFiles, 
-  isOpen, 
+const FileSidebar: React.FC<SidebarProps> = ({
+  files,
+  setFiles,
+  isOpen,
   onClose,
   sessions,
   currentSessionId,
   onNewChat,
   onSwitchChat,
   onDeleteChat,
-  onRenameChat
+  onRenameChat,
+  appMode,
+  onModeChange
 }) => {
   const { user, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'chats' | 'files'>('chats');
-  
+
   // States for Editing and Deleting
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -83,7 +89,7 @@ const FileSidebar: React.FC<SidebarProps> = ({
   };
 
   // Filter files based on search query
-  const filteredFiles = files.filter(f => 
+  const filteredFiles = files.filter(f =>
     f.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -98,7 +104,7 @@ const FileSidebar: React.FC<SidebarProps> = ({
     <>
       {/* Mobile Overlay */}
       {isOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-20 md:hidden"
           onClick={onClose}
         />
@@ -110,71 +116,98 @@ const FileSidebar: React.FC<SidebarProps> = ({
         md:translate-x-0 md:static md:shadow-lg border-l border-gray-200/50 dark:border-dark-border/50 flex flex-col
         ${isOpen ? 'translate-x-0' : 'translate-x-full'}
       `}>
-          {/* Header */}
-          <div className="p-5 border-b border-gray-200/50 dark:border-dark-border/50 flex justify-between items-center shrink-0 bg-gradient-to-r from-gray-50/50 to-white dark:from-dark-bg/50 dark:to-dark-surface/50">
-            <h2 className="text-xl font-bold flex items-center gap-3 text-gray-800 dark:text-gray-200">
-               <div className="p-2 bg-medical-100 dark:bg-medical-900/30 rounded-xl">
-                 <LayersIcon />
-               </div>
-               القائمة
-            </h2>
-            <button onClick={onClose} className="md:hidden p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all hover:scale-110 active:scale-95">
-              <CloseIcon />
-            </button>
-          </div>
+        {/* Header */}
+        <div className="p-5 border-b border-gray-200/50 dark:border-dark-border/50 flex justify-between items-center shrink-0 bg-gradient-to-r from-gray-50/50 to-white dark:from-dark-bg/50 dark:to-dark-surface/50">
+          <h2 className="text-xl font-bold flex items-center gap-3 text-gray-800 dark:text-gray-200">
+            <div className="p-2 bg-medical-100 dark:bg-medical-900/30 rounded-xl">
+              <LayersIcon />
+            </div>
+            القائمة
+          </h2>
+          <button onClick={onClose} className="md:hidden p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all hover:scale-110 active:scale-95">
+            <CloseIcon />
+          </button>
+        </div>
 
-          {/* New Chat Button (Always Visible) */}
-          <div className="px-5 py-4 shrink-0">
-            <button 
-              onClick={() => {
-                onNewChat();
-                if (window.innerWidth < 768) onClose();
-              }}
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-medical-600 to-medical-700 hover:from-medical-700 hover:to-medical-800 text-white py-3.5 rounded-2xl transition-all shadow-lg hover:shadow-xl active:scale-95 font-semibold text-base"
-            >
+        <div className="px-5 pt-4 shrink-0 grid grid-cols-2 gap-3">
+          {/* New Chat Button */}
+          <button
+            onClick={() => {
+              onNewChat();
+              onModeChange('chat');
+              if (window.innerWidth < 768) onClose();
+            }}
+            className={`flex flex-col items-center justify-center gap-2 py-3 rounded-2xl transition-all shadow-sm active:scale-95 border-2 ${appMode === 'chat'
+              ? 'bg-medical-50 dark:bg-medical-900/20 border-medical-500 text-medical-600 dark:text-medical-400'
+              : 'bg-white dark:bg-dark-surface border-gray-200 dark:border-gray-700 text-gray-500 hover:border-medical-200'
+              }`}
+          >
+            <div className="p-2 bg-white dark:bg-dark-bg rounded-full shadow-sm">
               <PlusIcon />
-              محادثة جديدة
-            </button>
-          </div>
+            </div>
+            <span className="text-sm font-bold">محادثة جديدة</span>
+          </button>
 
-          {/* Tabs */}
-          <div className="flex border-b border-gray-200/50 dark:border-dark-border/50 px-5 gap-2 shrink-0 bg-gray-50/30 dark:bg-dark-bg/30">
-            <button 
-              onClick={() => setActiveTab('chats')}
-              className={`flex-1 pb-3.5 pt-3 text-sm font-semibold transition-all relative rounded-t-xl ${
-                activeTab === 'chats' 
-                  ? 'text-medical-600 dark:text-medical-400 bg-white dark:bg-dark-surface shadow-sm' 
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+          {/* Quiz Mode Button */}
+          <button
+            onClick={() => {
+              onModeChange('quiz');
+              if (window.innerWidth < 768) onClose();
+            }}
+            className={`flex flex-col items-center justify-center gap-2 py-3 rounded-2xl transition-all shadow-sm active:scale-95 border-2 ${appMode === 'quiz'
+              ? 'bg-medical-50 dark:bg-medical-900/20 border-medical-500 text-medical-600 dark:text-medical-400'
+              : 'bg-white dark:bg-dark-surface border-gray-200 dark:border-gray-700 text-gray-500 hover:border-medical-200'
               }`}
-            >
-              المحادثات
-              {activeTab === 'chats' && (
-                <span className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-medical-600 to-medical-500 dark:from-medical-400 dark:to-medical-500 rounded-t-full" />
-              )}
-            </button>
-            <button 
-              onClick={() => setActiveTab('files')}
-              className={`flex-1 pb-3.5 pt-3 text-sm font-semibold transition-all relative rounded-t-xl ${
-                activeTab === 'files' 
-                  ? 'text-medical-600 dark:text-medical-400 bg-white dark:bg-dark-surface shadow-sm' 
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-              }`}
-            >
-              المصادر والملفات
-              {activeTab === 'files' && (
-                <span className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-medical-600 to-medical-500 dark:from-medical-400 dark:to-medical-500 rounded-t-full" />
-              )}
-            </button>
-          </div>
+          >
+            <div className="p-2 bg-white dark:bg-dark-bg rounded-full shadow-sm">
+              <BookOpen size={20} />
+            </div>
+            <span className="text-sm font-bold">إنشاء اختبار</span>
+          </button>
 
-          {/* Content Area */}
-          <div className="flex-1 overflow-y-auto px-3 py-3">
-            
-            {/* --- CHATS TAB --- */}
+
+        </div>
+
+        {/* Separator */}
+        <div className="mx-5 my-4 h-px bg-gray-200 dark:bg-dark-border" />
+
+        {/* Tabs */}
+        <div className="flex border-b border-gray-200/50 dark:border-dark-border/50 px-5 gap-2 shrink-0 bg-gray-50/30 dark:bg-dark-bg/30">
+          <button
+            onClick={() => setActiveTab('chats')}
+            className={`flex-1 pb-3.5 pt-3 text-sm font-semibold transition-all relative rounded-t-xl ${activeTab === 'chats'
+              ? 'text-medical-600 dark:text-medical-400 bg-white dark:bg-dark-surface shadow-sm'
+              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              }`}
+          >
+            المحادثات
             {activeTab === 'chats' && (
+              <span className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-medical-600 to-medical-500 dark:from-medical-400 dark:to-medical-500 rounded-t-full" />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('files')}
+            className={`flex-1 pb-3.5 pt-3 text-sm font-semibold transition-all relative rounded-t-xl ${activeTab === 'files'
+              ? 'text-medical-600 dark:text-medical-400 bg-white dark:bg-dark-surface shadow-sm'
+              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              }`}
+          >
+            المصادر والملفات
+            {activeTab === 'files' && (
+              <span className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-medical-600 to-medical-500 dark:from-medical-400 dark:to-medical-500 rounded-t-full" />
+            )}
+          </button>
+        </div >
+
+        {/* Content Area */}
+        < div className="flex-1 overflow-y-auto px-3 py-3" >
+
+          {/* --- CHATS TAB --- */}
+          {
+            activeTab === 'chats' && (
               <div className="space-y-2">
                 {sortedSessions.map(session => (
-                  <div 
+                  <div
                     key={session.id}
                     onClick={() => {
                       if (editingSessionId !== session.id) {
@@ -182,23 +215,21 @@ const FileSidebar: React.FC<SidebarProps> = ({
                         if (window.innerWidth < 768) onClose();
                       }
                     }}
-                    className={`group flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all border-2 ${
-                      session.id === currentSessionId
-                        ? 'bg-gradient-to-r from-medical-50 to-medical-100/50 dark:from-medical-900/30 dark:to-medical-800/20 border-medical-300 dark:border-medical-700/50 shadow-md'
-                        : 'bg-transparent border-transparent hover:bg-gray-50/80 dark:hover:bg-gray-800/50 hover:border-gray-200 dark:hover:border-gray-700'
-                    }`}
+                    className={`group flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all border-2 ${session.id === currentSessionId
+                      ? 'bg-gradient-to-r from-medical-50 to-medical-100/50 dark:from-medical-900/30 dark:to-medical-800/20 border-medical-300 dark:border-medical-700/50 shadow-md'
+                      : 'bg-transparent border-transparent hover:bg-gray-50/80 dark:hover:bg-gray-800/50 hover:border-gray-200 dark:hover:border-gray-700'
+                      }`}
                   >
-                    <div className={`p-2.5 rounded-xl shrink-0 transition-all ${
-                      session.id === currentSessionId 
-                        ? 'bg-gradient-to-br from-medical-500 to-medical-600 text-white shadow-lg' 
-                        : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 group-hover:bg-gray-200 dark:group-hover:bg-gray-600'
-                    }`}>
+                    <div className={`p-2.5 rounded-xl shrink-0 transition-all ${session.id === currentSessionId
+                      ? 'bg-gradient-to-br from-medical-500 to-medical-600 text-white shadow-lg'
+                      : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 group-hover:bg-gray-200 dark:group-hover:bg-gray-600'
+                      }`}>
                       <ChatIcon />
                     </div>
-                    
+
                     <div className="flex-1 min-w-0">
                       {editingSessionId === session.id ? (
-                        <input 
+                        <input
                           type="text"
                           value={editTitle}
                           onChange={(e) => setEditTitle(e.target.value)}
@@ -207,22 +238,21 @@ const FileSidebar: React.FC<SidebarProps> = ({
                           className="w-full bg-white dark:bg-dark-bg border-2 border-medical-500 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-medical-500/20"
                         />
                       ) : (
-                         deleteConfirmationId === session.id ? (
-                           <span className="text-red-600 dark:text-red-400 text-sm font-bold animate-pulse">تأكيد الحذف؟</span>
-                         ) : (
+                        deleteConfirmationId === session.id ? (
+                          <span className="text-red-600 dark:text-red-400 text-sm font-bold animate-pulse">تأكيد الحذف؟</span>
+                        ) : (
                           <>
-                            <p className={`text-sm font-semibold truncate ${
-                              session.id === currentSessionId 
-                                ? 'text-medical-900 dark:text-medical-100' 
-                                : 'text-gray-700 dark:text-gray-300'
-                            }`}>
+                            <p className={`text-sm font-semibold truncate ${session.id === currentSessionId
+                              ? 'text-medical-900 dark:text-medical-100'
+                              : 'text-gray-700 dark:text-gray-300'
+                              }`}>
                               {session.title || 'محادثة جديدة'}
                             </p>
                             <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-                              {new Date(session.timestamp).toLocaleDateString('fr-FR', { hour: '2-digit', minute:'2-digit' })}
+                              {new Date(session.timestamp).toLocaleDateString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                             </p>
                           </>
-                         )
+                        )
                       )}
                     </div>
 
@@ -230,24 +260,24 @@ const FileSidebar: React.FC<SidebarProps> = ({
                     <div className="flex items-center gap-1.5">
                       {editingSessionId === session.id ? (
                         <>
-                           <button onClick={saveTitle} className="p-2 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-xl transition-all hover:scale-110 active:scale-95"><CheckIcon /></button>
-                           <button onClick={cancelEdit} className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-xl transition-all hover:scale-110 active:scale-95"><XIcon /></button>
+                          <button onClick={saveTitle} className="p-2 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-xl transition-all hover:scale-110 active:scale-95"><CheckIcon /></button>
+                          <button onClick={cancelEdit} className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-xl transition-all hover:scale-110 active:scale-95"><XIcon /></button>
                         </>
                       ) : deleteConfirmationId === session.id ? (
                         <>
-                           <button onClick={(e) => confirmDelete(session.id, e)} className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-xl transition-all hover:scale-110 active:scale-95 font-bold"><CheckIcon /></button>
-                           <button onClick={cancelDelete} className="p-2 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition-all hover:scale-110 active:scale-95"><XIcon /></button>
+                          <button onClick={(e) => confirmDelete(session.id, e)} className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-xl transition-all hover:scale-110 active:scale-95 font-bold"><CheckIcon /></button>
+                          <button onClick={cancelDelete} className="p-2 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition-all hover:scale-110 active:scale-95"><XIcon /></button>
                         </>
                       ) : (
                         <>
-                           <button 
+                          <button
                             onClick={(e) => startEditing(session, e)}
                             className="p-2 text-gray-400 hover:text-medical-600 dark:hover:text-medical-400 hover:bg-medical-50 dark:hover:bg-medical-900/30 rounded-xl transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 hover:scale-110 active:scale-95"
                             title="تعديل العنوان"
                           >
                             <EditIcon />
                           </button>
-                          <button 
+                          <button
                             onClick={(e) => requestDelete(session.id, e)}
                             className="p-2 text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 hover:scale-110 active:scale-95"
                             title="حذف المحادثة"
@@ -260,12 +290,14 @@ const FileSidebar: React.FC<SidebarProps> = ({
                   </div>
                 ))}
               </div>
-            )}
+            )
+          }
 
-            {/* --- FILES TAB --- */}
-            {activeTab === 'files' && (
+          {/* --- FILES TAB --- */}
+          {
+            activeTab === 'files' && (
               <div className="space-y-4 px-2">
-                 {/* Search Input */}
+                {/* Search Input */}
                 <div className="relative mb-4">
                   <div className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400">
                     <SearchIcon />
@@ -326,45 +358,46 @@ const FileSidebar: React.FC<SidebarProps> = ({
                     </div>
                   </div>
                 )}
-                
+
                 {systemFiles.length === 0 && userFiles.length === 0 && (
-                   <div className="text-center py-8 text-gray-400 text-xs">
-                     لا توجد ملفات للعرض
-                   </div>
+                  <div className="text-center py-8 text-gray-400 text-xs">
+                    لا توجد ملفات للعرض
+                  </div>
                 )}
               </div>
-            )}
-          </div>
+            )
+          }
+        </div >
 
-          {/* User Profile Section */}
-          <div className="p-5 border-t border-gray-200/50 dark:border-dark-border/50 bg-gradient-to-r from-gray-50/80 to-white dark:from-dark-bg/50 dark:to-dark-surface/50 backdrop-blur-sm shrink-0">
-            {user && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <img 
-                      src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}&background=0ea5e9&color=fff`} 
-                      alt="User" 
-                      className="w-12 h-12 rounded-xl border-2 border-white dark:border-gray-700 shadow-lg ring-2 ring-medical-200/50 dark:ring-medical-800/50"
-                    />
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-gray-700"></div>
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{user.name}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[140px]">{user.email}</p>
-                  </div>
+        {/* User Profile Section */}
+        < div className="p-5 border-t border-gray-200/50 dark:border-dark-border/50 bg-gradient-to-r from-gray-50/80 to-white dark:from-dark-bg/50 dark:to-dark-surface/50 backdrop-blur-sm shrink-0" >
+          {user && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <img
+                    src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}&background=0ea5e9&color=fff`}
+                    alt="User"
+                    className="w-12 h-12 rounded-xl border-2 border-white dark:border-gray-700 shadow-lg ring-2 ring-medical-200/50 dark:ring-medical-800/50"
+                  />
+                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-gray-700"></div>
                 </div>
-                <button 
-                  onClick={logout}
-                  className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-all hover:scale-110 active:scale-95"
-                  title="تسجيل الخروج"
-                >
-                  <LogOutIcon />
-                </button>
+                <div>
+                  <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{user.name}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[140px]">{user.email}</p>
+                </div>
               </div>
-            )}
-          </div>
-      </aside>
+              <button
+                onClick={logout}
+                className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-all hover:scale-110 active:scale-95"
+                title="تسجيل الخروج"
+              >
+                <LogOutIcon />
+              </button>
+            </div>
+          )}
+        </div >
+      </aside >
     </>
   );
 };

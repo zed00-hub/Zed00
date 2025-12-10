@@ -365,6 +365,9 @@ const App: React.FC = () => {
               onSwitchChat={setCurrentSessionId}
               onDeleteChat={deleteSession}
               onRenameChat={renameSession}
+              // App Mode
+              appMode={appMode}
+              onModeChange={setAppMode}
             />
           </div>
         </div>
@@ -383,6 +386,9 @@ const App: React.FC = () => {
             onSwitchChat={setCurrentSessionId}
             onDeleteChat={deleteSession}
             onRenameChat={renameSession}
+            // App Mode
+            appMode={appMode}
+            onModeChange={setAppMode}
           />
         </div>
 
@@ -395,8 +401,8 @@ const App: React.FC = () => {
               <button
                 onClick={() => setAppMode('chat')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${appMode === 'chat'
-                    ? 'bg-white dark:bg-dark-bg text-medical-600 shadow-sm'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
+                  ? 'bg-white dark:bg-dark-bg text-medical-600 shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
                   }`}
               >
                 <MessageSquare className="w-4 h-4" />
@@ -405,8 +411,8 @@ const App: React.FC = () => {
               <button
                 onClick={() => setAppMode('quiz')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${appMode === 'quiz'
-                    ? 'bg-white dark:bg-dark-bg text-medical-600 shadow-sm'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
+                  ? 'bg-white dark:bg-dark-bg text-medical-600 shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
                   }`}
               >
                 <BookOpen className="w-4 h-4" />
