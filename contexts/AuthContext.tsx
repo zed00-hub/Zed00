@@ -48,9 +48,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const loginWithGoogle = async () => {
     setIsLoading(true);
     try {
-      await signInWithPopup(auth, googleProvider);
+      console.log("AuthContext: Starting Google login...");
+      const result = await signInWithPopup(auth, googleProvider);
+      console.log("AuthContext: Login successful!", result.user.email);
       // User state and localStorage handled by onAuthStateChanged
-    } catch (error) {
+    } catch (error: any) {
+      console.error("AuthContext: Login error:", error);
+      console.error("AuthContext: Error code:", error?.code);
+      console.error("AuthContext: Error message:", error?.message);
       setIsLoading(false);
       throw error;
     }
