@@ -136,7 +136,7 @@ export const generateResponse = async (
         systemInstruction: systemInstruction,
         temperature: 0.2, // Lower temperature for more stable, factual answers
         topP: 0.8,
-        maxOutputTokens: 4000, // Allow longer answers when needed for completeness
+        // maxOutputTokens intentionally omitted to allow full-length answers when needed
       },
       contents: contents,
     });
