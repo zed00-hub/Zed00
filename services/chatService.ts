@@ -8,18 +8,35 @@ export const saveSessionToFirestore = async (userId: string, session: ChatSessio
         return;
     }
     try {
-        console.log("saveSessionToFirestore: Saving session", session.id, "for user", userId);
+        console.log("saveSessionToFirestore: Saving session", session.id, "for user", userId, "with", session.messages.length, "messages");
+
+        // Sanitize messages - remove large base64 attachments that may exceed Firestore limits
+        const sanitizedMessages = session.messages.map(msg => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            timestamp: msg.timestamp,
+            isError: msg.isError || false,
+            // Don't save large base64 image data - only save that it had attachments
+            hasAttachments: msg.attachments && msg.attachments.length > 0 ? true : false
+        }));
+
         const sessionRef = doc(db, 'users', userId, 'sessions', session.id);
-        await setDoc(sessionRef, {
+        const dataToSave = {
             id: session.id,
             title: session.title,
-            messages: session.messages,
+            messages: sanitizedMessages,
             timestamp: session.timestamp,
             lastUpdated: Timestamp.now()
-        }, { merge: true });
+        };
+
+        console.log("saveSessionToFirestore: Data to save:", JSON.stringify(dataToSave).substring(0, 200) + "...");
+
+        await setDoc(sessionRef, dataToSave, { merge: true });
         console.log("saveSessionToFirestore: Session saved successfully");
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error saving session:", error);
+        console.error("Error details:", error?.message, error?.code);
     }
 };
 
