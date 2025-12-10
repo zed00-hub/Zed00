@@ -46,13 +46,30 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ files }) => {
     };
 
     const handleSelectAnswer = (index: number) => {
-        setState(prev => ({
-            ...prev,
-            userAnswers: {
-                ...prev.userAnswers,
-                [prev.questions[prev.currentQuestionIndex].id]: index
+        setState(prev => {
+            const currentQ = prev.questions[prev.currentQuestionIndex];
+            const currentAnswers = prev.userAnswers[currentQ.id] || [];
+
+            let newAnswers: number[];
+
+            if (prev.config?.quizType === 'multiple') {
+                if (currentAnswers.includes(index)) {
+                    newAnswers = currentAnswers.filter(a => a !== index);
+                } else {
+                    newAnswers = [...currentAnswers, index].sort();
+                }
+            } else {
+                newAnswers = [index];
             }
-        }));
+
+            return {
+                ...prev,
+                userAnswers: {
+                    ...prev.userAnswers,
+                    [currentQ.id]: newAnswers
+                }
+            };
+        });
     };
 
     const handleNext = () => {
@@ -66,7 +83,14 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ files }) => {
         // Calculate score
         let score = 0;
         state.questions.forEach(q => {
-            if (state.userAnswers[q.id] === q.correctAnswer) {
+            const userAns = state.userAnswers[q.id] || [];
+            const correctAns = q.correctAnswers || [];
+
+            // Sort both to ensure order doesn't matter
+            const sortedUser = [...userAns].sort();
+            const sortedCorrect = [...correctAns].sort();
+
+            if (JSON.stringify(sortedUser) === JSON.stringify(sortedCorrect)) {
                 score++;
             }
         });
@@ -121,7 +145,8 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ files }) => {
                 question={state.questions[state.currentQuestionIndex]}
                 currentQuestionIndex={state.currentQuestionIndex}
                 totalQuestions={state.questions.length}
-                selectedAnswer={state.userAnswers[state.questions[state.currentQuestionIndex].id] ?? null}
+                selectedAnswers={state.userAnswers[state.questions[state.currentQuestionIndex].id] || []}
+                quizType={state.config?.quizType || 'single'}
                 onSelectAnswer={handleSelectAnswer}
                 onNext={handleNext}
                 onFinish={handleFinish}

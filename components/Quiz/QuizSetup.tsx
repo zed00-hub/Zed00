@@ -14,6 +14,7 @@ const QuizSetup: React.FC<QuizSetupProps> = ({ files, onStart, isLoading }) => {
     const [uploadedFile, setUploadedFile] = useState<FileContext | null>(null);
     const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>('Medium');
     const [questionCount, setQuestionCount] = useState<number>(5);
+    const [quizType, setQuizType] = useState<'single' | 'multiple'>('single');
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -45,7 +46,8 @@ const QuizSetup: React.FC<QuizSetupProps> = ({ files, onStart, isLoading }) => {
             subject: sourceType === 'subject' ? selectedSubject : undefined,
             fileContext: sourceType === 'file' ? uploadedFile! : undefined,
             difficulty,
-            questionCount
+            questionCount,
+            quizType
         });
     };
 
@@ -68,8 +70,8 @@ const QuizSetup: React.FC<QuizSetupProps> = ({ files, onStart, isLoading }) => {
                         <button
                             onClick={() => setSourceType('subject')}
                             className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${sourceType === 'subject'
-                                    ? 'border-medical-500 bg-medical-50 dark:bg-medical-900/20 text-medical-600 dark:text-medical-400'
-                                    : 'border-gray-200 dark:border-dark-border text-gray-500 hover:border-medical-200'
+                                ? 'border-medical-500 bg-medical-50 dark:bg-medical-900/20 text-medical-600 dark:text-medical-400'
+                                : 'border-gray-200 dark:border-dark-border text-gray-500 hover:border-medical-200'
                                 }`}
                         >
                             <BookOpen className="w-6 h-6" />
@@ -78,8 +80,8 @@ const QuizSetup: React.FC<QuizSetupProps> = ({ files, onStart, isLoading }) => {
                         <button
                             onClick={() => setSourceType('file')}
                             className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${sourceType === 'file'
-                                    ? 'border-medical-500 bg-medical-50 dark:bg-medical-900/20 text-medical-600 dark:text-medical-400'
-                                    : 'border-gray-200 dark:border-dark-border text-gray-500 hover:border-medical-200'
+                                ? 'border-medical-500 bg-medical-50 dark:bg-medical-900/20 text-medical-600 dark:text-medical-400'
+                                : 'border-gray-200 dark:border-dark-border text-gray-500 hover:border-medical-200'
                                 }`}
                         >
                             <Upload className="w-6 h-6" />
@@ -97,8 +99,8 @@ const QuizSetup: React.FC<QuizSetupProps> = ({ files, onStart, isLoading }) => {
                                     key={sub}
                                     onClick={() => setSelectedSubject(sub)}
                                     className={`px-3 py-2 rounded-lg text-sm border transition-all ${selectedSubject === sub
-                                            ? 'bg-medical-500 text-white border-medical-500'
-                                            : 'bg-gray-50 dark:bg-dark-bg text-gray-700 dark:text-gray-300 border-transparent hover:bg-gray-100'
+                                        ? 'bg-medical-500 text-white border-medical-500'
+                                        : 'bg-gray-50 dark:bg-dark-bg text-gray-700 dark:text-gray-300 border-transparent hover:bg-gray-100'
                                         }`}
                                 >
                                     {sub}
@@ -128,6 +130,33 @@ const QuizSetup: React.FC<QuizSetupProps> = ({ files, onStart, isLoading }) => {
                     )}
                 </div>
 
+                {/* Quiz Type Selection */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 text-right">نوع الاختبار</label>
+                    <div className="grid grid-cols-2 gap-4">
+                        <button
+                            onClick={() => setQuizType('single')}
+                            className={`p-3 rounded-xl border-2 transition-all ${quizType === 'single'
+                                ? 'border-medical-500 bg-medical-50 dark:bg-medical-900/20 text-medical-600 dark:text-medical-400'
+                                : 'border-gray-200 dark:border-dark-border text-gray-500 hover:border-medical-200'
+                                }`}
+                        >
+                            <span className="font-bold block">Quiz (QCS)</span>
+                            <span className="text-xs opacity-75">إجابة واحدة صحيحة</span>
+                        </button>
+                        <button
+                            onClick={() => setQuizType('multiple')}
+                            className={`p-3 rounded-xl border-2 transition-all ${quizType === 'multiple'
+                                ? 'border-medical-500 bg-medical-50 dark:bg-medical-900/20 text-medical-600 dark:text-medical-400'
+                                : 'border-gray-200 dark:border-dark-border text-gray-500 hover:border-medical-200'
+                                }`}
+                        >
+                            <span className="font-bold block">QCM (Tout ou Rien)</span>
+                            <span className="text-xs opacity-75">عدة إجابات ممكنة</span>
+                        </button>
+                    </div>
+                </div>
+
                 {/* Configuration */}
                 <div className="grid grid-cols-2 gap-6">
                     <div>
@@ -138,8 +167,8 @@ const QuizSetup: React.FC<QuizSetupProps> = ({ files, onStart, isLoading }) => {
                                     key={level}
                                     onClick={() => setDifficulty(level)}
                                     className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-all ${difficulty === level
-                                            ? 'bg-white dark:bg-dark-surface shadow text-medical-600'
-                                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
+                                        ? 'bg-white dark:bg-dark-surface shadow text-medical-600'
+                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
                                         }`}
                                 >
                                     {level === 'Easy' ? 'سهل' : level === 'Medium' ? 'متوسط' : 'صعب'}
@@ -166,8 +195,8 @@ const QuizSetup: React.FC<QuizSetupProps> = ({ files, onStart, isLoading }) => {
                     onClick={handleStart}
                     disabled={!canStart || isLoading}
                     className={`w-full py-4 rounded-xl text-white font-bold text-lg shadow-lg shadow-medical-500/30 transition-all flex items-center justify-center gap-2 ${!canStart || isLoading
-                            ? 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed opacity-70'
-                            : 'bg-gradient-to-r from-medical-600 to-medical-500 hover:scale-[1.02] active:scale-[0.98]'
+                        ? 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed opacity-70'
+                        : 'bg-gradient-to-r from-medical-600 to-medical-500 hover:scale-[1.02] active:scale-[0.98]'
                         }`}
                 >
                     {isLoading ? (

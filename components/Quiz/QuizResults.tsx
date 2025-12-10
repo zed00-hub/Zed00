@@ -4,7 +4,7 @@ import { Trophy, XCircle, CheckCircle, RotateCcw, BookOpen, AlertCircle } from '
 
 interface QuizResultsProps {
     questions: QuizQuestion[];
-    userAnswers: { [key: number]: number };
+    userAnswers: { [key: number]: number[] };
     score: number;
     config: QuizConfig | null;
     onRestart: () => void;
@@ -78,8 +78,12 @@ const QuizResults: React.FC<QuizResultsProps> = ({ questions, userAnswers, score
                 <div className="space-y-6">
                     <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 text-right mb-4">مراجعة تفصيلية</h3>
                     {questions.map((q, index) => {
-                        const userAnswer = userAnswers[q.id];
-                        const isCorrect = userAnswer === q.correctAnswer;
+                        const userAns = userAnswers[q.id] || [];
+                        const correctAns = q.correctAnswers || [];
+
+                        const sortedUser = [...userAns].sort();
+                        const sortedCorrect = [...correctAns].sort();
+                        const isCorrect = JSON.stringify(sortedUser) === JSON.stringify(sortedCorrect);
 
                         return (
                             <div key={q.id} className={`bg-white dark:bg-dark-surface rounded-2xl shadow-sm border p-6 ${isCorrect ? 'border-green-100 dark:border-green-900/30' : 'border-red-100 dark:border-red-900/30'
@@ -94,18 +98,18 @@ const QuizResults: React.FC<QuizResultsProps> = ({ questions, userAnswers, score
 
                                 <div className="space-y-2 mb-4">
                                     {q.options.map((opt, optIndex) => {
-                                        const isSelected = userAnswer === optIndex;
-                                        const isTheCorrectAnswer = q.correctAnswer === optIndex;
+                                        const isSelected = userAns.includes(optIndex);
+                                        const isTheCorrectAnswer = correctAns.includes(optIndex);
 
                                         let style = "bg-gray-50 dark:bg-dark-bg/50 border-transparent";
                                         if (isTheCorrectAnswer) style = "bg-green-50 dark:bg-green-900/20 border-green-500 text-green-700 dark:text-green-300";
-                                        else if (isSelected && !isCorrect) style = "bg-red-50 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-300";
+                                        else if (isSelected && !isTheCorrectAnswer) style = "bg-red-50 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-300";
 
                                         return (
                                             <div key={optIndex} className={`p-3 rounded-lg border flex justify-between items-center ${style}`}>
                                                 <span>{opt}</span>
                                                 {isTheCorrectAnswer && <CheckCircle className="w-4 h-4 text-green-600" />}
-                                                {isSelected && !isCorrect && <XCircle className="w-4 h-4 text-red-600" />}
+                                                {isSelected && !isTheCorrectAnswer && <XCircle className="w-4 h-4 text-red-600" />}
                                             </div>
                                         );
                                     })}

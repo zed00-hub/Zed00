@@ -6,7 +6,8 @@ interface QuizActiveProps {
     question: QuizQuestion;
     currentQuestionIndex: number;
     totalQuestions: number;
-    selectedAnswer: number | null;
+    selectedAnswers: number[];
+    quizType: 'single' | 'multiple';
     onSelectAnswer: (index: number) => void;
     onNext: () => void;
     onFinish: () => void;
@@ -16,7 +17,8 @@ const QuizActive: React.FC<QuizActiveProps> = ({
     question,
     currentQuestionIndex,
     totalQuestions,
-    selectedAnswer,
+    selectedAnswers,
+    quizType,
     onSelectAnswer,
     onNext,
     onFinish
@@ -42,34 +44,48 @@ const QuizActive: React.FC<QuizActiveProps> = ({
             {/* Question Card */}
             <div className="bg-white dark:bg-dark-surface rounded-2xl shadow-lg border border-gray-100 dark:border-dark-border overflow-hidden">
                 <div className="p-6 sm:p-8">
+                    <div className="flex justify-between items-start mb-6">
+                        <span className={`px-3 py-1 text-xs font-bold rounded-full ${quizType === 'multiple'
+                            ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                            : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'}`}>
+                            {quizType === 'multiple' ? 'Plusieurs choix (Tout ou Rien)' : 'Choix Unique'}
+                        </span>
+                    </div>
+
                     <h3 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white leading-relaxed mb-8 text-right bg-clip-text">
                         {question.question}
                     </h3>
 
                     <div className="space-y-4">
-                        {question.options.map((option, index) => (
-                            <button
-                                key={index}
-                                onClick={() => onSelectAnswer(index)}
-                                className={`w-full p-4 rounded-xl text-right transition-all transform duration-200 flex items-center justify-between group ${selectedAnswer === index
+                        {question.options.map((option, index) => {
+                            const isSelected = selectedAnswers.includes(index);
+                            return (
+                                <button
+                                    key={index}
+                                    onClick={() => onSelectAnswer(index)}
+                                    className={`w-full p-4 rounded-xl text-right transition-all transform duration-200 flex items-center justify-between group ${isSelected
                                         ? 'bg-medical-50 dark:bg-medical-900/30 border-2 border-medical-500 text-medical-700 dark:text-medical-300 shadow-md scale-[1.01]'
                                         : 'bg-gray-50 dark:bg-dark-bg border-2 border-transparent hover:bg-gray-100 dark:hover:bg-dark-bg/80 text-gray-700 dark:text-gray-300 hover:scale-[1.01]'
-                                    }`}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border ${selectedAnswer === index
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border transition-colors ${isSelected
                                             ? 'bg-medical-500 text-white border-medical-500'
                                             : 'bg-white dark:bg-dark-surface text-gray-400 border-gray-300 dark:border-gray-600'
-                                        }`}>
-                                        {['A', 'B', 'C', 'D'][index]}
-                                    </span>
-                                    <span className="font-medium text-lg">{option}</span>
-                                </div>
-                                {selectedAnswer === index && (
-                                    <CheckCircle className="w-6 h-6 text-medical-500 animate-pulse" />
-                                )}
-                            </button>
-                        ))}
+                                            }`}>
+                                            {quizType === 'multiple'
+                                                ? (isSelected ? '✓' : '') // Checkbox style
+                                                : ['A', 'B', 'C', 'D'][index] // Radio style
+                                            }
+                                        </span>
+                                        <span className="font-medium text-lg">{option}</span>
+                                    </div>
+                                    {isSelected && (
+                                        <CheckCircle className="w-6 h-6 text-medical-500 animate-pulse" />
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -79,10 +95,10 @@ const QuizActive: React.FC<QuizActiveProps> = ({
                     </div>
                     <button
                         onClick={isLastQuestion ? onFinish : onNext}
-                        disabled={selectedAnswer === null}
-                        className={`px-8 py-3 rounded-xl font-bold text-white shadow-lg transition-all flex items-center gap-2 ${selectedAnswer === null
-                                ? 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed'
-                                : 'bg-gradient-to-l from-medical-600 to-medical-500 hover:from-medical-500 hover:to-medical-400 hover:-translate-x-1'
+                        disabled={selectedAnswers.length === 0}
+                        className={`px-8 py-3 rounded-xl font-bold text-white shadow-lg transition-all flex items-center gap-2 ${selectedAnswers.length === 0
+                            ? 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed'
+                            : 'bg-gradient-to-l from-medical-600 to-medical-500 hover:from-medical-500 hover:to-medical-400 hover:-translate-x-1'
                             }`}
                     >
                         {isLastQuestion ? 'إنهاء الاختبار' : 'التالي'}

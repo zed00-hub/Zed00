@@ -39,11 +39,13 @@ export interface User {
 
 // --- Quiz Types ---
 
+export type QuizType = 'single' | 'multiple'; // 'single' = One correct answer, 'multiple' = All or Nothing (QCM)
+
 export interface QuizQuestion {
   id: number;
   question: string;
   options: string[];
-  correctAnswer: number; // Index of the correct option (0-3)
+  correctAnswers: number[]; // Array of indices (0-3). For single, just one element.
   explanation: string;
 }
 
@@ -53,6 +55,7 @@ export interface QuizConfig {
   fileContext?: FileContext; // For file-based quizzes
   difficulty: 'Easy' | 'Medium' | 'Hard';
   questionCount: number;
+  quizType: QuizType;
 }
 
 export interface QuizState {
@@ -60,7 +63,7 @@ export interface QuizState {
   config: QuizConfig | null;
   questions: QuizQuestion[];
   currentQuestionIndex: number;
-  userAnswers: { [questionId: number]: number }; // questionId -> selectedOptionIndex
+  userAnswers: { [questionId: number]: number[] }; // questionId -> array of selectedOptionIndices
   score: number;
   isFinished: boolean;
 }

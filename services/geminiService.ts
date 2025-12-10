@@ -198,9 +198,11 @@ export const generateQuiz = async (
       }
     }
 
+    const isMultiple = config.quizType === 'multiple';
     const systemInstruction = `
       Rôle: Générateur de QCM (QCM) Expert pour étudiants paramédicaux.
       Tâche: Générer ${config.questionCount} questions QCM de difficulté '${config.difficulty}'.
+      Type de Quiz: ${isMultiple ? "CHOIX MULTIPLES (Plusieurs réponses correctes possibles, 'Tout ou Rien')" : "CHOIX UNIQUE (Une seule bonne réponse)"}.
       Langue: Français (Scientifique).
       
       FORMAT DE SORTIE (STRICT JSON):
@@ -211,15 +213,15 @@ export const generateQuiz = async (
           "id": 1,
           "question": "Texte de la question...",
           "options": ["Choix A", "Choix B", "Choix C", "Choix D"],
-          "correctAnswer": 0, // Index (0-3) de la bonne réponse
-          "explanation": "Explication courte de la réponse."
+          "correctAnswers": ${isMultiple ? "[0, 2]" : "[0]"}, // Tableau des index (0-3) des bonnes réponses.
+          "explanation": "Explication courte."
         }
       ]
       
       RÈGLES:
       1. Les questions doivent être pertinentes par rapport au contenu fourni.
       2. 4 choix par question.
-      3. Une seule bonne réponse.
+      3. ${isMultiple ? "Fournir 1 ou plusieurs bonnes réponses par question." : "Une SEULE bonne réponse par question."}
       4. Pas de texte avant ou après le JSON.
     `;
 
@@ -246,15 +248,16 @@ export const generateQuiz = async (
     if (!responseText) throw new Error("Réponse vide de l'IA");
 
     // Parse JSON
-    const questions: QuizQuestion[] = JSON.parse(responseText);
+    const questions: any[] = JSON.parse(responseText);
 
     // Validate formatting (ensure id and indices are numbers)
     return questions.map((q, index) => ({
-      ...q,
       id: index + 1,
-      correctAnswer: Number(q.correctAnswer)
+      question: q.question,
+      options: q.options,
+      correctAnswers: Array.isArray(q.correctAnswers) ? q.correctAnswers : [Number(q.correctAnswer || 0)],
+      explanation: q.explanation
     }));
-
   } catch (error) {
     console.error("Quiz Generation Error:", error);
     throw new Error("Échec de la génération du quiz. / فشل إنشاء الاختبار.");
