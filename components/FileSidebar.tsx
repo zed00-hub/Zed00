@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
-import { FileContext, ChatSession } from '../types';
+import { FileContext, ChatSession, QuizSession } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { FileIcon, TrashIcon, CloseIcon, BookOpen, SearchIcon, PlusIcon, ChatIcon, LayersIcon, EditIcon, CheckIcon, XIcon, LogOutIcon } from './Icons';
+import { Sparkles } from 'lucide-react';
 import { formatFileSize } from '../utils/fileHelpers';
 
 interface SidebarProps {
@@ -19,9 +20,17 @@ interface SidebarProps {
   onDeleteChat: (id: string) => void;
   onRenameChat: (id: string, newTitle: string) => void;
 
+  // Quiz Session Props
+  quizSessions: QuizSession[];
+  currentQuizId: string | null;
+  onNewQuiz: () => void;
+  onSwitchQuiz: (id: string) => void;
+  onDeleteQuiz: (id: string) => void;
+  onRenameQuiz: (id: string, newTitle: string) => void;
+
   // App Mode
-  appMode: 'chat' | 'quiz';
-  onModeChange: (mode: 'chat' | 'quiz') => void;
+  appMode: 'chat' | 'quiz' | 'mnemonics';
+  onModeChange: (mode: 'chat' | 'quiz' | 'mnemonics') => void;
 }
 
 const FileSidebar: React.FC<SidebarProps> = ({
@@ -35,6 +44,12 @@ const FileSidebar: React.FC<SidebarProps> = ({
   onSwitchChat,
   onDeleteChat,
   onRenameChat,
+  quizSessions,
+  currentQuizId,
+  onNewQuiz,
+  onSwitchQuiz,
+  onDeleteQuiz,
+  onRenameQuiz,
   appMode,
   onModeChange
 }) => {
@@ -61,7 +76,11 @@ const FileSidebar: React.FC<SidebarProps> = ({
   const saveTitle = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (editingSessionId && editTitle.trim()) {
-      onRenameChat(editingSessionId, editTitle.trim());
+      if (appMode === 'chat') {
+        onRenameChat(editingSessionId, editTitle.trim());
+      } else {
+        onRenameQuiz(editingSessionId, editTitle.trim());
+      }
       setEditingSessionId(null);
     }
   };
@@ -79,7 +98,11 @@ const FileSidebar: React.FC<SidebarProps> = ({
 
   const confirmDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    onDeleteChat(id);
+    if (appMode === 'chat') {
+      onDeleteChat(id);
+    } else {
+      onDeleteQuiz(id);
+    }
     setDeleteConfirmationId(null);
   };
 
@@ -97,8 +120,18 @@ const FileSidebar: React.FC<SidebarProps> = ({
   const systemFiles = filteredFiles.filter(f => !!f.content);
   const userFiles = filteredFiles.filter(f => !f.content);
 
+  // Filter and Switch Logic
+  const sessionsToDisplay = appMode === 'chat' ? sessions : quizSessions;
+
   // Sort sessions by timestamp (newest first)
-  const sortedSessions = [...sessions].sort((a, b) => b.timestamp - a.timestamp);
+  // ChatSession uses 'timestamp', QuizSession uses 'createdAt'
+  const sortedItems = [...sessionsToDisplay].sort((a: any, b: any) => {
+    const timeA = a.timestamp || a.createdAt || 0;
+    const timeB = b.timestamp || b.createdAt || 0;
+    return timeB - timeA;
+  });
+
+  const activeId = appMode === 'chat' ? currentSessionId : (currentQuizId || '');
 
   return (
     <>
@@ -168,6 +201,25 @@ const FileSidebar: React.FC<SidebarProps> = ({
 
         </div>
 
+        {/* Mnemonics Tool */}
+        <div className="px-5 pt-3 pb-0">
+          <button
+            onClick={() => {
+              onModeChange('mnemonics');
+              if (window.innerWidth < 768) onClose();
+            }}
+            className={`w-full flex items-center justify-center gap-3 py-3 rounded-2xl transition-all shadow-sm active:scale-95 border-2 ${appMode === 'mnemonics'
+              ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-500 text-amber-600 dark:text-amber-400'
+              : 'bg-white dark:bg-dark-surface border-gray-200 dark:border-gray-700 text-gray-500 hover:border-amber-300 dark:hover:border-amber-700'
+              }`}
+          >
+            <div className="p-1.5 bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/40 dark:to-orange-900/40 rounded-lg shadow-sm">
+              <Sparkles size={18} className="text-amber-600 dark:text-amber-400" />
+            </div>
+            <span className="text-sm font-bold">صانع الحيل الحفظية (Mnemonics)</span>
+          </button>
+        </div>
+
         {/* Separator */}
         <div className="mx-5 my-4 h-px bg-gray-200 dark:bg-dark-border" />
 
@@ -180,7 +232,7 @@ const FileSidebar: React.FC<SidebarProps> = ({
               : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
               }`}
           >
-            المحادثات
+            {appMode === 'chat' ? 'المحادثات' : 'الاختبارات'}
             {activeTab === 'chats' && (
               <span className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-medical-600 to-medical-500 dark:from-medical-400 dark:to-medical-500 rounded-t-full" />
             )}
@@ -206,29 +258,31 @@ const FileSidebar: React.FC<SidebarProps> = ({
           {
             activeTab === 'chats' && (
               <div className="space-y-2">
-                {sortedSessions.map(session => (
+                {sortedItems.map((item: any) => (
                   <div
-                    key={session.id}
+                    key={item.id}
                     onClick={() => {
-                      if (editingSessionId !== session.id) {
-                        onSwitchChat(session.id);
+                      if (editingSessionId !== item.id) {
+                        if (appMode === 'chat') onSwitchChat(item.id);
+                        else onSwitchQuiz(item.id);
+
                         if (window.innerWidth < 768) onClose();
                       }
                     }}
-                    className={`group flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all border-2 ${session.id === currentSessionId
+                    className={`group flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all border-2 ${item.id === activeId
                       ? 'bg-gradient-to-r from-medical-50 to-medical-100/50 dark:from-medical-900/30 dark:to-medical-800/20 border-medical-300 dark:border-medical-700/50 shadow-md'
                       : 'bg-transparent border-transparent hover:bg-gray-50/80 dark:hover:bg-gray-800/50 hover:border-gray-200 dark:hover:border-gray-700'
                       }`}
                   >
-                    <div className={`p-2.5 rounded-xl shrink-0 transition-all ${session.id === currentSessionId
+                    <div className={`p-2.5 rounded-xl shrink-0 transition-all ${item.id === activeId
                       ? 'bg-gradient-to-br from-medical-500 to-medical-600 text-white shadow-lg'
                       : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 group-hover:bg-gray-200 dark:group-hover:bg-gray-600'
                       }`}>
-                      <ChatIcon />
+                      {appMode === 'chat' ? <ChatIcon /> : <BookOpen size={18} />}
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      {editingSessionId === session.id ? (
+                      {editingSessionId === item.id ? (
                         <input
                           type="text"
                           value={editTitle}
@@ -238,18 +292,18 @@ const FileSidebar: React.FC<SidebarProps> = ({
                           className="w-full bg-white dark:bg-dark-bg border-2 border-medical-500 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-medical-500/20"
                         />
                       ) : (
-                        deleteConfirmationId === session.id ? (
+                        deleteConfirmationId === item.id ? (
                           <span className="text-red-600 dark:text-red-400 text-sm font-bold animate-pulse">تأكيد الحذف؟</span>
                         ) : (
                           <>
-                            <p className={`text-sm font-semibold truncate ${session.id === currentSessionId
+                            <p className={`text-sm font-semibold truncate ${item.id === activeId
                               ? 'text-medical-900 dark:text-medical-100'
                               : 'text-gray-700 dark:text-gray-300'
                               }`}>
-                              {session.title || 'محادثة جديدة'}
+                              {item.title || (appMode === 'chat' ? 'محادثة جديدة' : 'اختبار جديد')}
                             </p>
                             <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-                              {new Date(session.timestamp).toLocaleDateString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                              {new Date(item.timestamp || item.createdAt).toLocaleDateString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                             </p>
                           </>
                         )
@@ -258,29 +312,29 @@ const FileSidebar: React.FC<SidebarProps> = ({
 
                     {/* Action Buttons */}
                     <div className="flex items-center gap-1.5">
-                      {editingSessionId === session.id ? (
+                      {editingSessionId === item.id ? (
                         <>
                           <button onClick={saveTitle} className="p-2 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-xl transition-all hover:scale-110 active:scale-95"><CheckIcon /></button>
                           <button onClick={cancelEdit} className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-xl transition-all hover:scale-110 active:scale-95"><XIcon /></button>
                         </>
-                      ) : deleteConfirmationId === session.id ? (
+                      ) : deleteConfirmationId === item.id ? (
                         <>
-                          <button onClick={(e) => confirmDelete(session.id, e)} className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-xl transition-all hover:scale-110 active:scale-95 font-bold"><CheckIcon /></button>
+                          <button onClick={(e) => confirmDelete(item.id, e)} className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-xl transition-all hover:scale-110 active:scale-95 font-bold"><CheckIcon /></button>
                           <button onClick={cancelDelete} className="p-2 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition-all hover:scale-110 active:scale-95"><XIcon /></button>
                         </>
                       ) : (
                         <>
                           <button
-                            onClick={(e) => startEditing(session, e)}
+                            onClick={(e) => startEditing(item, e)}
                             className="p-2 text-gray-400 hover:text-medical-600 dark:hover:text-medical-400 hover:bg-medical-50 dark:hover:bg-medical-900/30 rounded-xl transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 hover:scale-110 active:scale-95"
                             title="تعديل العنوان"
                           >
                             <EditIcon />
                           </button>
                           <button
-                            onClick={(e) => requestDelete(session.id, e)}
+                            onClick={(e) => requestDelete(item.id, e)}
                             className="p-2 text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 hover:scale-110 active:scale-95"
-                            title="حذف المحادثة"
+                            title="حذف"
                           >
                             <TrashIcon />
                           </button>

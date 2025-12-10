@@ -4,32 +4,34 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import FileSidebar from './components/FileSidebar';
 import ChatArea from './components/ChatArea';
 import LoginPage from './components/LoginPage';
-import { FileContext, Message, ChatSession } from './types';
+import { FileContext, Message, ChatSession, QuizSession } from './types';
 import { generateResponse } from './services/geminiService';
 import { ZGLogo, SunIcon, MoonIcon, LoadingIcon } from './components/Icons';
-import { BookOpen, MessageSquare } from 'lucide-react';
+import { BookOpen, MessageSquare, Sparkles } from 'lucide-react';
 import QuizContainer from './components/Quiz/QuizContainer';
+import MnemonicsContainer from './components/Mnemonics/MnemonicsContainer';
 import { fileToBase64 } from './utils/fileHelpers';
 import { INITIAL_COURSES } from './data/courses';
 import { useAuth } from './contexts/AuthContext';
 import { saveSessionToFirestore, loadSessionsFromFirestore, deleteSessionFromFirestore } from './services/chatService';
-
+import { saveQuizToFirestore, loadQuizzesFromFirestore, deleteQuizFromFirestore } from './services/quizService';
 const App: React.FC = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const appMode = location.pathname.includes('quiz') ? 'quiz' : 'chat';
+  const appMode = location.pathname.includes('quiz') ? 'quiz' : (location.pathname.includes('mnemonics') ? 'mnemonics' : 'chat');
 
-  const handleModeChange = (mode: 'chat' | 'quiz') => {
+  const handleModeChange = (mode: 'chat' | 'quiz' | 'mnemonics') => {
     if (mode === 'chat') navigate('/conversation');
-    else navigate('/quiz');
+    else if (mode === 'quiz') navigate('/quiz');
+    else navigate('/mnemonics');
   };
 
   // Initialize files with the pre-loaded courses
   const [files, setFiles] = useState<FileContext[]>(INITIAL_COURSES);
 
-  // Initialize Sessions with one default empty session
+  // Initialize Chat Sessions
   const [sessions, setSessions] = useState<ChatSession[]>([
     {
       id: 'default',
@@ -39,24 +41,28 @@ const App: React.FC = () => {
     }
   ]);
   const [currentSessionId, setCurrentSessionId] = useState<string>('default');
-  const [isSessionsLoaded, setIsSessionsLoaded] = useState(false);
 
-  // Load user sessions from Firestore
+  // Initialize Quiz Sessions
+  const [quizSessions, setQuizSessions] = useState<QuizSession[]>([]);
+  const [currentQuizId, setCurrentQuizId] = useState<string | null>(null);
+
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+
+  // Load user data (Sessions and Quizzes) from Firestore
   useEffect(() => {
-    const loadSessions = async () => {
+    const loadData = async () => {
       if (user?.id) {
-        console.log("App: Loading sessions for user", user.id);
-        setIsSessionsLoaded(false);
+        console.log("App: Loading data for user", user.id);
+        setIsDataLoaded(false);
 
         try {
-          const fetched = await loadSessionsFromFirestore(user.id);
-          console.log("App: Fetched sessions:", fetched.length);
-
-          if (fetched.length > 0) {
-            setSessions(fetched);
-            setCurrentSessionId(fetched[0].id);
+          // Load Chats
+          const fetchedSessions = await loadSessionsFromFirestore(user.id);
+          if (fetchedSessions.length > 0) {
+            setSessions(fetchedSessions);
+            setCurrentSessionId(fetchedSessions[0].id);
           } else {
-            // If no sessions, create a new one and save it (don't await - let it save in background)
+            // Create default chat session
             const newId = Date.now().toString();
             const newSession: ChatSession = {
               id: newId,
@@ -66,16 +72,18 @@ const App: React.FC = () => {
             };
             setSessions([newSession]);
             setCurrentSessionId(newId);
-            // Save in background - don't block UI
-            saveSessionToFirestore(user.id, newSession).then(() => {
-              console.log("App: Created and saved new session", newId);
-            }).catch(err => {
-              console.error("App: Failed to save new session:", err);
-            });
+            saveSessionToFirestore(user.id, newSession);
           }
+
+          // Load Quizzes
+          const fetchedQuizzes = await loadQuizzesFromFirestore(user.id);
+          setQuizSessions(fetchedQuizzes);
+          // Don't auto-select a quiz, allow starting new by default
+          setCurrentQuizId(null);
+
         } catch (error) {
-          console.error("App: Error loading sessions:", error);
-          // On error, still create a local session
+          console.error("App: Error loading data:", error);
+          // Fallback for chat
           const newId = Date.now().toString();
           setSessions([{
             id: newId,
@@ -85,12 +93,10 @@ const App: React.FC = () => {
           }]);
           setCurrentSessionId(newId);
         } finally {
-          // Always set loaded to true
-          setIsSessionsLoaded(true);
+          setIsDataLoaded(true);
         }
       } else {
         // Logout state - reset to default
-        console.log("App: No user, resetting to default session");
         setSessions([{
           id: 'default',
           title: 'محادثة جديدة',
@@ -98,15 +104,17 @@ const App: React.FC = () => {
           timestamp: Date.now()
         }]);
         setCurrentSessionId('default');
-        setIsSessionsLoaded(true);
+        setQuizSessions([]);
+        setCurrentQuizId(null);
+        setIsDataLoaded(true);
       }
     };
 
-    loadSessions();
+    loadData();
   }, [user?.id]);
 
   const [input, setInput] = useState('');
-  const [pendingAttachments, setPendingAttachments] = useState<string[]>([]); // New state for images waiting to be sent
+  const [pendingAttachments, setPendingAttachments] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -120,7 +128,7 @@ const App: React.FC = () => {
     setIsDarkMode(!isDarkMode);
   };
 
-  // --- Session Management ---
+  // --- Chat Session Management ---
 
   const createNewSession = () => {
     const newId = Date.now().toString();
@@ -141,7 +149,6 @@ const App: React.FC = () => {
   };
 
   const deleteSession = (id: string) => {
-    // Prevent deleting the last session, just clear it instead
     if (sessions.length === 1) {
       const resetSession = { ...sessions[0], messages: [], title: 'محادثة جديدة', timestamp: Date.now() };
       setSessions([resetSession]);
@@ -152,7 +159,6 @@ const App: React.FC = () => {
     const newSessions = sessions.filter(s => s.id !== id);
     setSessions(newSessions);
 
-    // If we deleted the active session, switch to the first available one
     if (id === currentSessionId) {
       setCurrentSessionId(newSessions[0].id);
     }
@@ -178,8 +184,6 @@ const App: React.FC = () => {
   };
 
   const updateCurrentSessionMessages = (newMessages: Message[], newTitle?: string) => {
-    console.log("updateCurrentSessionMessages: Called with", newMessages.length, "messages, title:", newTitle, "sessionId:", currentSessionId, "userId:", user?.id);
-
     setSessions(prev => {
       return prev.map(session => {
         if (session.id === currentSessionId) {
@@ -189,20 +193,75 @@ const App: React.FC = () => {
             title: newTitle || session.title,
             timestamp: Date.now()
           };
-          console.log("updateCurrentSessionMessages: Updated session:", updatedSession.id, "with title:", updatedSession.title);
-
           if (user?.id) {
-            console.log("updateCurrentSessionMessages: Saving session with", newMessages.length, "messages to Firestore");
-            saveSessionToFirestore(user.id, updatedSession)
-              .then(() => console.log("updateCurrentSessionMessages: Session saved successfully to Firestore"))
-              .catch(err => console.error("updateCurrentSessionMessages: Failed to save session:", err));
+            saveSessionToFirestore(user.id, updatedSession);
           }
-
           return updatedSession;
         }
         return session;
       });
     });
+  };
+
+  // --- Quiz Session Management ---
+
+  const createNewQuiz = () => {
+    // Just reset `currentQuizId` to null, calls to `onQuizUpdate` in QuizContainer will create the actual session object
+    setCurrentQuizId(null);
+  };
+
+  const updateQuizSession = (updatedSession: QuizSession | null) => {
+    if (!updatedSession) {
+      // Clearing session (Restart)
+      setCurrentQuizId(null);
+      return;
+    }
+
+    setQuizSessions(prev => {
+      const exists = prev.find(q => q.id === updatedSession.id);
+      if (exists) {
+        return prev.map(q => q.id === updatedSession.id ? updatedSession : q);
+      } else {
+        return [updatedSession, ...prev];
+      }
+    });
+
+    // If it's a new session, set it as active
+    if (!currentQuizId || currentQuizId !== updatedSession.id) {
+      setCurrentQuizId(updatedSession.id);
+    }
+
+    if (user?.id) {
+      saveQuizToFirestore(user.id, updatedSession);
+    }
+  };
+
+  const deleteQuiz = (id: string) => {
+    const newQuizzes = quizSessions.filter(q => q.id !== id);
+    setQuizSessions(newQuizzes);
+
+    if (id === currentQuizId) {
+      setCurrentQuizId(null); // Go to new quiz screen
+    }
+
+    if (user?.id) {
+      deleteQuizFromFirestore(user.id, id);
+    }
+  };
+
+  const renameQuiz = (id: string, newTitle: string) => {
+    let updatedQuiz: QuizSession | undefined;
+    setQuizSessions(prev => prev.map(quiz => {
+      if (quiz.id === id) {
+        updatedQuiz = { ...quiz, title: newTitle };
+        return updatedQuiz;
+      }
+      return quiz;
+    }));
+
+    if (updatedQuiz && user?.id) {
+      saveQuizToFirestore(user.id, updatedQuiz);
+    }
   };
 
   // --------------------------
@@ -324,12 +383,12 @@ const App: React.FC = () => {
     }
   };
 
-  if (isAuthLoading || (user && !isSessionsLoaded)) {
+  if (isAuthLoading || (user && !isDataLoaded)) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="flex flex-col items-center gap-4">
           <LoadingIcon />
-          <p className="text-gray-600 dark:text-gray-300 text-sm">جاري تحميل المحادثات...</p>
+          <p className="text-gray-600 dark:text-gray-300 text-sm">جاري تحميل البيانات...</p>
         </div>
       </div>
     );
@@ -338,6 +397,8 @@ const App: React.FC = () => {
   if (!user) {
     return <LoginPage />;
   }
+
+  const activeQuiz = currentQuizId ? quizSessions.find(q => q.id === currentQuizId) : null;
 
   return (
     <div className={`${isDarkMode ? 'dark' : ''} fixed inset-0 w-full overflow-hidden`}>
@@ -374,6 +435,13 @@ const App: React.FC = () => {
               onSwitchChat={setCurrentSessionId}
               onDeleteChat={deleteSession}
               onRenameChat={renameSession}
+              // Quiz Props
+              quizSessions={quizSessions}
+              currentQuizId={currentQuizId}
+              onNewQuiz={createNewQuiz}
+              onSwitchQuiz={setCurrentQuizId}
+              onDeleteQuiz={deleteQuiz}
+              onRenameQuiz={renameQuiz}
               // App Mode
               appMode={appMode}
               onModeChange={handleModeChange}
@@ -395,6 +463,13 @@ const App: React.FC = () => {
             onSwitchChat={setCurrentSessionId}
             onDeleteChat={deleteSession}
             onRenameChat={renameSession}
+            // Quiz Props
+            quizSessions={quizSessions}
+            currentQuizId={currentQuizId}
+            onNewQuiz={createNewQuiz}
+            onSwitchQuiz={setCurrentQuizId}
+            onDeleteQuiz={deleteQuiz}
+            onRenameQuiz={renameQuiz}
             // App Mode
             appMode={appMode}
             onModeChange={handleModeChange}
@@ -406,10 +481,10 @@ const App: React.FC = () => {
 
           {/* Mode Switcher (Visible on Mobile/Desktop) */}
           <div className="flex justify-center pt-4 pb-2">
-            <div className="bg-gray-100 dark:bg-dark-surface p-1 rounded-xl flex shadow-inner">
+            <div className="bg-gray-100 dark:bg-dark-surface p-1 rounded-xl flex shadow-inner overflow-x-auto max-w-full">
               <button
                 onClick={() => handleModeChange('chat')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${appMode === 'chat'
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${appMode === 'chat'
                   ? 'bg-white dark:bg-dark-bg text-medical-600 shadow-sm'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
                   }`}
@@ -419,13 +494,23 @@ const App: React.FC = () => {
               </button>
               <button
                 onClick={() => handleModeChange('quiz')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${appMode === 'quiz'
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${appMode === 'quiz'
                   ? 'bg-white dark:bg-dark-bg text-medical-600 shadow-sm'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
                   }`}
               >
                 <BookOpen className="w-4 h-4" />
                 <span>اختبارات</span>
+              </button>
+              <button
+                onClick={() => handleModeChange('mnemonics')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${appMode === 'mnemonics'
+                  ? 'bg-white dark:bg-dark-bg text-amber-600 shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
+                  }`}
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>حيل حفظية</span>
               </button>
             </div>
           </div>
@@ -454,9 +539,30 @@ const App: React.FC = () => {
               element={
                 <div className="flex-1 overflow-hidden relative">
                   <div className="absolute inset-0">
-                    <QuizContainer files={files} />
+                    <QuizContainer
+                      files={files}
+                      activeQuizSession={activeQuiz}
+                      onQuizUpdate={updateQuizSession}
+                    />
                   </div>
                   {/* Mobile Sidebar Toggle for Quiz Mode */}
+                  <button
+                    onClick={() => setIsSidebarOpen(true)}
+                    className="md:hidden absolute top-4 right-4 p-2 rounded-lg bg-white/80 dark:bg-dark-surface/80 shadow-sm z-50 text-gray-500"
+                  >
+                    <ZGLogo />
+                  </button>
+                </div>
+              }
+            />
+            <Route
+              path="/mnemonics"
+              element={
+                <div className="flex-1 overflow-hidden relative">
+                  <div className="absolute inset-0">
+                    <MnemonicsContainer />
+                  </div>
+                  {/* Mobile Sidebar Toggle for Mnemonics Mode */}
                   <button
                     onClick={() => setIsSidebarOpen(true)}
                     className="md:hidden absolute top-4 right-4 p-2 rounded-lg bg-white/80 dark:bg-dark-surface/80 shadow-sm z-50 text-gray-500"

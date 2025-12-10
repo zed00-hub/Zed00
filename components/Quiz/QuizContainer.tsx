@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { QuizConfig, QuizState, FileContext, QuizQuestion } from '../../types';
+import React, { useState, useEffect } from 'react';
+import { QuizConfig, QuizState, FileContext, QuizQuestion, QuizSession } from '../../types';
 import { generateQuiz } from '../../services/geminiService';
 import QuizSetup from './QuizSetup';
 import QuizActive from './QuizActive';
@@ -8,9 +8,11 @@ import { LoadingIcon } from '../Icons';
 
 interface QuizContainerProps {
     files: FileContext[];
+    activeQuizSession?: QuizSession | null;
+    onQuizUpdate?: (session: QuizSession | null) => void;
 }
 
-const QuizContainer: React.FC<QuizContainerProps> = ({ files }) => {
+const QuizContainer: React.FC<QuizContainerProps> = ({ files, activeQuizSession, onQuizUpdate }) => {
     const [state, setState] = useState<QuizState>({
         isActive: false,
         config: null,
@@ -24,12 +26,44 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ files }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Sync state with activeQuizSession
+    useEffect(() => {
+        if (activeQuizSession) {
+            console.log("QuizContainer: Loading session", activeQuizSession.id);
+            setState({
+                isActive: !activeQuizSession.isFinished,
+                config: activeQuizSession.config,
+                questions: activeQuizSession.questions,
+                currentQuestionIndex: activeQuizSession.currentQuestionIndex || 0,
+                userAnswers: activeQuizSession.userAnswers,
+                score: activeQuizSession.score,
+                isFinished: activeQuizSession.isFinished
+            });
+        } else {
+            // Reset state if no active session (New Quiz mode)
+            // But only if we are not currently loading or in a valid state
+            // to prevent flickering when switching.
+            // Actually, if activeQuizSession is null, we should show Setup.
+            if (!isLoading) {
+                setState({
+                    isActive: false,
+                    config: null,
+                    questions: [],
+                    currentQuestionIndex: 0,
+                    userAnswers: {},
+                    score: 0,
+                    isFinished: false
+                });
+            }
+        }
+    }, [activeQuizSession]);
+
     const handleStartQuiz = async (config: QuizConfig) => {
         setIsLoading(true);
         setError(null);
         try {
             const questions = await generateQuiz(config, files);
-            setState({
+            const newState = {
                 isActive: true,
                 config,
                 questions,
@@ -37,7 +71,25 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ files }) => {
                 userAnswers: {},
                 score: 0,
                 isFinished: false
-            });
+            };
+            setState(newState);
+
+            // Create new session
+            if (onQuizUpdate) {
+                const newSession: QuizSession = {
+                    id: Date.now().toString(),
+                    title: `${config.subject || config.fileContext?.name || 'اختبار'} - ${config.difficulty} (${questions.length})`,
+                    createdAt: Date.now(),
+                    config: config,
+                    questions: questions,
+                    userAnswers: {},
+                    score: 0,
+                    isFinished: false,
+                    currentQuestionIndex: 0
+                };
+                onQuizUpdate(newSession);
+            }
+
         } catch (err: any) {
             setError(err.message || "Failed to generate quiz");
         } finally {
@@ -62,21 +114,48 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ files }) => {
                 newAnswers = [index];
             }
 
+            const updatedUserAnswers = {
+                ...prev.userAnswers,
+                [currentQ.id]: newAnswers
+            };
+
+            // Update parent session
+            if (onQuizUpdate && activeQuizSession) {
+                onQuizUpdate({
+                    ...activeQuizSession,
+                    userAnswers: updatedUserAnswers
+                    // We don't update index here, only on Next
+                });
+            }
+
             return {
                 ...prev,
-                userAnswers: {
-                    ...prev.userAnswers,
-                    [currentQ.id]: newAnswers
-                }
+                userAnswers: updatedUserAnswers
             };
         });
     };
 
     const handleNext = () => {
-        setState(prev => ({
-            ...prev,
-            currentQuestionIndex: prev.currentQuestionIndex + 1
-        }));
+        setState(prev => {
+            const nextIndex = prev.currentQuestionIndex + 1;
+
+            if (onQuizUpdate && activeQuizSession) {
+                onQuizUpdate({
+                    ...activeQuizSession,
+                    currentQuestionIndex: nextIndex,
+                    // userAnswers are already updated in selectAnswer, but we make sure we pass the latest state if needed
+                    // Since state updates are async, relying on prev here is safer for local state,
+                    // but for parent update we rely on what we just decided.
+                    // A safer way is possibly calculating things outside.
+                    // But simplest is update currentQuestionIndex
+                });
+            }
+
+            return {
+                ...prev,
+                currentQuestionIndex: nextIndex
+            };
+        });
     };
 
     const handleFinish = () => {
@@ -95,24 +174,30 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ files }) => {
             }
         });
 
-        setState(prev => ({
-            ...prev,
+        const newState = {
+            ...state,
             score,
             isFinished: true,
             isActive: false
-        }));
+        };
+
+        setState(newState);
+
+        if (onQuizUpdate && activeQuizSession) {
+            onQuizUpdate({
+                ...activeQuizSession,
+                score,
+                isFinished: true,
+                userAnswers: state.userAnswers // Ensure latest answers
+            });
+        }
     };
 
     const handleRestart = () => {
-        setState({
-            isActive: false,
-            config: null,
-            questions: [],
-            currentQuestionIndex: 0,
-            userAnswers: {},
-            score: 0,
-            isFinished: false
-        });
+        // Clear active session to allow creating a new one
+        if (onQuizUpdate) {
+            onQuizUpdate(null);
+        }
     };
 
     if (isLoading) {

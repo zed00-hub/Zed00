@@ -67,3 +67,30 @@ export interface QuizState {
   score: number;
   isFinished: boolean;
 }
+
+export interface QuizSession {
+  id: string;
+  title: string;
+  createdAt: number;
+  config: QuizConfig;
+  questions: QuizQuestion[];
+  userAnswers: { [questionId: number]: number[] };
+  score: number;
+  isFinished: boolean;
+  currentQuestionIndex: number; // To resume where left off
+}
+
+// --- Mnemonic Types ---
+
+export interface MnemonicRequest {
+  topic: string;
+  language: 'ar' | 'en';
+  context?: string; // Optional context (e.g., list of items)
+}
+
+export interface MnemonicResponse {
+  mnemonic: string;
+  breakdown: Array<{ char: string; meaning: string }>;
+  explanation: string;
+  funFact?: string;
+}

@@ -263,3 +263,65 @@ export const generateQuiz = async (
     throw new Error("Échec de la génération du quiz. / فشل إنشاء الاختبار.");
   }
 };
+// --- Mnemonic Generation Service ---
+
+import { MnemonicResponse } from "../types";
+
+export const generateMnemonic = async (
+  topic: string,
+  language: 'ar' | 'en',
+  context?: string
+): Promise<MnemonicResponse> => {
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const modelId = "gemini-2.5-flash";
+
+    const systemInstruction = `
+      Rôle: Expert en Mnémonique Médicale et Pédagogie (Créditeur de phrases mémo-techniques).
+      Objectif: Créer une phrase facile à retenir pour mémoriser une liste ou un concept médical difficile.
+      
+      RÈGLES CRÉATIVES:
+      1. La phrase doit être cohérente, amusante ou bizarre (le cerveau retient mieux l'insolite).
+      2. Si la demande est en Arabe, génère une phrase en Arabe. Si Anglais/Français, en Anglais/Français selon la demande implicite du topic (ex: "Carpal bones" -> Anglais, "Os du carpe" -> Français). 
+      *Pour cette fonction, nous utiliserons la langue demandée explicitement: ${language === 'ar' ? 'ARABE' : 'ANGLAIS/FRANÇAIS'}.*
+      
+      FORMAT DE SORTIE (STRICT JSON):
+      {
+        "mnemonic": "La phrase générée",
+        "breakdown": [
+          { "char": "S", "meaning": "Scaphoid" },
+          { "char": "L", "meaning": "Lunate" }
+        ],
+        "explanation": "Brève explication du concept général.",
+        "funFact": "Un fait amusant ou 'Le saviez-vous ?' lié au sujet (Optionnel)"
+      }
+    `;
+
+    const prompt = `
+      Sujet à mémoriser: "${topic}"
+      Contexte supplémentaire (Liste d'items, etc.): "${context || ''}"
+      Langue de sortie: ${language === 'ar' ? 'Arabe' : 'Anglais (ou Français si le terme technique est français)'}
+      
+      Génère une mnémonique maintenant.
+    `;
+
+    const result = await ai.models.generateContent({
+      model: modelId,
+      config: {
+        systemInstruction: systemInstruction,
+        temperature: 0.7, // Higher creativity for mnemonics
+        responseMimeType: "application/json",
+      },
+      contents: [{ role: 'user', parts: [{ text: prompt }] }]
+    });
+
+    const responseText = result.text;
+    if (!responseText) throw new Error("Réponse vide");
+
+    return JSON.parse(responseText) as MnemonicResponse;
+
+  } catch (error) {
+    console.error("Mnemonic Generation Error:", error);
+    throw new Error("Échec de la génération de la mnémonique.");
+  }
+};
