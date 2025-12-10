@@ -179,12 +179,31 @@ const App: React.FC = () => {
       };
 
       updateCurrentSessionMessages([...updatedMessages, botMessage], newTitle);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      
+      // Extract the actual error message from the service
+      let errorContent = "عذراً، حدث خطأ أثناء المعالجة. تأكد من اتصالك بالإنترنت ومن صلاحية مفتاح API.";
+      
+      if (error?.message) {
+        // Check if it's a quota exceeded error
+        if (error.message.startsWith("QUOTA_EXCEEDED:")) {
+          errorContent = error.message.replace("QUOTA_EXCEEDED: ", "");
+        } 
+        // Check if it's an API key error
+        else if (error.message.startsWith("API_KEY_INVALID:")) {
+          errorContent = error.message.replace("API_KEY_INVALID: ", "");
+        }
+        // Use the error message if it's in a recognizable format
+        else if (error.message.includes(" / ")) {
+          errorContent = error.message;
+        }
+      }
+      
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'model',
-        content: "عذراً، حدث خطأ أثناء المعالجة. تأكد من اتصالك بالإنترنت ومن صلاحية مفتاح API.",
+        content: errorContent,
         timestamp: Date.now(),
         isError: true
       };
