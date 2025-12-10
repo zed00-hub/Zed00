@@ -27,40 +27,57 @@ const App: React.FC = () => {
     }
   ]);
   const [currentSessionId, setCurrentSessionId] = useState<string>('default');
+  const [isSessionsLoaded, setIsSessionsLoaded] = useState(false);
 
   // Load user sessions from Firestore
   useEffect(() => {
-    if (user?.id) {
-      loadSessionsFromFirestore(user.id).then(fetched => {
-        if (fetched.length > 0) {
-          setSessions(fetched);
-          setCurrentSessionId(fetched[0].id);
-        } else {
-          // If no sessions, ensure we start with a clean state that calls createNewSession essentially
-          // But here we just reset logic since createNewSession uses state setters
-          const newId = Date.now().toString();
-          const newSession = {
-            id: newId,
-            title: 'محادثة جديدة',
-            messages: [],
-            timestamp: Date.now()
-          };
-          setSessions([newSession]);
-          setCurrentSessionId(newId);
-          saveSessionToFirestore(user.id, newSession);
+    const loadSessions = async () => {
+      if (user?.id) {
+        console.log("App: Loading sessions for user", user.id);
+        setIsSessionsLoaded(false);
+
+        try {
+          const fetched = await loadSessionsFromFirestore(user.id);
+          console.log("App: Fetched sessions:", fetched.length);
+
+          if (fetched.length > 0) {
+            setSessions(fetched);
+            setCurrentSessionId(fetched[0].id);
+          } else {
+            // If no sessions, create a new one and save it
+            const newId = Date.now().toString();
+            const newSession: ChatSession = {
+              id: newId,
+              title: 'محادثة جديدة',
+              messages: [],
+              timestamp: Date.now()
+            };
+            setSessions([newSession]);
+            setCurrentSessionId(newId);
+            await saveSessionToFirestore(user.id, newSession);
+            console.log("App: Created and saved new session", newId);
+          }
+        } catch (error) {
+          console.error("App: Error loading sessions:", error);
         }
-      });
-    } else {
-      // Logout state
-      setSessions([{
-        id: 'default',
-        title: 'محادثة جديدة',
-        messages: [],
-        timestamp: Date.now()
-      }]);
-      setCurrentSessionId('default');
-    }
-  }, [user]);
+
+        setIsSessionsLoaded(true);
+      } else {
+        // Logout state - reset to default
+        console.log("App: No user, resetting to default session");
+        setSessions([{
+          id: 'default',
+          title: 'محادثة جديدة',
+          messages: [],
+          timestamp: Date.now()
+        }]);
+        setCurrentSessionId('default');
+        setIsSessionsLoaded(true);
+      }
+    };
+
+    loadSessions();
+  }, [user?.id]);
 
   const [input, setInput] = useState('');
   const [pendingAttachments, setPendingAttachments] = useState<string[]>([]); // New state for images waiting to be sent
@@ -273,10 +290,13 @@ const App: React.FC = () => {
     }
   };
 
-  if (isAuthLoading) {
+  if (isAuthLoading || (user && !isSessionsLoaded)) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-gray-50">
-        <LoadingIcon />
+      <div className="h-screen w-full flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="flex flex-col items-center gap-4">
+          <LoadingIcon />
+          <p className="text-gray-600 dark:text-gray-300 text-sm">جاري تحميل المحادثات...</p>
+        </div>
       </div>
     );
   }

@@ -3,39 +3,55 @@ import { collection, doc, setDoc, getDocs, deleteDoc, query, Timestamp } from 'f
 import { ChatSession } from '../types';
 
 export const saveSessionToFirestore = async (userId: string, session: ChatSession) => {
-    if (!userId) return;
+    if (!userId) {
+        console.log("saveSessionToFirestore: No userId provided");
+        return;
+    }
     try {
+        console.log("saveSessionToFirestore: Saving session", session.id, "for user", userId);
         const sessionRef = doc(db, 'users', userId, 'sessions', session.id);
         await setDoc(sessionRef, {
-            ...session,
+            id: session.id,
+            title: session.title,
+            messages: session.messages,
+            timestamp: session.timestamp,
             lastUpdated: Timestamp.now()
         }, { merge: true });
+        console.log("saveSessionToFirestore: Session saved successfully");
     } catch (error) {
         console.error("Error saving session:", error);
     }
 };
 
 export const loadSessionsFromFirestore = async (userId: string): Promise<ChatSession[]> => {
-    if (!userId) return [];
+    if (!userId) {
+        console.log("loadSessionsFromFirestore: No userId provided");
+        return [];
+    }
     try {
+        console.log("loadSessionsFromFirestore: Loading sessions for user:", userId);
         const sessionsRef = collection(db, 'users', userId, 'sessions');
-        // Removed orderBy to avoid index requirement issues. Sorting client-side is fine for this scale.
         const q = query(sessionsRef);
         const querySnapshot = await getDocs(q);
 
+        console.log("loadSessionsFromFirestore: Found", querySnapshot.size, "sessions");
+
         const sessions: ChatSession[] = [];
-        querySnapshot.forEach((doc) => {
-            const data = doc.data();
+        querySnapshot.forEach((docSnapshot) => {
+            const data = docSnapshot.data();
+            console.log("loadSessionsFromFirestore: Session data:", data.id, data.title);
             sessions.push({
-                id: data.id,
-                title: data.title,
+                id: data.id || docSnapshot.id,
+                title: data.title || 'محادثة',
                 messages: data.messages || [],
-                timestamp: data.timestamp
+                timestamp: data.timestamp || Date.now()
             } as ChatSession);
         });
 
         // Sort descending by timestamp
-        return sessions.sort((a, b) => b.timestamp - a.timestamp);
+        const sorted = sessions.sort((a, b) => b.timestamp - a.timestamp);
+        console.log("loadSessionsFromFirestore: Returning", sorted.length, "sessions");
+        return sorted;
     } catch (error) {
         console.error("Error loading sessions:", error);
         return [];
