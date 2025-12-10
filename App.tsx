@@ -331,7 +331,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className={`${isDarkMode ? 'dark' : ''} h-screen w-full`}>
+    <div className={`${isDarkMode ? 'dark' : ''} fixed inset-0 w-full overflow-hidden`}>
       <div className="flex h-full bg-gradient-to-br from-gray-50 via-slate-50 to-gray-100 dark:from-dark-bg dark:via-slate-900 dark:to-slate-800 text-right overflow-hidden font-sans transition-colors duration-300">
         {/* Sidebar (Desktop: always visible, Mobile: toggleable) */}
         <div className="hidden md:flex md:flex-col w-80 bg-white/95 dark:bg-dark-surface/95 backdrop-blur-xl border-l border-gray-200/50 dark:border-dark-border/50 z-10 transition-colors duration-300 shadow-xl">
