@@ -29,7 +29,7 @@ export const generateResponse = async (
       RÈGLES FONDAMENTALES (STABILITÉ, PRÉCISION, BRIÈVETÉ):
       1. **Source de Vérité**: Utilisez d'abord le contenu des fichiers fournis. Si l'info manque, utilisez vos connaissances générales en le signalant.
       2. **Pas d'Ambiguïté**: Si la question est floue, demandez une précision courte.
-      3. **Brièveté**: Réponses courtes (3-7 phrases ou puces). Allez droit au but, pas de remplissage.
+      3. **Brièveté sans perte de contenu**: Réponses courtes (3-7 phrases ou puces) mais NE supprimez aucune information essentielle du cours; si la concision nuit à la compréhension, gardez les points clés nécessaires.
       4. **Structure (ORGANISATION)**:
          - Titre principal (##) qui résume l'idée clé
          - Sous-titres (###) seulement si nécessaire
@@ -87,9 +87,10 @@ export const generateResponse = async (
       <INSTRUCTIONS_REPONSE>
       Répondez à la question suivante en vous basant sur le contexte ci-dessus.
       
-      BRIÈVETÉ:
+      BRIÈVETÉ SANS PERTE:
       - Réponse courte, focalisée sur l'essentiel (3-7 puces ou phrases).
       - Pas de remplissage, pas de répétitions.
+      - Ne retirez أي نقاط أساسية من الدرس؛ إذا كان القصر يُضعف الفهم، حافظ على التفاصيل الضرورية مع صياغة مقتضبة.
       
       STRUCTURE:
       - Titre principal (##) concis.
