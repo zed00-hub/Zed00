@@ -16,7 +16,7 @@ export const generateResponse = async (
 ): Promise<string> => {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    
+
     // Use the standard stable flash model
     const modelId = "gemini-2.5-flash";
 
@@ -48,17 +48,37 @@ export const generateResponse = async (
          - Étapes numérotées si procédure.
          - Exemples pertinents si utiles à la compréhension.
 
-      GESTION DES LANGUES (CRUCIAL):
-      - La médecine est enseignée en **Français**.
-      - Si l'étudiant demande en **Français** -> Répondez en Français académique.
-      - Si l'étudiant demande en **Arabe** -> Répondez en **Arabe** pour l'explication, MAIS gardez les **Termes Techniques Médicaux en Français** entre parenthèses ou en gras.
-        *Exemple*: "تتكون الخلية من **Noyau** (نواة) و **Cytoplasme** (سيتوبلازم)..."
-      - Dans les tableaux, les en-têtes peuvent être bilingues si nécessaire, mais les données techniques restent en français.
+      GESTION DES LANGUES (CRUCIAL - RÈGLE PRINCIPALE):
+      - **المادة العلمية والمحتوى الطبي يجب أن يبقى دائماً بالفرنسية** (comme dans les cours universitaires algériens).
+      - **التفاعل مع الطالب**: تكيّف مع لغة الطالب في الحوار والتوضيحات غير التقنية.
+      
+      FORMAT DE RÉPONSE OBLIGATOIRE:
+      1. **CONTENU PRINCIPAL (بالفرنسية)**: 
+         - Le contenu scientifique/médical DOIT être en français académique.
+         - C'est le corps principal de la réponse, structuré comme un cours.
+         - Tous les termes techniques, définitions, processus médicaux en FRANÇAIS.
+      
+      2. **SECTION "📚 شرح المصطلحات" (en bas de la réponse)**:
+         - À LA FIN de chaque réponse, ajoutez une section séparée.
+         - Listez les termes techniques français importants avec leur explication en arabe.
+         - Format: **Terme français**: شرح بالعربية
+         - Exemple:
+           ---
+           📚 **شرح المصطلحات:**
+           - **Hémoglobine**: بروتين في كريات الدم الحمراء ينقل الأكسجين
+           - **Leucocytes**: خلايا الدم البيضاء المسؤولة عن المناعة
+           - **Thrombocytes**: الصفائح الدموية المسؤولة عن التخثر
+           ---
+      
+      3. **DIALOGUE ADAPTATIF**:
+         - Si l'étudiant pose une question en arabe → Répondez de manière amicale en arabe pour le dialogue ("أهلاً! سؤال ممتاز...") PUIS donnez le contenu scientifique en français, PUIS la section glossaire.
+         - Si l'étudiant pose en français → Répondez entièrement en français avec la section glossaire en arabe à la fin.
       
       TON ET STYLE:
       - Professionnel, Encouragant, Académique
       - Courte, aérée, sans répétition inutile
       - Connecteurs logiques concis (Premièrement, Ensuite, Enfin)
+      - تفاعل ودّي مع الطالب، شجّعه وادعمه
     `;
 
     // 2. Prepare content parts
@@ -118,7 +138,7 @@ export const generateResponse = async (
     `;
 
     const textPart: Part = { text: fullPrompt };
-    
+
     // Combine binary parts (images/PDFs) with the text prompt
     const currentMessageParts: Part[] = [...fileParts, textPart];
 
@@ -144,33 +164,33 @@ export const generateResponse = async (
     return response.text || "Désolé, je n'ai pas pu générer de réponse. / عذراً، لم أتمكن من إنشاء إجابة.";
   } catch (error: any) {
     console.error("Gemini API Error:", error);
-    
+
     // Extract error details - handle different error structures
     const errorCode = error?.error?.code || error?.status || error?.statusCode || error?.code;
     const errorStatus = error?.error?.status || error?.status;
     const errorMessage = error?.error?.message || error?.message || "";
-    
+
     // Check for rate limit/quota exceeded error (429)
     // Also check for RESOURCE_EXHAUSTED status which indicates quota issues
     if (errorCode === 429 || errorStatus === "RESOURCE_EXHAUSTED" || errorMessage.includes("quota") || errorMessage.includes("Quota exceeded")) {
       const retryDelayMatch = errorMessage.match(/retry in ([\d.]+)s/i) || errorMessage.match(/retry in ([\d.]+) second/i);
       const retryDelay = retryDelayMatch ? Math.ceil(parseFloat(retryDelayMatch[1])) : null;
-      
+
       let quotaMessage = "تم تجاوز الحد اليومي للطلبات (20 طلب في اليوم للمستوى المجاني).";
       if (retryDelay) {
         quotaMessage += ` يمكنك المحاولة مرة أخرى بعد ${retryDelay} ثانية.`;
       } else {
         quotaMessage += " يرجى المحاولة مرة أخرى لاحقاً أو غداً.";
       }
-      
+
       throw new Error(`QUOTA_EXCEEDED: ${quotaMessage} / Limite quotidienne dépassée (20 requêtes/jour pour le niveau gratuit).${retryDelay ? ` Réessayez dans ${retryDelay} secondes.` : " Veuillez réessayer plus tard ou demain."}`);
     }
-    
+
     // Check for API key errors
     if (errorCode === 401 || errorMessage.includes("API key") || errorMessage.includes("authentication")) {
       throw new Error("API_KEY_INVALID: مفتاح API غير صالح أو منتهي الصلاحية. / Clé API invalide ou expirée.");
     }
-    
+
     // Generic error
     throw new Error("Erreur de connexion / حدث خطأ أثناء الاتصال بالخادم.");
   }
