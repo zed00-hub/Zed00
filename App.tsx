@@ -176,9 +176,12 @@ const App: React.FC = () => {
           size: file.size
         });
 
-        // If it's an image, add to pending attachments for UI preview
+        // Add all files to pending attachments for UI preview (images show preview, others show icon)
         if (file.type.startsWith('image/')) {
           newAttachments.push(`data:${file.type};base64,${base64Data}`);
+        } else {
+          // For non-image files, store a special format: "file:name:type"
+          newAttachments.push(`file:${file.name}:${file.type}`);
         }
 
       } catch (err) {
