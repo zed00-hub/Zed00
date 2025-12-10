@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { auth, googleProvider } from '../services/firebase';
 import { User } from '../types';
 
 interface AuthContextType {
@@ -14,34 +16,48 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check for saved user on load
+  // Check for saved user on load while Firebase initializes
   useEffect(() => {
     const savedUser = localStorage.getItem('paramedical_user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
     }
-    setIsLoading(false);
+  }, []);
+
+  // Listen to Firebase auth state
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+      if (fbUser) {
+        const mappedUser: User = {
+          id: fbUser.uid,
+          name: fbUser.displayName || 'Utilisateur',
+          email: fbUser.email || '',
+          avatar: fbUser.photoURL || undefined,
+        };
+        setUser(mappedUser);
+        localStorage.setItem('paramedical_user', JSON.stringify(mappedUser));
+      } else {
+        setUser(null);
+        localStorage.removeItem('paramedical_user');
+      }
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
 
   const loginWithGoogle = async () => {
     setIsLoading(true);
-    // Simulate API call - REPLACE THIS WITH REAL FIREBASE LOGIC LATER
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Mock Data
-    const mockUser: User = {
-      id: 'google-user-' + Date.now(),
-      name: 'طالب شبه طبي',
-      email: 'student@example.com',
-      avatar: 'https://ui-avatars.com/api/?name=Medical+Student&background=0ea5e9&color=fff'
-    };
-    
-    setUser(mockUser);
-    localStorage.setItem('paramedical_user', JSON.stringify(mockUser));
-    setIsLoading(false);
+    try {
+      await signInWithPopup(auth, googleProvider);
+      // User state and localStorage handled by onAuthStateChanged
+    } catch (error) {
+      setIsLoading(false);
+      throw error;
+    }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await signOut(auth);
     setUser(null);
     localStorage.removeItem('paramedical_user');
   };
