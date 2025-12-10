@@ -127,45 +127,44 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ files }) => {
         );
     }
 
-    if (state.isFinished) {
-        return (
-            <QuizResults
-                questions={state.questions}
-                userAnswers={state.userAnswers}
-                score={state.score}
-                config={state.config}
-                onRestart={handleRestart}
-            />
-        );
-    }
-
-    if (state.isActive && state.questions.length > 0) {
-        return (
-            <QuizActive
-                question={state.questions[state.currentQuestionIndex]}
-                currentQuestionIndex={state.currentQuestionIndex}
-                totalQuestions={state.questions.length}
-                selectedAnswers={state.userAnswers[state.questions[state.currentQuestionIndex].id] || []}
-                quizType={state.config?.quizType || 'single'}
-                onSelectAnswer={handleSelectAnswer}
-                onNext={handleNext}
-                onFinish={handleFinish}
-            />
-        );
-    }
-
     return (
-        <div className="h-full overflow-y-auto custom-scrollbar">
+        <div className="h-full overflow-y-auto custom-scrollbar overscroll-y-contain p-2 sm:p-4">
             {error && (
                 <div className="max-w-2xl mx-auto mt-6 p-4 bg-red-50 text-red-600 rounded-xl border border-red-200 text-center">
                     {error}
                 </div>
             )}
-            <QuizSetup
-                files={files}
-                onStart={handleStartQuiz}
-                isLoading={isLoading}
-            />
+
+            {!state.isActive && !state.isFinished && (
+                <QuizSetup
+                    files={files}
+                    onStart={handleStartQuiz}
+                    isLoading={isLoading}
+                />
+            )}
+
+            {state.isFinished && (
+                <QuizResults
+                    questions={state.questions}
+                    userAnswers={state.userAnswers}
+                    score={state.score}
+                    config={state.config}
+                    onRestart={handleRestart}
+                />
+            )}
+
+            {state.isActive && state.questions.length > 0 && (
+                <QuizActive
+                    question={state.questions[state.currentQuestionIndex]}
+                    currentQuestionIndex={state.currentQuestionIndex}
+                    totalQuestions={state.questions.length}
+                    selectedAnswers={state.userAnswers[state.questions[state.currentQuestionIndex].id] || []}
+                    quizType={state.config?.quizType || 'single'}
+                    onSelectAnswer={handleSelectAnswer}
+                    onNext={handleNext}
+                    onFinish={handleFinish}
+                />
+            )}
         </div>
     );
 };
