@@ -44,7 +44,7 @@ const App: React.FC = () => {
             setSessions(fetched);
             setCurrentSessionId(fetched[0].id);
           } else {
-            // If no sessions, create a new one and save it
+            // If no sessions, create a new one and save it (don't await - let it save in background)
             const newId = Date.now().toString();
             const newSession: ChatSession = {
               id: newId,
@@ -54,14 +54,28 @@ const App: React.FC = () => {
             };
             setSessions([newSession]);
             setCurrentSessionId(newId);
-            await saveSessionToFirestore(user.id, newSession);
-            console.log("App: Created and saved new session", newId);
+            // Save in background - don't block UI
+            saveSessionToFirestore(user.id, newSession).then(() => {
+              console.log("App: Created and saved new session", newId);
+            }).catch(err => {
+              console.error("App: Failed to save new session:", err);
+            });
           }
         } catch (error) {
           console.error("App: Error loading sessions:", error);
+          // On error, still create a local session
+          const newId = Date.now().toString();
+          setSessions([{
+            id: newId,
+            title: 'محادثة جديدة',
+            messages: [],
+            timestamp: Date.now()
+          }]);
+          setCurrentSessionId(newId);
+        } finally {
+          // Always set loaded to true
+          setIsSessionsLoaded(true);
         }
-
-        setIsSessionsLoaded(true);
       } else {
         // Logout state - reset to default
         console.log("App: No user, resetting to default session");
