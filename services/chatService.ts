@@ -1,5 +1,5 @@
 import { db } from './firebase';
-import { collection, doc, setDoc, getDocs, deleteDoc, query, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, deleteDoc, query, Timestamp } from 'firebase/firestore';
 import { ChatSession } from '../types';
 
 export const saveSessionToFirestore = async (userId: string, session: ChatSession) => {
@@ -19,7 +19,8 @@ export const loadSessionsFromFirestore = async (userId: string): Promise<ChatSes
     if (!userId) return [];
     try {
         const sessionsRef = collection(db, 'users', userId, 'sessions');
-        const q = query(sessionsRef, orderBy('timestamp', 'desc')); // Assuming timestamp is numeric or convertible
+        // Removed orderBy to avoid index requirement issues. Sorting client-side is fine for this scale.
+        const q = query(sessionsRef);
         const querySnapshot = await getDocs(q);
 
         const sessions: ChatSession[] = [];
@@ -32,7 +33,9 @@ export const loadSessionsFromFirestore = async (userId: string): Promise<ChatSes
                 timestamp: data.timestamp
             } as ChatSession);
         });
-        return sessions;
+
+        // Sort descending by timestamp
+        return sessions.sort((a, b) => b.timestamp - a.timestamp);
     } catch (error) {
         console.error("Error loading sessions:", error);
         return [];
