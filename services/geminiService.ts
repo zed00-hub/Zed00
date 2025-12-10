@@ -153,3 +153,110 @@ export const generateResponse = async (
     throw new Error("Erreur de connexion / حدث خطأ أثناء الاتصال بالخادم.");
   }
 };
+
+// --- Quiz Generation Service ---
+
+import { QuizConfig, QuizQuestion } from "../types";
+
+export const generateQuiz = async (
+  config: QuizConfig,
+  fileContexts: FileContext[] // Global files (courses) or specific uploaded file
+): Promise<QuizQuestion[]> => {
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // Use flash model for speed and cost efficiency
+    const modelId = "gemini-2.5-flash";
+
+    let sourceContext = "";
+    let filePart: Part | undefined;
+
+    // determine source
+    if (config.sourceType === 'subject' && config.subject) {
+      // Find relevant files for this subject from the global knowledge base
+      const relevantFiles = fileContexts.filter(f =>
+        f.name.toLowerCase().includes(config.subject!.toLowerCase()) ||
+        (f.content && f.content.toLowerCase().includes(config.subject!.toLowerCase()))
+      );
+
+      if (relevantFiles.length > 0) {
+        sourceContext = relevantFiles.map(f => f.content).join("\n\n");
+      } else {
+        // Fallback: ask AI to generate based on general knowledge if no specific file found
+        sourceContext = `Sujet général: ${config.subject}. (Aucun fichier spécifique trouvé, utilisez vos connaissances générales).`;
+      }
+    } else if (config.sourceType === 'file' && config.fileContext) {
+      // User uploaded a specific file for the quiz
+      if (config.fileContext.data) {
+        filePart = {
+          inlineData: {
+            mimeType: config.fileContext.type,
+            data: config.fileContext.data
+          }
+        };
+      } else if (config.fileContext.content) {
+        sourceContext = config.fileContext.content;
+      }
+    }
+
+    const systemInstruction = `
+      Rôle: Générateur de QCM (QCM) Expert pour étudiants paramédicaux.
+      Tâche: Générer ${config.questionCount} questions QCM de difficulté '${config.difficulty}'.
+      Langue: Français (Scientifique).
+      
+      FORMAT DE SORTIE (STRICT JSON):
+      Tu dois répondre UNIQUEMENT avec un tableau JSON valide.
+      Schéma:
+      [
+        {
+          "id": 1,
+          "question": "Texte de la question...",
+          "options": ["Choix A", "Choix B", "Choix C", "Choix D"],
+          "correctAnswer": 0, // Index (0-3) de la bonne réponse
+          "explanation": "Explication courte de la réponse."
+        }
+      ]
+      
+      RÈGLES:
+      1. Les questions doivent être pertinentes par rapport au contenu fourni.
+      2. 4 choix par question.
+      3. Une seule bonne réponse.
+      4. Pas de texte avant ou après le JSON.
+    `;
+
+    const prompt = `
+      Génère le quiz maintenant.
+      Contexte:
+      ${sourceContext.substring(0, 30000)} // Limit context size to avoid errors
+    `;
+
+    const parts: Part[] = [{ text: prompt }];
+    if (filePart) parts.push(filePart);
+
+    const result = await ai.models.generateContent({
+      model: modelId,
+      config: {
+        systemInstruction: systemInstruction,
+        temperature: 0.3,
+        responseMimeType: "application/json", // Force JSON mode
+      },
+      contents: [{ role: 'user', parts: parts }]
+    });
+
+    const responseText = result.text;
+    if (!responseText) throw new Error("Réponse vide de l'IA");
+
+    // Parse JSON
+    const questions: QuizQuestion[] = JSON.parse(responseText);
+
+    // Validate formatting (ensure id and indices are numbers)
+    return questions.map((q, index) => ({
+      ...q,
+      id: index + 1,
+      correctAnswer: Number(q.correctAnswer)
+    }));
+
+  } catch (error) {
+    console.error("Quiz Generation Error:", error);
+    throw new Error("Échec de la génération du quiz. / فشل إنشاء الاختبار.");
+  }
+};

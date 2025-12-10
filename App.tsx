@@ -6,6 +6,8 @@ import LoginPage from './components/LoginPage';
 import { FileContext, Message, ChatSession } from './types';
 import { generateResponse } from './services/geminiService';
 import { ZGLogo, SunIcon, MoonIcon, LoadingIcon } from './components/Icons';
+import { BookOpen, MessageSquare } from 'lucide-react';
+import QuizContainer from './components/Quiz/QuizContainer';
 import { fileToBase64 } from './utils/fileHelpers';
 import { INITIAL_COURSES } from './data/courses';
 import { useAuth } from './contexts/AuthContext';
@@ -98,6 +100,7 @@ const App: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [appMode, setAppMode] = useState<'chat' | 'quiz'>('chat');
 
   // Helper to get current session object
   const currentSession = sessions.find(s => s.id === currentSessionId) || sessions[0];
@@ -385,19 +388,61 @@ const App: React.FC = () => {
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col min-w-0 bg-gradient-to-br from-slate-50/50 via-white to-gray-50/50 dark:from-dark-bg dark:via-slate-900 dark:to-slate-800 transition-colors duration-300">
-          <ChatArea
-            messages={messages}
-            input={input}
-            setInput={setInput}
-            isLoading={isProcessing}
-            onSend={handleSendMessage}
-            onToggleSidebar={() => setIsSidebarOpen(true)}
-            onUpload={handleFileUpload}
-            pendingAttachments={pendingAttachments}
-            onRemoveAttachment={removePendingAttachment}
-            isDarkMode={isDarkMode}
-            toggleTheme={toggleTheme}
-          />
+
+          {/* Mode Switcher (Visible on Mobile/Desktop) */}
+          <div className="flex justify-center pt-4 pb-2">
+            <div className="bg-gray-100 dark:bg-dark-surface p-1 rounded-xl flex shadow-inner">
+              <button
+                onClick={() => setAppMode('chat')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${appMode === 'chat'
+                    ? 'bg-white dark:bg-dark-bg text-medical-600 shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
+                  }`}
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>محادثة</span>
+              </button>
+              <button
+                onClick={() => setAppMode('quiz')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${appMode === 'quiz'
+                    ? 'bg-white dark:bg-dark-bg text-medical-600 shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
+                  }`}
+              >
+                <BookOpen className="w-4 h-4" />
+                <span>اختبارات</span>
+              </button>
+            </div>
+          </div>
+
+          {appMode === 'chat' ? (
+            <ChatArea
+              messages={messages}
+              input={input}
+              setInput={setInput}
+              isLoading={isProcessing}
+              onSend={handleSendMessage}
+              onToggleSidebar={() => setIsSidebarOpen(true)}
+              onUpload={handleFileUpload}
+              pendingAttachments={pendingAttachments}
+              onRemoveAttachment={removePendingAttachment}
+              isDarkMode={isDarkMode}
+              toggleTheme={toggleTheme}
+            />
+          ) : (
+            <div className="flex-1 overflow-hidden relative">
+              <div className="absolute inset-0">
+                <QuizContainer files={files} />
+              </div>
+              {/* Mobile Sidebar Toggle for Quiz Mode */}
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="md:hidden absolute top-4 right-4 p-2 rounded-lg bg-white/80 dark:bg-dark-surface/80 shadow-sm z-50 text-gray-500"
+              >
+                <ZGLogo />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

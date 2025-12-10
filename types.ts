@@ -36,3 +36,31 @@ export interface User {
   email: string;
   avatar?: string;
 }
+
+// --- Quiz Types ---
+
+export interface QuizQuestion {
+  id: number;
+  question: string;
+  options: string[];
+  correctAnswer: number; // Index of the correct option (0-3)
+  explanation: string;
+}
+
+export interface QuizConfig {
+  sourceType: 'subject' | 'file';
+  subject?: string;
+  fileContext?: FileContext; // For file-based quizzes
+  difficulty: 'Easy' | 'Medium' | 'Hard';
+  questionCount: number;
+}
+
+export interface QuizState {
+  isActive: boolean;
+  config: QuizConfig | null;
+  questions: QuizQuestion[];
+  currentQuestionIndex: number;
+  userAnswers: { [questionId: number]: number }; // questionId -> selectedOptionIndex
+  score: number;
+  isFinished: boolean;
+}
