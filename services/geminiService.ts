@@ -377,8 +377,8 @@ export const generateMnemonic = async (
       
       RÈGLES DE CONTENU (IMPORTANT):
       - "mnemonic": La phrase en ${language === 'ar' ? 'Arabe' : 'Français'}.
-      - "breakdown": { char: "Lettre/Mot de la phrase", meaning: "Terme technique original en FRANÇAIS" }.
-      - "explanation": TOUJOURS EN FRANÇAIS (Explication scientifique).
+      - "breakdown": { char: "Lettre/Mot de la phrase", meaning: "Terme technique original STRICTEMENT EN FRANÇAIS" }.
+      - "explanation": TOUJOURS EN FRANÇAIS (Explication scientifique). Il peut y avoir quelques mots en arabe entre parenthèses pour clarifier, mais le texte principal doit être en Français.
       - "funFact": TOUJOURS EN FRANÇAIS (Culture générale médicale).
       
       FORMAT DE SORTIE (STRICT JSON):

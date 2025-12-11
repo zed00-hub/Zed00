@@ -401,11 +401,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
                             <div className="bg-white dark:bg-dark-surface rounded-2xl border dark:border-gray-700 shadow-sm overflow-hidden">
                                 <div className="grid grid-cols-12 gap-2 p-4 bg-gray-50 dark:bg-gray-800 text-xs font-bold text-gray-500 border-b dark:border-gray-700">
                                     <div className="col-span-1 text-center">#</div>
-                                    <div className="col-span-5 md:col-span-4">الطالب</div>
-                                    <div className="col-span-3 md:col-span-2 text-center">المستوى</div>
-                                    <div className="col-span-3 md:col-span-2 text-center">الوقت</div>
-                                    <div className="hidden md:block col-span-2 text-center">المحادثات</div>
-                                    <div className="hidden md:block col-span-1 text-center">آخر ظهور</div>
+                                    <div className="col-span-4 md:col-span-3">الطالب</div>
+                                    <div className="col-span-2 text-center">المستوى</div>
+                                    <div className="col-span-2 text-center">الوقت</div>
+                                    <div className="col-span-1 text-center hidden md:block">المحادثات</div>
+                                    <div className="col-span-1 text-center hidden md:block">الاختبارات</div>
+                                    <div className="col-span-2 md:col-span-1 text-center">آخر ظهور</div>
                                 </div>
 
                                 <div className="divide-y dark:divide-gray-700">
@@ -416,25 +417,28 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
                                                 <div className="col-span-1 text-center font-bold text-amber-500">
                                                     {index < 3 ? <Medal size={20} className={`mx-auto ${index === 0 ? 'text-yellow-500' : index === 1 ? 'text-gray-400' : 'text-orange-500'}`} /> : index + 1}
                                                 </div>
-                                                <div className="col-span-5 md:col-span-4 flex items-center gap-3">
+                                                <div className="col-span-4 md:col-span-3 flex items-center gap-3">
                                                     <img src={stat.avatar || `https://ui-avatars.com/api/?name=${stat.name}&background=random`} alt={stat.name} className="w-8 h-8 rounded-full bg-gray-200" />
                                                     <div className="min-w-0">
                                                         <p className="text-sm font-bold text-gray-800 dark:text-gray-200 truncate">{stat.name}</p>
                                                         <p className="text-[10px] text-gray-500 truncate">{stat.email}</p>
                                                     </div>
                                                 </div>
-                                                <div className="col-span-3 md:col-span-2 text-center">
+                                                <div className="col-span-2 text-center">
                                                     <span className={`text-[10px] px-2 py-1 rounded-full font-medium ${level.color}`}>
                                                         {level.label}
                                                     </span>
                                                 </div>
-                                                <div className="col-span-3 md:col-span-2 text-center font-mono text-sm text-gray-700 dark:text-gray-300">
+                                                <div className="col-span-2 text-center font-mono text-sm text-gray-700 dark:text-gray-300">
                                                     {formatTime(stat.totalTimeSpent || 0)}
                                                 </div>
-                                                <div className="hidden md:block col-span-2 text-center text-sm text-gray-600 dark:text-gray-400">
+                                                <div className="col-span-1 text-center text-sm text-gray-600 dark:text-gray-400 hidden md:block">
                                                     {stat.conversationsCount || 0}
                                                 </div>
-                                                <div className="hidden md:block col-span-1 text-center text-xs text-gray-400">
+                                                <div className="col-span-1 text-center text-sm text-gray-600 dark:text-gray-400 hidden md:block">
+                                                    {stat.quizzesCount || 0}
+                                                </div>
+                                                <div className="col-span-2 md:col-span-1 text-center text-xs text-gray-400">
                                                     {/* Simple date format */}
                                                     {stat.lastActive?.seconds ? new Date(stat.lastActive.seconds * 1000).toLocaleDateString('ar-EG') : '-'}
                                                 </div>

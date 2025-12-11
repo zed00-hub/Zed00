@@ -16,6 +16,7 @@ import { User } from '../types';
 export interface UserStats extends User {
     totalTimeSpent: number; // in minutes
     conversationsCount: number;
+    quizzesCount: number;
     lastActive: any; // Timestamp
     createdAt: any; // Timestamp
 }
@@ -78,6 +79,20 @@ export const trackNewConversation = async (userId: string) => {
         });
     } catch (error) {
         console.warn('Failed to track conversation:', error);
+    }
+};
+
+/**
+ * Increment quiz count
+ */
+export const trackNewQuiz = async (userId: string) => {
+    try {
+        const userRef = doc(db, 'users', userId);
+        await updateDoc(userRef, {
+            quizzesCount: increment(1)
+        });
+    } catch (error) {
+        console.warn('Failed to track quiz:', error);
     }
 };
 

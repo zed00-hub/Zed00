@@ -14,6 +14,8 @@ const QuizResults: React.FC<QuizResultsProps> = ({ questions, userAnswers, score
     const [showReview, setShowReview] = useState(false);
     const percentage = Math.round((score / questions.length) * 100);
 
+    const scoreOutOf20 = Math.round((score / questions.length) * 20);
+
     const getGradeColor = () => {
         if (percentage >= 80) return 'text-green-500';
         if (percentage >= 50) return 'text-yellow-500';
@@ -36,7 +38,7 @@ const QuizResults: React.FC<QuizResultsProps> = ({ questions, userAnswers, score
                         <Trophy className={`w-16 h-16 ${getGradeColor()}`} />
                     </div>
 
-                    <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">{percentage}%</h2>
+                    <h2 className="text-5xl font-bold text-gray-900 dark:text-white mb-2">{scoreOutOf20}/20</h2>
                     <p className={`text-xl font-medium ${getGradeColor()} mb-6`}>{getGradeMessage()}</p>
 
                     <div className="flex justify-center gap-8 text-gray-600 dark:text-gray-400 mb-8 border-t border-b border-gray-100 dark:border-dark-border py-6">

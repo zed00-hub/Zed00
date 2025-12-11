@@ -20,7 +20,7 @@ import SettingsModal from './components/SettingsModal';
 import AdminPanel from './components/AdminPanel';
 import { SettingsProvider, useSettings } from './contexts/SettingsContext';
 import { loadCoursesFromFirestore, isAdmin } from './services/coursesService';
-import { trackTimeSpent, trackNewConversation } from './services/analyticsService';
+import { trackTimeSpent, trackNewConversation, trackNewQuiz } from './services/analyticsService';
 import { Crown } from 'lucide-react';
 
 const AppContent: React.FC = () => {
@@ -277,6 +277,9 @@ const AppContent: React.FC = () => {
       return;
     }
 
+    // Check if new session to track analytics
+    const isNew = !quizSessions.some(q => q.id === updatedSession.id);
+
     setQuizSessions(prev => {
       const exists = prev.find(q => q.id === updatedSession.id);
       if (exists) {
@@ -293,6 +296,9 @@ const AppContent: React.FC = () => {
 
     if (user?.id) {
       saveQuizToFirestore(user.id, updatedSession);
+      if (isNew) {
+        trackNewQuiz(user.id);
+      }
     }
   };
 

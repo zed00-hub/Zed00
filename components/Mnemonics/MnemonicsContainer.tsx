@@ -88,7 +88,7 @@ const MnemonicsContainer: React.FC = () => {
                                         : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
                                         }`}
                                 >
-                                    Français
+                                    Français (مصطلحات طبية)
                                 </button>
                                 <button
                                     onClick={() => setLanguage('ar')}
@@ -97,7 +97,7 @@ const MnemonicsContainer: React.FC = () => {
                                         : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
                                         }`}
                                 >
-                                    العربية (تسهيل بالدارجة/الفصحى)
+                                    العربية (مع الحفاظ على المصطلحات فرنسية)
                                 </button>
                             </div>
                         </div>
