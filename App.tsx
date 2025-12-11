@@ -38,7 +38,6 @@ const AppContent: React.FC = () => {
 
   // Initialize files with the pre-loaded courses
   const [files, setFiles] = useState<FileContext[]>(INITIAL_COURSES);
-  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
 
   // Load shared courses from Firestore on mount
   const loadSharedCourses = useCallback(async () => {
@@ -54,6 +53,11 @@ const AppContent: React.FC = () => {
       console.error('Error loading shared courses:', error);
     }
   }, []);
+
+  // Check for admin route FIRST
+  if (location.pathname === '/admin') {
+    return <AdminPanel />;
+  }
 
   useEffect(() => {
     loadSharedCourses();
@@ -553,7 +557,7 @@ const AppContent: React.FC = () => {
               isDarkMode={isDarkMode}
               onToggleTheme={toggleTheme}
               onOpenSettings={() => setIsSettingsOpen(true)}
-              onOpenAdmin={() => setIsAdminPanelOpen(true)}
+              onOpenAdmin={() => navigate('/admin')}
               isAdmin={isAdmin(user?.email)}
             />
           </div>
@@ -587,7 +591,7 @@ const AppContent: React.FC = () => {
             isDarkMode={isDarkMode}
             onToggleTheme={toggleTheme}
             onOpenSettings={() => setIsSettingsOpen(true)}
-            onOpenAdmin={() => setIsAdminPanelOpen(true)}
+            onOpenAdmin={() => navigate('/admin')}
             isAdmin={isAdmin(user?.email)}
           />
         </div>
@@ -694,15 +698,11 @@ const AppContent: React.FC = () => {
         </div>
       </div>
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
-      <AdminPanel
-        isOpen={isAdminPanelOpen}
-        onClose={() => setIsAdminPanelOpen(false)}
-        onCoursesUpdated={loadSharedCourses}
-      />
       <ReloadPrompt />
     </div>
   );
 };
+
 
 // Wrap with SettingsProvider
 const App: React.FC = () => (

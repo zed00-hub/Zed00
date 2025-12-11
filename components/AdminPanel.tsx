@@ -19,15 +19,11 @@ import {
     Users, Clock, MessageCircle, Medal
 } from 'lucide-react';
 import { extractTextFromPDF } from '../utils/pdfUtils';
+import { useNavigate } from 'react-router-dom';
 
-interface AdminPanelProps {
-    isOpen: boolean;
-    onClose: () => void;
-    onCoursesUpdated: () => void;
-}
-
-const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdated }) => {
+const AdminPanel: React.FC = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
 
     // UI State
     const [activeTab, setActiveTab] = useState<'courses' | 'analytics'>('courses');
@@ -39,7 +35,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
     const [editingCourse, setEditingCourse] = useState<CourseFile | null>(null);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
     const [isExtractingPDF, setIsExtractingPDF] = useState(false);
-    const [showContentPreview, setShowContentPreview] = useState(true);
+    const [showContentPreview, setShowContentPreview] = useState(true); // Toggle for viewing raw content
     const [courseName, setCourseName] = useState('');
     const [courseContent, setCourseContent] = useState('');
     const [courseCategory, setCourseCategory] = useState('other');
@@ -48,10 +44,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
     const [userStats, setUserStats] = useState<UserStats[]>([]);
 
     useEffect(() => {
-        if (isOpen) {
-            loadData();
+        // Redirect if not admin
+        if (user && !isAdmin(user.email)) {
+            navigate('/');
         }
-    }, [isOpen, activeTab]);
+    }, [user, navigate]);
+
+    useEffect(() => {
+        loadData();
+    }, [activeTab]);
 
     const loadData = async () => {
         setIsLoading(true);
@@ -102,7 +103,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
             setTimeout(() => {
                 resetForm();
                 loadData();
-                onCoursesUpdated();
             }, 1000);
 
         } catch (error) {
@@ -118,7 +118,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
         try {
             await deleteCourseFromFirestore(courseId);
             loadData();
-            onCoursesUpdated();
         } catch (error) {
             console.error('Error deleting course:', error);
         }
@@ -182,70 +181,71 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
         return `${m}د`;
     };
 
-    if (!isOpen) return null;
-
-    if (!isAdmin(user?.email)) {
-        return null;
+    if (!user || !isAdmin(user.email)) {
+        return <div className="min-h-screen flex items-center justify-center text-gray-500">جاري التحقق من الصلاحيات...</div>;
     }
 
     return (
-        <>
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" onClick={onClose} />
-            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[95%] max-w-5xl max-h-[90vh] bg-white dark:bg-dark-surface rounded-3xl shadow-2xl z-50 overflow-hidden flex flex-col">
+        <div className="min-h-screen bg-gray-50 dark:bg-dark-bg flex flex-col">
+            <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 flex flex-col">
                 {/* Header with Tabs */}
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-surface shrink-0">
-                    <div className="flex items-center justify-between mb-4">
+                <div className="bg-white dark:bg-dark-surface rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 mb-6">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-xl">
-                                <LayoutDashboard className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                            <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-xl">
+                                <LayoutDashboard className="w-8 h-8 text-amber-600 dark:text-amber-400" />
                             </div>
                             <div>
-                                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">لوحة القيادة</h2>
-                                <p className="text-xs text-gray-500">مرحباً بك في لوحة تحكم PARABOT</p>
+                                <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200">لوحة القيادة</h2>
+                                <p className="text-sm text-gray-500">نظرة شاملة على أداء PARABOT</p>
                             </div>
                         </div>
-                        <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all">
-                            <X size={24} />
+                        <button
+                            onClick={() => navigate('/')}
+                            className="p-2 px-4 flex items-center gap-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition-all"
+                        >
+                            <X size={20} />
+                            <span>العودة للتطبيق</span>
                         </button>
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 bg-gray-100 dark:bg-gray-800/50 p-1.5 rounded-xl">
                         <button
                             onClick={() => setActiveTab('courses')}
-                            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'courses'
-                                ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30'
-                                : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
+                            className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'courses'
+                                    ? 'bg-white dark:bg-dark-surface text-amber-600 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
                                 }`}
                         >
-                            <BookOpen size={18} />
+                            <BookOpen size={20} />
                             إدارة المواد
                         </button>
                         <button
                             onClick={() => setActiveTab('analytics')}
-                            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'analytics'
-                                ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30'
-                                : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
+                            className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'analytics'
+                                    ? 'bg-white dark:bg-dark-surface text-amber-600 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
                                 }`}
                         >
-                            <Users size={18} />
+                            <Users size={20} />
                             تحليلات الطلاب
                         </button>
                     </div>
                 </div>
 
                 {/* Content Area */}
-                <div className="flex-1 overflow-y-auto p-5 bg-gray-50 dark:bg-gray-900/50">
+                <div className="flex-1">
                     {isLoading ? (
-                        <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                        <div className="flex flex-col items-center justify-center h-64 text-gray-500">
                             <Loader2 className="w-10 h-10 mb-4 animate-spin text-amber-500" />
                             <p>جاري تحميل البيانات...</p>
                         </div>
                     ) : activeTab === 'courses' ? (
                         // --- COURSES TAB ---
                         showAddForm ? (
-                            <div className="space-y-4 bg-white dark:bg-dark-bg p-6 rounded-2xl border border-gray-100 dark:border-gray-700">
+                            <div className="space-y-4 bg-white dark:bg-dark-surface p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
                                 <div className="flex items-center justify-between mb-4">
-                                    <h3 className="font-bold text-gray-800 dark:text-gray-200">
+                                    <h3 className="font-bold text-gray-800 dark:text-gray-200 text-lg">
                                         {editingCourse ? 'تعديل المادة' : 'إضافة مادة جديدة'}
                                     </h3>
                                     <button onClick={resetForm} className="text-sm text-gray-500 hover:text-gray-700">
@@ -260,7 +260,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
                                         type="text"
                                         value={courseName}
                                         onChange={(e) => setCourseName(e.target.value)}
-                                        className="w-full px-4 py-3 border rounded-xl dark:bg-dark-surface dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500"
+                                        className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 transition-all"
                                     />
                                 </div>
 
@@ -269,7 +269,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
                                     <select
                                         value={courseCategory}
                                         onChange={(e) => setCourseCategory(e.target.value)}
-                                        className="w-full px-4 py-3 border rounded-xl dark:bg-dark-surface dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500"
+                                        className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 transition-all"
                                     >
                                         {COURSE_CATEGORIES.map((cat) => (
                                             <option key={cat.id} value={cat.id}>{cat.labelAr} - {cat.label}</option>
@@ -303,81 +303,88 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
                                             <textarea
                                                 value={courseContent}
                                                 onChange={(e) => setCourseContent(e.target.value)}
-                                                rows={10}
-                                                className="w-full px-4 py-3 border rounded-xl dark:bg-dark-surface dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 font-mono text-sm"
+                                                rows={12}
+                                                className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 font-mono text-sm leading-relaxed"
                                             />
                                         )}
                                     </div>
                                 </div>
 
-                                <button
-                                    onClick={handleSaveCourse}
-                                    disabled={!courseName.trim() || !courseContent.trim() || saveStatus === 'saving'}
-                                    className="w-full py-3 bg-amber-500 text-white rounded-xl font-bold hover:bg-amber-600 transition-all flex items-center justify-center gap-2"
-                                >
-                                    {saveStatus === 'saving' ? <Loader2 className="animate-spin" /> : <Save size={20} />}
-                                    {saveStatus === 'saving' ? 'جاري الحفظ...' : 'حفظ المادة'}
-                                </button>
+                                <div className="pt-4">
+                                    <button
+                                        onClick={handleSaveCourse}
+                                        disabled={!courseName.trim() || !courseContent.trim() || saveStatus === 'saving'}
+                                        className="w-full py-4 bg-amber-500 text-white rounded-xl font-bold hover:bg-amber-600 transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl active:scale-[0.98]"
+                                    >
+                                        {saveStatus === 'saving' ? <Loader2 className="animate-spin" /> : <Save size={20} />}
+                                        {saveStatus === 'saving' ? 'جاري الحفظ...' : 'حفظ المادة'}
+                                    </button>
+                                </div>
                             </div>
                         ) : (
-                            <div className="space-y-4">
-                                <div className="flex gap-3">
-                                    <button onClick={() => { resetForm(); setShowAddForm(true); }} className="flex-1 py-3 bg-amber-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-amber-600">
-                                        <Plus size={20} /> إضافة يدوية
+                            <div className="space-y-6">
+                                <div className="flex gap-4">
+                                    <button onClick={() => { resetForm(); setShowAddForm(true); }} className="flex-1 py-4 bg-amber-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-amber-600 shadow-lg hover:shadow-amber-500/20 transition-all">
+                                        <Plus size={24} /> إضافة مادة يدوياً
                                     </button>
-                                    <label className="flex-1 py-3 bg-white border border-dashed border-gray-300 text-gray-600 rounded-xl font-bold flex items-center justify-center gap-2 cursor-pointer hover:bg-gray-50">
-                                        <FileUp size={20} /> تحليل PDF
+                                    <label className="flex-1 py-4 bg-white dark:bg-dark-surface border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl font-bold flex items-center justify-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
+                                        <FileUp size={24} /> رفع ملف PDF
                                         <input type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" />
                                     </label>
                                 </div>
 
-                                {courses.length === 0 ? (
-                                    <div className="text-center py-10 text-gray-400">لا توجد مواد مضافة</div>
-                                ) : (
-                                    <div className="grid gap-3">
-                                        {courses.map(course => (
-                                            <div key={course.id} className="p-4 bg-white dark:bg-dark-surface rounded-xl border dark:border-gray-700 flex items-center justify-between shadow-sm">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="p-2 bg-amber-50 rounded-lg text-amber-600"><BookOpen size={20} /></div>
-                                                    <div>
-                                                        <p className="font-bold text-gray-800 dark:text-gray-200">{course.name}</p>
-                                                        <span className="text-xs px-2 py-0.5 bg-gray-100 rounded-full text-gray-500">{getCategoryLabel(course.category || 'other')}</span>
+                                <div className="bg-white dark:bg-dark-surface rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                                    <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+                                        <h3 className="font-bold text-gray-800 dark:text-gray-200">المواد الحالية</h3>
+                                    </div>
+                                    {courses.length === 0 ? (
+                                        <div className="text-center py-12 text-gray-400">لا توجد مواد مضافة بعد</div>
+                                    ) : (
+                                        <div className="divide-y dark:divide-gray-700">
+                                            {courses.map(course => (
+                                                <div key={course.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors flex items-center justify-between group">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="p-3 bg-amber-50 dark:bg-amber-900/10 rounded-xl text-amber-600 dark:text-amber-500 group-hover:scale-110 transition-transform"><BookOpen size={24} /></div>
+                                                        <div>
+                                                            <p className="font-bold text-gray-800 dark:text-gray-200 text-lg">{course.name}</p>
+                                                            <span className="text-xs px-2.5 py-1 bg-gray-100 dark:bg-gray-700 rounded-full text-gray-500 dark:text-gray-400 font-medium">{getCategoryLabel(course.category || 'other')}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button onClick={() => handleEditCourse(course)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 hover:text-blue-500 transition-colors"><Edit2 size={20} /></button>
+                                                        <button onClick={() => handleDeleteCourse(course.id)} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-gray-500 hover:text-red-500 transition-colors"><Trash2 size={20} /></button>
                                                     </div>
                                                 </div>
-                                                <div className="flex gap-2">
-                                                    <button onClick={() => handleEditCourse(course)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500"><Edit2 size={16} /></button>
-                                                    <button onClick={() => handleDeleteCourse(course.id)} className="p-2 hover:bg-red-50 rounded-lg text-red-500"><Trash2 size={16} /></button>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         )
                     ) : (
                         // --- ANALYTICS TAB ---
-                        <div className="space-y-4">
+                        <div className="space-y-6">
                             {/* Stats Summary */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                <div className="p-4 bg-white dark:bg-dark-surface rounded-xl border dark:border-gray-700 shadow-sm">
-                                    <p className="text-xs text-gray-500 mb-1">عدد الطلاب</p>
-                                    <p className="text-2xl font-bold text-amber-600">{userStats.length}</p>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="p-6 bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                                    <p className="text-sm font-medium text-gray-500 mb-2">عدد الطلاب</p>
+                                    <p className="text-3xl font-black text-amber-600">{userStats.length}</p>
                                 </div>
-                                <div className="p-4 bg-white dark:bg-dark-surface rounded-xl border dark:border-gray-700 shadow-sm">
-                                    <p className="text-xs text-gray-500 mb-1">المحادثات</p>
-                                    <p className="text-2xl font-bold text-blue-600">
+                                <div className="p-6 bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                                    <p className="text-sm font-medium text-gray-500 mb-2">إجمالي المحادثات</p>
+                                    <p className="text-3xl font-black text-blue-600">
                                         {userStats.reduce((acc, u) => acc + (u.conversationsCount || 0), 0)}
                                     </p>
                                 </div>
-                                <div className="p-4 bg-white dark:bg-dark-surface rounded-xl border dark:border-gray-700 shadow-sm">
-                                    <p className="text-xs text-gray-500 mb-1">وقت التعلم</p>
-                                    <p className="text-xl font-bold text-green-600">
+                                <div className="p-6 bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                                    <p className="text-sm font-medium text-gray-500 mb-2">وقت التعلم الكلي</p>
+                                    <p className="text-3xl font-black text-green-600">
                                         {formatTime(userStats.reduce((acc, u) => acc + (u.totalTimeSpent || 0), 0))}
                                     </p>
                                 </div>
-                                <div className="p-4 bg-white dark:bg-dark-surface rounded-xl border dark:border-gray-700 shadow-sm">
-                                    <p className="text-xs text-gray-500 mb-1">متوسط الوقت</p>
-                                    <p className="text-xl font-bold text-purple-600">
+                                <div className="p-6 bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                                    <p className="text-sm font-medium text-gray-500 mb-2">متوسط وقت الطالب</p>
+                                    <p className="text-3xl font-black text-purple-600">
                                         {userStats.length > 0
                                             ? formatTime(Math.round(userStats.reduce((acc, u) => acc + (u.totalTimeSpent || 0), 0) / userStats.length))
                                             : '0د'}
@@ -398,7 +405,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
                             </div>
 
                             {/* Students List */}
-                            <div className="bg-white dark:bg-dark-surface rounded-2xl border dark:border-gray-700 shadow-sm overflow-hidden">
+                            <div className="bg-white dark:bg-dark-surface rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
                                 <div className="grid grid-cols-12 gap-2 p-4 bg-gray-50 dark:bg-gray-800 text-xs font-bold text-gray-500 border-b dark:border-gray-700">
                                     <div className="col-span-1 text-center">#</div>
                                     <div className="col-span-4 md:col-span-3">الطالب</div>
@@ -415,31 +422,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
                                         return (
                                             <div key={stat.id} className="grid grid-cols-12 gap-2 p-4 items-center hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                                                 <div className="col-span-1 text-center font-bold text-amber-500">
-                                                    {index < 3 ? <Medal size={20} className={`mx-auto ${index === 0 ? 'text-yellow-500' : index === 1 ? 'text-gray-400' : 'text-orange-500'}`} /> : index + 1}
+                                                    {index < 3 ? <Medal size={24} className={`mx-auto ${index === 0 ? 'text-yellow-500' : index === 1 ? 'text-gray-400' : 'text-orange-500'}`} /> : index + 1}
                                                 </div>
                                                 <div className="col-span-4 md:col-span-3 flex items-center gap-3">
-                                                    <img src={stat.avatar || `https://ui-avatars.com/api/?name=${stat.name}&background=random`} alt={stat.name} className="w-8 h-8 rounded-full bg-gray-200" />
+                                                    <img src={stat.avatar || `https://ui-avatars.com/api/?name=${stat.name}&background=random`} alt={stat.name} className="w-10 h-10 rounded-full bg-gray-200 shadow-sm" />
                                                     <div className="min-w-0">
                                                         <p className="text-sm font-bold text-gray-800 dark:text-gray-200 truncate">{stat.name}</p>
-                                                        <p className="text-[10px] text-gray-500 truncate">{stat.email}</p>
+                                                        <p className="text-xs text-gray-500 truncate">{stat.email}</p>
                                                     </div>
                                                 </div>
                                                 <div className="col-span-2 text-center">
-                                                    <span className={`text-[10px] px-2 py-1 rounded-full font-medium ${level.color}`}>
+                                                    <span className={`text-xs px-3 py-1 rounded-full font-bold ${level.color}`}>
                                                         {level.label}
                                                     </span>
                                                 </div>
-                                                <div className="col-span-2 text-center font-mono text-sm text-gray-700 dark:text-gray-300">
+                                                <div className="col-span-2 text-center font-mono text-sm font-bold text-gray-700 dark:text-gray-300">
                                                     {formatTime(stat.totalTimeSpent || 0)}
                                                 </div>
-                                                <div className="col-span-1 text-center text-sm text-gray-600 dark:text-gray-400 hidden md:block">
+                                                <div className="col-span-1 text-center text-sm font-medium text-gray-600 dark:text-gray-400 hidden md:block">
                                                     {stat.conversationsCount || 0}
                                                 </div>
-                                                <div className="col-span-1 text-center text-sm text-gray-600 dark:text-gray-400 hidden md:block">
+                                                <div className="col-span-1 text-center text-sm font-medium text-gray-600 dark:text-gray-400 hidden md:block">
                                                     {stat.quizzesCount || 0}
                                                 </div>
                                                 <div className="col-span-2 md:col-span-1 text-center text-xs text-gray-400">
-                                                    {/* Simple date format */}
                                                     {stat.lastActive?.seconds ? new Date(stat.lastActive.seconds * 1000).toLocaleDateString('ar-EG') : '-'}
                                                 </div>
                                             </div>
@@ -447,7 +453,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
                                     })}
 
                                     {userStats.length === 0 && (
-                                        <div className="text-center py-8 text-gray-400">
+                                        <div className="text-center py-12 text-gray-400">
                                             لا توجد بيانات طلاب لعرضها حالياً
                                         </div>
                                     )}
@@ -458,11 +464,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
                 </div>
 
                 {/* Footer */}
-                <div className="p-3 border-t bg-white dark:bg-dark-surface text-center text-[10px] text-gray-400">
-                    PARABOT Admin Panel v2.0
+                <div className="mt-8 p-4 border-t border-gray-200 dark:border-gray-800 text-center">
+                    <p className="text-xs text-gray-400">PARABOT Admin Dashboard &copy; {new Date().getFullYear()}</p>
                 </div>
             </div>
-        </>
+        </div>
     );
 };
 
