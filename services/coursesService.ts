@@ -14,7 +14,7 @@ const COURSES_COLLECTION = 'shared_courses';
 
 // Admin emails - only these users can add/edit courses
 export const ADMIN_EMAILS = [
-    'ziadgro550@gmail.com', // Replace with your actual admin email
+    'ziadgaid.ergo@gmail.com',
 ];
 
 export const isAdmin = (email: string | undefined): boolean => {
