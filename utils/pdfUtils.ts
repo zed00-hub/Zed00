@@ -2,7 +2,7 @@
 import * as pdfjsLib from 'pdfjs-dist';
 
 // Use CDN worker that matches the installed version
-const PDFJS_VERSION = '4.0.379'; // Match your installed version
+const PDFJS_VERSION = '5.4.449'; // Match your installed version
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.mjs`;
 
 /**
