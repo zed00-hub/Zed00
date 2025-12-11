@@ -5,7 +5,7 @@ import FileSidebar from './components/FileSidebar';
 import ChatArea from './components/ChatArea';
 import LoginPage from './components/LoginPage';
 import { FileContext, Message, ChatSession, QuizSession } from './types';
-import { generateResponse } from './services/geminiService';
+import { generateResponseStream } from './services/geminiService';
 import { ZGLogo, SunIcon, MoonIcon, LoadingIcon } from './components/Icons';
 import { BookOpen, MessageSquare, Sparkles } from 'lucide-react';
 import QuizContainer from './components/Quiz/QuizContainer';
@@ -323,7 +323,6 @@ const App: React.FC = () => {
     // Calculate new title if it's the first message
     let newTitle = undefined;
     if (messages.length === 0) {
-      // Use first 5 words as title
       newTitle = input.split(' ').slice(0, 5).join(' ') || 'صورة مرفقة';
     }
 
@@ -332,47 +331,64 @@ const App: React.FC = () => {
     updateCurrentSessionMessages(updatedMessages, newTitle);
 
     setInput('');
-    setPendingAttachments([]); // Clear pending attachments
+    setPendingAttachments([]);
     setIsProcessing(true);
 
+    // Create placeholder bot message for streaming
+    const botMessageId = (Date.now() + 1).toString();
+    const botMessage: Message = {
+      id: botMessageId,
+      role: 'model',
+      content: '',
+      timestamp: Date.now()
+    };
+
+    // Add empty bot message immediately
+    const messagesWithBot = [...updatedMessages, botMessage];
+    updateCurrentSessionMessages(messagesWithBot, newTitle);
+
     try {
-      const responseText = await generateResponse(
+      let streamedContent = '';
+
+      await generateResponseStream(
         userMessage.content,
         files,
-        messages // Pass history (excluding current duplication which is added by service)
+        messages,
+        (chunk) => {
+          // Update bot message content in real-time
+          streamedContent += chunk;
+          const updatedBot: Message = {
+            ...botMessage,
+            content: streamedContent
+          };
+          updateCurrentSessionMessages([...updatedMessages, updatedBot], newTitle);
+        }
       );
 
-      const botMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'model',
-        content: responseText,
-        timestamp: Date.now()
+      // Final update with complete content
+      const finalBot: Message = {
+        ...botMessage,
+        content: streamedContent || 'عذراً، لم أتمكن من إنشاء إجابة.'
       };
+      updateCurrentSessionMessages([...updatedMessages, finalBot], newTitle);
 
-      updateCurrentSessionMessages([...updatedMessages, botMessage], newTitle);
     } catch (error: any) {
       console.error(error);
 
-      // Extract the actual error message from the service
-      let errorContent = "عذراً، حدث خطأ أثناء المعالجة. تأكد من اتصالك بالإنترنت ومن صلاحية مفتاح API.";
+      let errorContent = "عذراً، حدث خطأ. تأكد من اتصالك بالإنترنت.";
 
       if (error?.message) {
-        // Check if it's a quota exceeded error
         if (error.message.startsWith("QUOTA_EXCEEDED:")) {
           errorContent = error.message.replace("QUOTA_EXCEEDED: ", "");
-        }
-        // Check if it's an API key error
-        else if (error.message.startsWith("API_KEY_INVALID:")) {
+        } else if (error.message.startsWith("API_KEY_INVALID:")) {
           errorContent = error.message.replace("API_KEY_INVALID: ", "");
-        }
-        // Use the error message if it's in a recognizable format
-        else if (error.message.includes(" / ")) {
+        } else {
           errorContent = error.message;
         }
       }
 
       const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: botMessageId,
         role: 'model',
         content: errorContent,
         timestamp: Date.now(),

@@ -9,58 +9,100 @@ const mapMessagesToContent = (messages: Message[]): Content[] => {
   }));
 };
 
-export const generateResponse = async (
+// Smart context selection - only include relevant files based on user query
+const selectRelevantFiles = (query: string, files: FileContext[]): FileContext[] => {
+  const queryLower = query.toLowerCase();
+
+  // Keywords mapping to file topics
+  const keywordMap: { [key: string]: string[] } = {
+    'cellule': ['cellule', 'anatomie', 'physiologie'],
+    'cell': ['cellule', 'anatomie'],
+    'خلية': ['cellule', 'anatomie'],
+    'os': ['osseux', 'squelette', 'articulaire'],
+    'عظم': ['osseux', 'squelette'],
+    'muscle': ['musculaire'],
+    'عضل': ['musculaire'],
+    'coeur': ['cardio', 'vasculaire'],
+    'قلب': ['cardio', 'vasculaire'],
+    'poumon': ['respiratoire'],
+    'رئة': ['respiratoire'],
+    'digestif': ['digestif'],
+    'هضم': ['digestif'],
+    'nerf': ['nerveux'],
+    'عصب': ['nerveux'],
+    'embryo': ['embryologie'],
+    'جنين': ['embryologie'],
+    'tissu': ['tissus', 'histologie'],
+    'نسيج': ['tissus'],
+    'hormone': ['endocrine', 'glande'],
+    'هرمون': ['endocrine'],
+    'terme': ['terminologie', 'abréviation'],
+    'مصطلح': ['terminologie'],
+    'santé': ['santé publique'],
+    'صحة': ['santé publique'],
+    'psycho': ['psychologie', 'anthropologie'],
+    'نفس': ['psychologie'],
+  };
+
+  // Find matching keywords
+  const relevantTerms: string[] = [];
+  for (const [keyword, terms] of Object.entries(keywordMap)) {
+    if (queryLower.includes(keyword)) {
+      relevantTerms.push(...terms);
+    }
+  }
+
+  // If no specific keywords found, return limited context
+  if (relevantTerms.length === 0) {
+    // Return only user-uploaded files (binary) and limit text files
+    return files.filter(f => f.data).slice(0, 3);
+  }
+
+  // Filter files that match relevant terms
+  const relevantFiles = files.filter(file => {
+    const nameLower = file.name.toLowerCase();
+    const contentLower = file.content?.toLowerCase() || '';
+    return relevantTerms.some(term =>
+      nameLower.includes(term) || contentLower.includes(term)
+    );
+  });
+
+  // Always include user-uploaded binary files
+  const binaryFiles = files.filter(f => f.data);
+
+  // Combine and limit to prevent context overflow
+  const combined = [...new Set([...binaryFiles, ...relevantFiles])];
+  return combined.slice(0, 5); // Max 5 files for speed
+};
+
+// Streaming response generator
+export const generateResponseStream = async (
   currentPrompt: string,
   fileContexts: FileContext[],
-  messageHistory: Message[]
+  messageHistory: Message[],
+  onChunk: (text: string) => void
 ): Promise<string> => {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-    // Use the standard stable flash model
     const modelId = "gemini-2.5-flash";
 
-    // 1. Prepare the system instruction with strict formatting rules
-    const systemInstruction = `
-      Rôle: Assistant Pédagogique Expert pour étudiants paramédicaux (Algérie/Maghreb).
-      
-      IDENTITÉ ET ORIGINE (OBLIGATOIRE):
-      - Si l'étudiant demande "Qui t'a créé ?", "D'où viens-tu ?" ou "Tu es qui ?", répondez CLAIREMENT : "Je suis un assistant pédagogique préparé et optimisé par **Ziad** pour aider les étudiants dans leurs études."
-      - **INTERDICTION FORMELLE** de mentionner Google, Gemini ou Alphabet. Si on insiste, dites simplement que vous êtes une intelligence artificielle spécialisée.
+    // Concise system instruction for faster processing
+    const systemInstruction = `أنت مساعد دراسي خبير للطلاب الشبه طبيين (الجزائر).
+قواعد:
+1. المحتوى العلمي: بالفرنسية الأكاديمية
+2. الحوار: بلغة الطالب (عربي/فرنسي)
+3. هيكل الرد: مقدمة مختصرة > محتوى علمي مهيكل (## عناوين، **مصطلحات**) > 📚 شرح المصطلحات
+4. هويتك: أعدّك **Ziad**. لا تذكر Google أو Gemini.
+كن دقيقاً ومختصراً.`;
 
-      RÈGLES DE COMPORTEMENT:
-      1. **Questions de Cours / Études**:
-         - Basez-vous **PRIORITAIREMENT** sur les fichiers de cours fournis pour garantir la conformité avec le programme.
-         - **Si l'information manque dans les fichiers ou si l'étudiant demande plus de détails**, utilisez vos propres connaissances d'expert pour compléter la réponse.
-         - Aidez l'étudiant à comprendre et analyser tout fichier qu'il vous envoie.
+    // Smart context selection
+    const relevantFiles = selectRelevantFiles(currentPrompt, fileContexts);
 
-      2. **Questions Générales (Hors étude)**:
-         - Si l'étudiant vous pose une question de culture générale ou hors sujet, répondez normalement en utilisant vos vastes connaissances générales.
-      
-      3. **Langue et Structure**:
-         - **Contenu Scientifique**: TOUJOURS en **Français** (académique), comme à l'université.
-         - **Dialogue**: Adaptez-vous à la langue de l'étudiant (Arabe/Français) pour la politesse et les explications simples.
-         - **Glossaire Final**: Ajoutez TOUJOURS la section "📚 شرح المصطلحات" à la fin de chaque réponse technique.
-
-      FORMAT DE RÉPONSE:
-      1. **Intro**: Brève et courtoise (dans la langue de l'étudiant).
-      2. **Corps (Scientifique)**: Structuré, clair, précis, en FRANÇAIS.
-         - Titres (##), Sous-titres (###)
-         - Termes importants en **Gras**
-         - Listes à puces pour la clarté
-      3. **Glossaire**: Section "📚 شرح المصطلحات" expliquant les termes clés en Arabe.
-
-      TON: Professionnel, Encouragant, Pédagogique.
-    `;
-
-    // 2. Prepare content parts
     const fileParts: Part[] = [];
     let contextText = "";
 
-    // Sort files so text context comes first or is aggregated
-    fileContexts.forEach((file) => {
+    relevantFiles.forEach((file) => {
       if (file.data) {
-        // It's a binary file (Image/PDF uploaded by user)
         fileParts.push({
           inlineData: {
             mimeType: file.type,
@@ -68,90 +110,82 @@ export const generateResponse = async (
           },
         });
       } else if (file.content) {
-        // It's a pre-loaded text module (Database)
-        contextText += `\nSOURCE (${file.name}):\n${file.content}\n---FIN DE LA SOURCE---\n`;
+        // Truncate large content for speed
+        const truncatedContent = file.content.length > 2000
+          ? file.content.substring(0, 2000) + "..."
+          : file.content;
+        contextText += `[${file.name}]: ${truncatedContent}\n`;
       }
     });
 
-    // Combine text context with the user's prompt using specific delimiters to avoid confusion
-    const fullPrompt = `
-      <CONTEXTE_FICHIERS>
-      ${contextText ? contextText : "Aucun fichier de cours spécifique fourni pour le moment."}
-      </CONTEXTE_FICHIERS>
-      
-      <INSTRUCTIONS_SPECIFIQUES>
-      Si la question porte sur les cours, utilisez le contexte ci-dessus. Si l'information est absente ou si la question est générale, utilisez vos connaissances.
-      
-      RAPPEL IDENTITÉ: Créé par **Ziad**. Ne pas mentionner Google.
-      
-      FORMATAGE:
-      - Titres clairs (##)
-      - Termes clés en **Gras**
-      - Section "📚 شرح المصطلحات" à la fin (Obligatoire pour les sujets médicaux)
-      </INSTRUCTIONS_SPECIFIQUES>
-
-      <QUESTION_ETUDIANT>
-      ${currentPrompt}
-      </QUESTION_ETUDIANT>
-    `;
+    const fullPrompt = contextText
+      ? `السياق:\n${contextText}\n\nالسؤال: ${currentPrompt}`
+      : currentPrompt;
 
     const textPart: Part = { text: fullPrompt };
-
-    // Combine binary parts (images/PDFs) with the text prompt
     const currentMessageParts: Part[] = [...fileParts, textPart];
 
+    // Limit history to last 6 messages for speed
+    const recentHistory = messageHistory.slice(-6);
+
     const contents: Content[] = [
-      ...mapMessagesToContent(messageHistory),
+      ...mapMessagesToContent(recentHistory),
       {
         role: "user",
         parts: currentMessageParts
       }
     ];
 
-    const response = await ai.models.generateContent({
+    // Use streaming for faster perceived response
+    const response = await ai.models.generateContentStream({
       model: modelId,
       config: {
         systemInstruction: systemInstruction,
-        temperature: 0.2, // Lower temperature for more stable, factual answers
-        topP: 0.8,
-        // maxOutputTokens intentionally omitted to allow full-length answers when needed
+        temperature: 0.3,
+        topP: 0.85,
+        maxOutputTokens: 2048, // Limit output for faster responses
       },
       contents: contents,
     });
 
-    return response.text || "Désolé, je n'ai pas pu générer de réponse. / عذراً، لم أتمكن من إنشاء إجابة.";
+    let fullText = "";
+    for await (const chunk of response) {
+      const chunkText = chunk.text || "";
+      fullText += chunkText;
+      onChunk(chunkText);
+    }
+
+    return fullText || "عذراً، لم أتمكن من إنشاء إجابة.";
   } catch (error: any) {
     console.error("Gemini API Error:", error);
 
-    // Extract error details - handle different error structures
     const errorCode = error?.error?.code || error?.status || error?.statusCode || error?.code;
     const errorStatus = error?.error?.status || error?.status;
     const errorMessage = error?.error?.message || error?.message || "";
 
-    // Check for rate limit/quota exceeded error (429)
-    // Also check for RESOURCE_EXHAUSTED status which indicates quota issues
-    if (errorCode === 429 || errorStatus === "RESOURCE_EXHAUSTED" || errorMessage.includes("quota") || errorMessage.includes("Quota exceeded")) {
-      const retryDelayMatch = errorMessage.match(/retry in ([\d.]+)s/i) || errorMessage.match(/retry in ([\d.]+) second/i);
-      const retryDelay = retryDelayMatch ? Math.ceil(parseFloat(retryDelayMatch[1])) : null;
-
-      let quotaMessage = "تم تجاوز الحد اليومي للطلبات (20 طلب في اليوم للمستوى المجاني).";
-      if (retryDelay) {
-        quotaMessage += ` يمكنك المحاولة مرة أخرى بعد ${retryDelay} ثانية.`;
-      } else {
-        quotaMessage += " يرجى المحاولة مرة أخرى لاحقاً أو غداً.";
-      }
-
-      throw new Error(`QUOTA_EXCEEDED: ${quotaMessage} / Limite quotidienne dépassée (20 requêtes/jour pour le niveau gratuit).${retryDelay ? ` Réessayez dans ${retryDelay} secondes.` : " Veuillez réessayer plus tard ou demain."}`);
+    if (errorCode === 429 || errorStatus === "RESOURCE_EXHAUSTED" || errorMessage.includes("quota")) {
+      throw new Error("QUOTA_EXCEEDED: تم تجاوز الحد اليومي. حاول لاحقاً.");
     }
 
-    // Check for API key errors
-    if (errorCode === 401 || errorMessage.includes("API key") || errorMessage.includes("authentication")) {
-      throw new Error("API_KEY_INVALID: مفتاح API غير صالح أو منتهي الصلاحية. / Clé API invalide ou expirée.");
+    if (errorCode === 401 || errorMessage.includes("API key")) {
+      throw new Error("API_KEY_INVALID: مفتاح API غير صالح.");
     }
 
-    // Generic error
-    throw new Error("Erreur de connexion / حدث خطأ أثناء الاتصال بالخادم.");
+    throw new Error("حدث خطأ في الاتصال.");
   }
+};
+
+// Non-streaming version (fallback)
+export const generateResponse = async (
+  currentPrompt: string,
+  fileContexts: FileContext[],
+  messageHistory: Message[]
+): Promise<string> => {
+  let result = "";
+  await generateResponseStream(currentPrompt, fileContexts, messageHistory, (chunk) => {
+    result += chunk;
+  });
+  return result;
 };
 
 // --- Quiz Generation Service ---
