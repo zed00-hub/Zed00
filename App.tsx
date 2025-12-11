@@ -5,9 +5,9 @@ import FileSidebar from './components/FileSidebar';
 import ChatArea from './components/ChatArea';
 import LoginPage from './components/LoginPage';
 import { FileContext, Message, ChatSession, QuizSession } from './types';
-import { generateResponseStream } from './services/geminiService';
+import { generateResponseStream, BotSettings } from './services/geminiService';
 import { ZGLogo, SunIcon, MoonIcon, LoadingIcon } from './components/Icons';
-import { BookOpen, MessageSquare, Sparkles } from 'lucide-react';
+import { BookOpen, MessageSquare, Sparkles, Settings } from 'lucide-react';
 import QuizContainer from './components/Quiz/QuizContainer';
 import MnemonicsContainer from './components/Mnemonics/MnemonicsContainer';
 import { fileToBase64 } from './utils/fileHelpers';
@@ -16,7 +16,10 @@ import { useAuth } from './contexts/AuthContext';
 import { saveSessionToFirestore, loadSessionsFromFirestore, deleteSessionFromFirestore } from './services/chatService';
 import { saveQuizToFirestore, loadQuizzesFromFirestore, deleteQuizFromFirestore } from './services/quizService';
 import ReloadPrompt from './components/ReloadPrompt';
-const App: React.FC = () => {
+import SettingsModal from './components/SettingsModal';
+import { SettingsProvider, useSettings } from './contexts/SettingsContext';
+
+const AppContent: React.FC = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -119,6 +122,10 @@ const App: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Get settings from context
+  const { settings } = useSettings();
 
   // Helper to get current session object
   const currentSession = sessions.find(s => s.id === currentSessionId) || sessions[0];
@@ -362,7 +369,8 @@ const App: React.FC = () => {
             content: streamedContent
           };
           updateCurrentSessionMessages([...updatedMessages, updatedBot], newTitle);
-        }
+        },
+        settings // Pass user settings
       );
 
       // Final update with complete content
@@ -497,7 +505,7 @@ const App: React.FC = () => {
         <div className="flex-1 flex flex-col min-w-0 bg-gradient-to-br from-slate-50/50 via-white to-gray-50/50 dark:from-dark-bg dark:via-slate-900 dark:to-slate-800 transition-colors duration-300">
 
           {/* Mode Switcher (Visible on Mobile/Desktop) */}
-          <div className="flex justify-center pt-4 pb-2">
+          <div className="flex justify-center pt-4 pb-2 gap-2">
             <div className="bg-gray-100 dark:bg-dark-surface p-1 rounded-xl flex shadow-inner overflow-x-auto max-w-full">
               <button
                 onClick={() => handleModeChange('chat')}
@@ -530,6 +538,15 @@ const App: React.FC = () => {
                 <span>حيل حفظية</span>
               </button>
             </div>
+
+            {/* Settings Button */}
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="p-2.5 bg-gray-100 dark:bg-dark-surface rounded-xl text-gray-500 dark:text-gray-400 hover:text-medical-600 dark:hover:text-medical-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all shadow-inner"
+              title="إعدادات المساعد"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
           </div>
 
           <Routes>
@@ -593,9 +610,17 @@ const App: React.FC = () => {
           </Routes>
         </div>
       </div>
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
       <ReloadPrompt />
     </div>
   );
 };
+
+// Wrap with SettingsProvider
+const App: React.FC = () => (
+  <SettingsProvider>
+    <AppContent />
+  </SettingsProvider>
+);
 
 export default App;

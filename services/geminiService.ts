@@ -75,25 +75,81 @@ const selectRelevantFiles = (query: string, files: FileContext[]): FileContext[]
   return combined.slice(0, 5); // Max 5 files for speed
 };
 
-// Streaming response generator
+// Settings type for bot customization
+export interface BotSettings {
+  responseLength: 'short' | 'medium' | 'long';
+  preferredLanguage: 'ar' | 'fr' | 'mixed';
+  includeGlossary: boolean;
+  includeExamples: boolean;
+  formalTone: boolean;
+}
+
+const defaultSettings: BotSettings = {
+  responseLength: 'medium',
+  preferredLanguage: 'mixed',
+  includeGlossary: true,
+  includeExamples: true,
+  formalTone: true,
+};
+
+// Build dynamic system instruction based on settings
+const buildSystemInstruction = (settings: BotSettings): string => {
+  const lengthGuide = {
+    short: 'اجعل إجاباتك مختصرة ومباشرة للنقاط الرئيسية فقط.',
+    medium: 'قدم إجابات متوازنة: شاملة لكن دون إطالة غير ضرورية.',
+    long: 'قدم شرحاً مفصلاً وشاملاً مع كل التفاصيل العلمية.'
+  };
+
+  const langGuide = {
+    ar: 'تحدث بالعربية الفصحى مع المحتوى العلمي بالفرنسية.',
+    fr: 'Répondez principalement en français académique.',
+    mixed: 'امزج بين العربية للحوار والفرنسية للمحتوى العلمي.'
+  };
+
+  const toneGuide = settings.formalTone
+    ? 'استخدم أسلوباً أكاديمياً رسمياً ومهنياً.'
+    : 'استخدم أسلوباً ودوداً وبسيطاً للشرح.';
+
+  const glossaryGuide = settings.includeGlossary
+    ? 'أضف قسم "📚 شرح المصطلحات" في نهاية كل إجابة علمية.'
+    : '';
+
+  const examplesGuide = settings.includeExamples
+    ? 'أضف أمثلة توضيحية عملية عند الحاجة.'
+    : '';
+
+  return `أنت مساعد دراسي خبير للطلاب الشبه طبيين (الجزائر/المغرب العربي).
+
+قواعد أساسية:
+1. المحتوى العلمي: بالفرنسية الأكاديمية (كما في الجامعة).
+2. ${langGuide[settings.preferredLanguage]}
+3. ${lengthGuide[settings.responseLength]}
+4. ${toneGuide}
+${examplesGuide ? `5. ${examplesGuide}` : ''}
+${glossaryGuide ? `6. ${glossaryGuide}` : ''}
+
+هيكل الرد:
+- مقدمة مختصرة (بلغة الطالب)
+- محتوى علمي مهيكل (## عناوين، **مصطلحات مهمة**)
+${settings.includeGlossary ? '- 📚 شرح المصطلحات (بالعربية)' : ''}
+
+هويتك: أعدّك **Ziad**. لا تذكر Google أو Gemini أبداً.`;
+};
+
+// Streaming response generator with settings
 export const generateResponseStream = async (
   currentPrompt: string,
   fileContexts: FileContext[],
   messageHistory: Message[],
-  onChunk: (text: string) => void
+  onChunk: (text: string) => void,
+  settings?: BotSettings
 ): Promise<string> => {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const modelId = "gemini-2.5-flash";
 
-    // Concise system instruction for faster processing
-    const systemInstruction = `أنت مساعد دراسي خبير للطلاب الشبه طبيين (الجزائر).
-قواعد:
-1. المحتوى العلمي: بالفرنسية الأكاديمية
-2. الحوار: بلغة الطالب (عربي/فرنسي)
-3. هيكل الرد: مقدمة مختصرة > محتوى علمي مهيكل (## عناوين، **مصطلحات**) > 📚 شرح المصطلحات
-4. هويتك: أعدّك **Ziad**. لا تذكر Google أو Gemini.
-كن دقيقاً ومختصراً.`;
+    const userSettings = settings || defaultSettings;
+    const systemInstruction = buildSystemInstruction(userSettings);
 
     // Smart context selection
     const relevantFiles = selectRelevantFiles(currentPrompt, fileContexts);
@@ -110,23 +166,20 @@ export const generateResponseStream = async (
           },
         });
       } else if (file.content) {
-        // Truncate large content for speed
-        const truncatedContent = file.content.length > 2000
-          ? file.content.substring(0, 2000) + "..."
-          : file.content;
-        contextText += `[${file.name}]: ${truncatedContent}\n`;
+        // Full content for scientific accuracy
+        contextText += `\n[SOURCE: ${file.name}]\n${file.content}\n---\n`;
       }
     });
 
     const fullPrompt = contextText
-      ? `السياق:\n${contextText}\n\nالسؤال: ${currentPrompt}`
+      ? `<CONTEXTE>\n${contextText}</CONTEXTE>\n\n<QUESTION>\n${currentPrompt}\n</QUESTION>`
       : currentPrompt;
 
     const textPart: Part = { text: fullPrompt };
     const currentMessageParts: Part[] = [...fileParts, textPart];
 
-    // Limit history to last 6 messages for speed
-    const recentHistory = messageHistory.slice(-6);
+    // Keep reasonable history
+    const recentHistory = messageHistory.slice(-8);
 
     const contents: Content[] = [
       ...mapMessagesToContent(recentHistory),
@@ -136,14 +189,14 @@ export const generateResponseStream = async (
       }
     ];
 
-    // Use streaming for faster perceived response
+    // Use streaming - NO token limit for full scientific responses
     const response = await ai.models.generateContentStream({
       model: modelId,
       config: {
         systemInstruction: systemInstruction,
-        temperature: 0.3,
-        topP: 0.85,
-        maxOutputTokens: 2048, // Limit output for faster responses
+        temperature: 0.2, // Low for accuracy
+        topP: 0.9,
+        // No maxOutputTokens - allow full responses
       },
       contents: contents,
     });
