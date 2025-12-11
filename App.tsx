@@ -17,7 +17,10 @@ import { saveSessionToFirestore, loadSessionsFromFirestore, deleteSessionFromFir
 import { saveQuizToFirestore, loadQuizzesFromFirestore, deleteQuizFromFirestore } from './services/quizService';
 import ReloadPrompt from './components/ReloadPrompt';
 import SettingsModal from './components/SettingsModal';
+import AdminPanel from './components/AdminPanel';
 import { SettingsProvider, useSettings } from './contexts/SettingsContext';
+import { loadCoursesFromFirestore, isAdmin } from './services/coursesService';
+import { Crown } from 'lucide-react';
 
 const AppContent: React.FC = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -34,6 +37,26 @@ const AppContent: React.FC = () => {
 
   // Initialize files with the pre-loaded courses
   const [files, setFiles] = useState<FileContext[]>(INITIAL_COURSES);
+  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+
+  // Load shared courses from Firestore on mount
+  const loadSharedCourses = useCallback(async () => {
+    try {
+      const sharedCourses = await loadCoursesFromFirestore();
+      setFiles(prev => {
+        // Merge: keep INITIAL_COURSES and add Firestore courses (avoid duplicates)
+        const initialIds = INITIAL_COURSES.map(c => c.id);
+        const newCourses = sharedCourses.filter(c => !initialIds.includes(c.id));
+        return [...INITIAL_COURSES, ...newCourses];
+      });
+    } catch (error) {
+      console.error('Error loading shared courses:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSharedCourses();
+  }, [loadSharedCourses]);
 
   // Initialize Chat Sessions
   const [sessions, setSessions] = useState<ChatSession[]>([
@@ -547,6 +570,17 @@ const AppContent: React.FC = () => {
             >
               <Settings className="w-5 h-5" />
             </button>
+
+            {/* Admin Button - Only visible for admins */}
+            {isAdmin(user?.email) && (
+              <button
+                onClick={() => setIsAdminPanelOpen(true)}
+                className="p-2.5 bg-gradient-to-r from-amber-100 to-amber-50 dark:from-amber-900/30 dark:to-amber-800/20 rounded-xl text-amber-600 dark:text-amber-400 hover:from-amber-200 hover:to-amber-100 dark:hover:from-amber-800/40 dark:hover:to-amber-700/30 transition-all shadow-inner border border-amber-200 dark:border-amber-800/50"
+                title="لوحة إدارة المواد"
+              >
+                <Crown className="w-5 h-5" />
+              </button>
+            )}
           </div>
 
           <Routes>
@@ -611,6 +645,11 @@ const AppContent: React.FC = () => {
         </div>
       </div>
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <AdminPanel
+        isOpen={isAdminPanelOpen}
+        onClose={() => setIsAdminPanelOpen(false)}
+        onCoursesUpdated={loadSharedCourses}
+      />
       <ReloadPrompt />
     </div>
   );
