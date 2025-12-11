@@ -269,7 +269,7 @@ import { MnemonicResponse } from "../types";
 
 export const generateMnemonic = async (
   topic: string,
-  language: 'ar' | 'en',
+  language: 'ar' | 'fr',
   context?: string
 ): Promise<MnemonicResponse> => {
   try {
@@ -278,12 +278,21 @@ export const generateMnemonic = async (
 
     const systemInstruction = `
       Rôle: Expert en Mnémonique Médicale et Pédagogie (Créditeur de phrases mémo-techniques).
-      Objectif: Créer une phrase facile à retenir pour mémoriser une liste ou un concept médical difficile.
+      Objectif: Créer une phrase facile à retenir pour mémoriser une liste ou un concept médical difficile (Surtout les termes anatomiques/médicaux en FRANÇAIS).
       
       RÈGLES CRÉATIVES:
-      1. La phrase doit être cohérente, amusante ou bizarre (le cerveau retient mieux l'insolite).
-      2. Si la demande est en Arabe, génère une phrase en Arabe. Si Anglais/Français, en Anglais/Français selon la demande implicite du topic (ex: "Carpal bones" -> Anglais, "Os du carpe" -> Français). 
-      *Pour cette fonction, nous utiliserons la langue demandée explicitement: ${language === 'ar' ? 'ARABE' : 'ANGLAIS/FRANÇAIS'}.*
+      1. La phrase/mnémonique doit être cohérente, amusante ou bizarre.
+      2. Le programme d'études est en FRANÇAIS.
+      3. Si la langue demandée est 'FRANÇAIS': La mnémonique doit être en Français pour des termes Français.
+      4. Si la langue demandée est 'ARABE': La mnémonique doit être en Arabe mais pour mémoriser les termes FRANÇAIS (association phonétique ou sémantique). L'objectif est de lier le concept arabe au terme technique français.
+      
+      *Langue demandée pour la mnémonique: ${language === 'ar' ? 'ARABE (Lien vers termes Français)' : 'FRANÇAIS'}.*
+      
+      RÈGLES DE CONTENU (IMPORTANT):
+      - "mnemonic": La phrase en ${language === 'ar' ? 'Arabe' : 'Français'}.
+      - "breakdown": { char: "Lettre/Mot de la phrase", meaning: "Terme technique original en FRANÇAIS" }.
+      - "explanation": TOUJOURS EN FRANÇAIS (Explication scientifique).
+      - "funFact": TOUJOURS EN FRANÇAIS (Culture générale médicale).
       
       FORMAT DE SORTIE (STRICT JSON):
       {
@@ -292,15 +301,14 @@ export const generateMnemonic = async (
           { "char": "S", "meaning": "Scaphoid" },
           { "char": "L", "meaning": "Lunate" }
         ],
-        "explanation": "Brève explication du concept général.",
-        "funFact": "Un fait amusant ou 'Le saviez-vous ?' lié au sujet (Optionnel)"
+        "explanation": "Explication claire du concept en Français.",
+        "funFact": "Un fait amusant 'Le saviez-vous ?' en Français."
       }
     `;
 
     const prompt = `
       Sujet à mémoriser: "${topic}"
-      Contexte supplémentaire (Liste d'items, etc.): "${context || ''}"
-      Langue de sortie: ${language === 'ar' ? 'Arabe' : 'Anglais (ou Français si le terme technique est français)'}
+      Contexte supplémentaire: "${context || ''}"
       
       Génère une mnémonique maintenant.
     `;
@@ -309,7 +317,7 @@ export const generateMnemonic = async (
       model: modelId,
       config: {
         systemInstruction: systemInstruction,
-        temperature: 0.7, // Higher creativity for mnemonics
+        temperature: 0.8, // Creative
         responseMimeType: "application/json",
       },
       contents: [{ role: 'user', parts: [{ text: prompt }] }]

@@ -7,7 +7,7 @@ import { Lightbulb, Zap, Sparkles } from 'lucide-react';
 const MnemonicsContainer: React.FC = () => {
     const [topic, setTopic] = useState('');
     const [context, setContext] = useState('');
-    const [language, setLanguage] = useState<'ar' | 'en'>('en');
+    const [language, setLanguage] = useState<'ar' | 'fr'>('fr');
     const [isLoading, setIsLoading] = useState(false);
     const [result, setResult] = useState<MnemonicResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -50,14 +50,15 @@ const MnemonicsContainer: React.FC = () => {
                 <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                            الموضوع أو القائمة المراد حفظها
+                            الموضوع أو القائمة المراد حفظها (بالفرنسية)
                         </label>
                         <input
                             type="text"
                             value={topic}
                             onChange={(e) => setTopic(e.target.value)}
-                            placeholder="مثال: عظام الرسغ، الأعصاب القحفية، خطوات الإنعاش..."
+                            placeholder="Ex: Os du carpe, Nerfs crâniens..."
                             className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-bg focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all dark:text-white"
+                            dir="ltr"
                         />
                     </div>
 
@@ -68,8 +69,9 @@ const MnemonicsContainer: React.FC = () => {
                         <textarea
                             value={context}
                             onChange={(e) => setContext(e.target.value)}
-                            placeholder="الصق القائمة هنا إذا كانت لديك تفاصيل محددة تريد تضمينها..."
+                            placeholder="Ex: Scaphoïde, Lunatum, Triquetrum..."
                             className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-bg focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all dark:text-white h-24 resize-none"
+                            dir="ltr"
                         />
                     </div>
 
@@ -80,22 +82,22 @@ const MnemonicsContainer: React.FC = () => {
                             </label>
                             <div className="flex bg-gray-100 dark:bg-dark-bg p-1 rounded-xl">
                                 <button
-                                    onClick={() => setLanguage('ar')}
-                                    className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${language === 'ar'
-                                            ? 'bg-white dark:bg-dark-surface text-amber-600 shadow-sm'
-                                            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                                    onClick={() => setLanguage('fr')}
+                                    className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${language === 'fr'
+                                        ? 'bg-white dark:bg-dark-surface text-amber-600 shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
                                         }`}
                                 >
-                                    العربية
+                                    Français
                                 </button>
                                 <button
-                                    onClick={() => setLanguage('en')}
-                                    className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${language === 'en'
-                                            ? 'bg-white dark:bg-dark-surface text-amber-600 shadow-sm'
-                                            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                                    onClick={() => setLanguage('ar')}
+                                    className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${language === 'ar'
+                                        ? 'bg-white dark:bg-dark-surface text-amber-600 shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
                                         }`}
                                 >
-                                    English / FranÃ§ais
+                                    العربية (تسهيل بالدارجة/الفصحى)
                                 </button>
                             </div>
                         </div>

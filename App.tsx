@@ -15,6 +15,7 @@ import { INITIAL_COURSES } from './data/courses';
 import { useAuth } from './contexts/AuthContext';
 import { saveSessionToFirestore, loadSessionsFromFirestore, deleteSessionFromFirestore } from './services/chatService';
 import { saveQuizToFirestore, loadQuizzesFromFirestore, deleteQuizFromFirestore } from './services/quizService';
+import ReloadPrompt from './components/ReloadPrompt';
 const App: React.FC = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const navigate = useNavigate();
@@ -576,6 +577,7 @@ const App: React.FC = () => {
           </Routes>
         </div>
       </div>
+      <ReloadPrompt />
     </div>
   );
 };

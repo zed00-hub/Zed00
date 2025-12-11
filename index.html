@@ -1,107 +1,130 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>مساعد الطالب الشبه طبي</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Cairo', 'sans-serif'],
-              script: ['"Dancing Script"', 'cursive'],
-            },
-            colors: {
-              medical: {
-                50: '#f0f9ff',
-                100: '#e0f2fe',
-                500: '#0ea5e9',
-                600: '#0284c7',
-                700: '#0369a1',
-                900: '#0c4a6e',
-              },
-              dark: {
-                bg: '#0f172a',
-                surface: '#1e293b',
-                border: '#334155',
-                text: '#f1f5f9',
-                muted: '#94a3b8'
-              }
-            }
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>مساعد الطالب الشبه طبي</title>
+  <meta name="description" content="مساعد ذكي للطلاب الشبه طبيين في الجزائر - مراجعة الدروس، اختبارات، وحيل حفظية.">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&family=Dancing+Script:wght@700&display=swap"
+    rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Cairo', 'sans-serif'],
+            script: ['"Dancing Script"', 'cursive'],
           },
+          colors: {
+            medical: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              900: '#0c4a6e',
+            },
+            dark: {
+              bg: '#0f172a',
+              surface: '#1e293b',
+              border: '#334155',
+              text: '#f1f5f9',
+              muted: '#94a3b8'
+            }
+          }
         },
-      }
-    </script>
-    <style>
-      * {
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-      }
-      body {
-        font-family: 'Cairo', sans-serif;
-        background-color: #f8fafc;
-        margin: 0;
-        padding: 0;
-        overscroll-behavior: none;
-      }
-      /* Custom Scrollbar */
-      ::-webkit-scrollbar {
-        width: 10px;
-        height: 10px;
-      }
-      ::-webkit-scrollbar-track {
-        background: transparent; 
-      }
-      ::-webkit-scrollbar-thumb {
-        background: linear-gradient(180deg, #cbd5e1 0%, #94a3b8 100%); 
-        border-radius: 10px;
-        border: 2px solid transparent;
-        background-clip: padding-box;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: linear-gradient(180deg, #94a3b8 0%, #64748b 100%);
-        background-clip: padding-box;
-      }
-      .dark ::-webkit-scrollbar-thumb {
-        background: linear-gradient(180deg, #475569 0%, #334155 100%);
-        background-clip: padding-box;
-      }
-      .dark ::-webkit-scrollbar-thumb:hover {
-        background: linear-gradient(180deg, #64748b 0%, #475569 100%);
-        background-clip: padding-box;
-      }
-      .dark body {
-        background-color: #0f172a;
-      }
-      /* Smooth transitions */
-      * {
-        transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-        transition-duration: 200ms;
-      }
-      /* Better focus styles */
-      button:focus-visible, input:focus-visible, textarea:focus-visible {
-        outline: 2px solid #0ea5e9;
-        outline-offset: 2px;
-      }
-      /* Hide scrollbar but keep functionality */
-      .scrollbar-hide {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-      }
-      .scrollbar-hide::-webkit-scrollbar {
-        display: none;
-      }
-    </style>
+      },
+    }
+  </script>
+  <style>
+    * {
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      font-family: 'Cairo', sans-serif;
+      background-color: #f8fafc;
+      margin: 0;
+      padding: 0;
+      overscroll-behavior: none;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, #cbd5e1 0%, #94a3b8 100%);
+      border-radius: 10px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(180deg, #94a3b8 0%, #64748b 100%);
+      background-clip: padding-box;
+    }
+
+    .dark ::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, #475569 0%, #334155 100%);
+      background-clip: padding-box;
+    }
+
+    .dark ::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(180deg, #64748b 0%, #475569 100%);
+      background-clip: padding-box;
+    }
+
+    .dark body {
+      background-color: #0f172a;
+    }
+
+    /* Smooth transitions */
+    * {
+      transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+      transition-duration: 200ms;
+    }
+
+    /* Better focus styles */
+    button:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible {
+      outline: 2px solid #0ea5e9;
+      outline-offset: 2px;
+    }
+
+    /* Hide scrollbar but keep functionality */
+    .scrollbar-hide {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    .scrollbar-hide::-webkit-scrollbar {
+      display: none;
+    }
+  </style>
 </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
-  </body>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
 </html>
