@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { FileContext, ChatSession, QuizSession } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { FileIcon, TrashIcon, CloseIcon, BookOpen, SearchIcon, PlusIcon, ChatIcon, LayersIcon, EditIcon, CheckIcon, XIcon, LogOutIcon } from './Icons';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Settings, Crown, Sun, Moon } from 'lucide-react';
 import { formatFileSize } from '../utils/fileHelpers';
 
 interface SidebarProps {
@@ -31,6 +31,13 @@ interface SidebarProps {
   // App Mode
   appMode: 'chat' | 'quiz' | 'mnemonics';
   onModeChange: (mode: 'chat' | 'quiz' | 'mnemonics') => void;
+
+  // Theme & Settings
+  isDarkMode: boolean;
+  onToggleTheme: () => void;
+  onOpenSettings: () => void;
+  onOpenAdmin: () => void;
+  isAdmin: boolean;
 }
 
 const FileSidebar: React.FC<SidebarProps> = ({
@@ -51,7 +58,12 @@ const FileSidebar: React.FC<SidebarProps> = ({
   onDeleteQuiz,
   onRenameQuiz,
   appMode,
-  onModeChange
+  onModeChange,
+  isDarkMode,
+  onToggleTheme,
+  onOpenSettings,
+  onOpenAdmin,
+  isAdmin: isUserAdmin
 }) => {
   const { user, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
@@ -424,33 +436,68 @@ const FileSidebar: React.FC<SidebarProps> = ({
         </div >
 
         {/* User Profile Section */}
-        < div className="p-5 border-t border-gray-200/50 dark:border-dark-border/50 bg-gradient-to-r from-gray-50/80 to-white dark:from-dark-bg/50 dark:to-dark-surface/50 backdrop-blur-sm shrink-0" >
+        <div className="p-4 border-t border-gray-200/50 dark:border-dark-border/50 bg-gradient-to-r from-gray-50/80 to-white dark:from-dark-bg/50 dark:to-dark-surface/50 backdrop-blur-sm shrink-0">
           {user && (
-            <div className="flex items-center justify-between">
+            <div className="space-y-3">
+              {/* User Info Row */}
               <div className="flex items-center gap-3">
                 <div className="relative">
                   <img
                     src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}&background=0ea5e9&color=fff`}
                     alt="User"
-                    className="w-12 h-12 rounded-xl border-2 border-white dark:border-gray-700 shadow-lg ring-2 ring-medical-200/50 dark:ring-medical-800/50"
+                    className="w-10 h-10 rounded-xl border-2 border-white dark:border-gray-700 shadow-lg"
                   />
-                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-gray-700"></div>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-700"></div>
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{user.name}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[140px]">{user.email}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-gray-800 dark:text-gray-200 truncate">{user.name}</p>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{user.email}</p>
                 </div>
               </div>
-              <button
-                onClick={logout}
-                className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-all hover:scale-110 active:scale-95"
-                title="تسجيل الخروج"
-              >
-                <LogOutIcon />
-              </button>
+
+              {/* Action Buttons Row */}
+              <div className="flex items-center justify-between gap-2">
+                {/* Theme Toggle */}
+                <button
+                  onClick={onToggleTheme}
+                  className="p-2.5 text-gray-500 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-xl transition-all"
+                  title={isDarkMode ? 'الوضع النهاري' : 'الوضع الليلي'}
+                >
+                  {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+                </button>
+
+                {/* Settings */}
+                <button
+                  onClick={onOpenSettings}
+                  className="p-2.5 text-gray-500 hover:text-medical-600 hover:bg-medical-50 dark:hover:bg-medical-900/30 rounded-xl transition-all"
+                  title="إعدادات المساعد"
+                >
+                  <Settings size={18} />
+                </button>
+
+                {/* Admin Panel - Only for admins */}
+                {isUserAdmin && (
+                  <button
+                    onClick={onOpenAdmin}
+                    className="p-2.5 text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-xl transition-all"
+                    title="لوحة إدارة المواد"
+                  >
+                    <Crown size={18} />
+                  </button>
+                )}
+
+                {/* Logout */}
+                <button
+                  onClick={logout}
+                  className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-all mr-auto"
+                  title="تسجيل الخروج"
+                >
+                  <LogOutIcon />
+                </button>
+              </div>
             </div>
           )}
-        </div >
+        </div>
       </aside >
     </>
   );

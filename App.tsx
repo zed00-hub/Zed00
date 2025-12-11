@@ -493,6 +493,12 @@ const AppContent: React.FC = () => {
               // App Mode
               appMode={appMode}
               onModeChange={handleModeChange}
+              // Theme & Settings
+              isDarkMode={isDarkMode}
+              onToggleTheme={toggleTheme}
+              onOpenSettings={() => setIsSettingsOpen(true)}
+              onOpenAdmin={() => setIsAdminPanelOpen(true)}
+              isAdmin={isAdmin(user?.email)}
             />
           </div>
         </div>
@@ -521,6 +527,12 @@ const AppContent: React.FC = () => {
             // App Mode
             appMode={appMode}
             onModeChange={handleModeChange}
+            // Theme & Settings
+            isDarkMode={isDarkMode}
+            onToggleTheme={toggleTheme}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenAdmin={() => setIsAdminPanelOpen(true)}
+            isAdmin={isAdmin(user?.email)}
           />
         </div>
 
@@ -561,26 +573,6 @@ const AppContent: React.FC = () => {
                 <span>حيل حفظية</span>
               </button>
             </div>
-
-            {/* Settings Button */}
-            <button
-              onClick={() => setIsSettingsOpen(true)}
-              className="p-2.5 bg-gray-100 dark:bg-dark-surface rounded-xl text-gray-500 dark:text-gray-400 hover:text-medical-600 dark:hover:text-medical-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all shadow-inner"
-              title="إعدادات المساعد"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
-
-            {/* Admin Button - Only visible for admins */}
-            {isAdmin(user?.email) && (
-              <button
-                onClick={() => setIsAdminPanelOpen(true)}
-                className="p-2.5 bg-gradient-to-r from-amber-100 to-amber-50 dark:from-amber-900/30 dark:to-amber-800/20 rounded-xl text-amber-600 dark:text-amber-400 hover:from-amber-200 hover:to-amber-100 dark:hover:from-amber-800/40 dark:hover:to-amber-700/30 transition-all shadow-inner border border-amber-200 dark:border-amber-800/50"
-                title="لوحة إدارة المواد"
-              >
-                <Crown className="w-5 h-5" />
-              </button>
-            )}
           </div>
 
           <Routes>
