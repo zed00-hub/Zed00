@@ -110,8 +110,14 @@ const AppContent: React.FC = () => {
           // Load Quizzes
           const fetchedQuizzes = await loadQuizzesFromFirestore(user.id);
           setQuizSessions(fetchedQuizzes);
-          // Don't auto-select a quiz, allow starting new by default
-          setCurrentQuizId(null);
+
+          // Restore last active quiz if valid
+          const lastActiveQuizId = localStorage.getItem('lastActiveQuizId');
+          if (lastActiveQuizId && fetchedQuizzes.some(q => q.id === lastActiveQuizId)) {
+            setCurrentQuizId(lastActiveQuizId);
+          } else {
+            setCurrentQuizId(null);
+          }
 
         } catch (error) {
           console.error("App: Error loading data:", error);
@@ -138,12 +144,22 @@ const AppContent: React.FC = () => {
         setCurrentSessionId('default');
         setQuizSessions([]);
         setCurrentQuizId(null);
+        localStorage.removeItem('lastActiveQuizId'); // Clear stored quiz
         setIsDataLoaded(true);
       }
     };
 
     loadData();
   }, [user?.id]);
+
+  // Track active quiz for persistence across reloads
+  useEffect(() => {
+    if (currentQuizId) {
+      localStorage.setItem('lastActiveQuizId', currentQuizId);
+    } else {
+      localStorage.removeItem('lastActiveQuizId');
+    }
+  }, [currentQuizId]);
 
   const [input, setInput] = useState('');
   const [pendingAttachments, setPendingAttachments] = useState<string[]>([]);
