@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, GoogleAuthProvider } from 'firebase/auth';
 import { auth, googleProvider } from '../services/firebase';
 import { User } from '../types';
 
@@ -24,8 +24,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
 
-  // Listen to Firebase auth state
+  // Listen to Firebase auth state & Redirect Result
   useEffect(() => {
+    // Check for redirect result first (for mobile)
+    getRedirectResult(auth).then((result) => {
+      if (result) {
+        console.log("AuthContext: Redirect login successful!", result.user.email);
+      }
+    }).catch((error) => {
+      console.error("AuthContext: Redirect login error:", error);
+    });
+
     const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
       if (fbUser) {
         const mappedUser: User = {
@@ -34,7 +43,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           email: fbUser.email || '',
           avatar: fbUser.photoURL || undefined,
         };
-        setUser(mappedUser);
+        // Only update if id changed to prevent loops
+        setUser(curr => (curr?.id === mappedUser.id ? curr : mappedUser));
         localStorage.setItem('paramedical_user', JSON.stringify(mappedUser));
       } else {
         setUser(null);
@@ -49,15 +59,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsLoading(true);
     try {
       console.log("AuthContext: Starting Google login...");
-      const result = await signInWithPopup(auth, googleProvider);
-      console.log("AuthContext: Login successful!", result.user.email);
-      // User state and localStorage handled by onAuthStateChanged
+      // Try popup first
+      await signInWithPopup(auth, googleProvider);
     } catch (error: any) {
-      console.error("AuthContext: Login error:", error);
-      console.error("AuthContext: Error code:", error?.code);
-      console.error("AuthContext: Error message:", error?.message);
-      setIsLoading(false);
-      throw error;
+      console.error("AuthContext: Popup error:", error);
+      // Fallback to redirect for mobile/strict browsers
+      if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user' || window.innerWidth < 768) {
+        console.log("AuthContext: Falling back to redirect...");
+        await signInWithRedirect(auth, googleProvider);
+      } else {
+        setIsLoading(false);
+        throw error;
+      }
     }
   };
 
