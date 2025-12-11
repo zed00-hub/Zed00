@@ -213,8 +213,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
                         <button
                             onClick={() => setActiveTab('courses')}
                             className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'courses'
-                                    ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30'
-                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30'
+                                : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
                                 }`}
                         >
                             <BookOpen size={18} />
@@ -223,8 +223,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
                         <button
                             onClick={() => setActiveTab('analytics')}
                             className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'analytics'
-                                    ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30'
-                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30'
+                                : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
                                 }`}
                         >
                             <Users size={18} />
@@ -381,6 +381,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
                                         {userStats.length > 0
                                             ? formatTime(Math.round(userStats.reduce((acc, u) => acc + (u.totalTimeSpent || 0), 0) / userStats.length))
                                             : '0د'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Info Alert for Admin */}
+                            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-start gap-3">
+                                <AlertCircle className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="text-sm font-bold text-blue-800 dark:text-blue-200">لماذا العدد قليل؟</p>
+                                    <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
+                                        يظهر هنا فقط الطلاب الذين دخلوا للتطبيق <strong>بعد</strong> التحديث الأخير.
+                                        الطلاب القدامى سيظهرون تلقائياً في القائمة واحداً تلو الآخر بمجرد فتحهم للتطبيق.
                                     </p>
                                 </div>
                             </div>
