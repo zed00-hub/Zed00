@@ -96,25 +96,17 @@ export const getUserLevel = (minutes: number) => {
  */
 export const getAllUsersStats = async (): Promise<UserStats[]> => {
     try {
-        // Requires admin privileges/rules
-        // Try to order by totalTimeSpent desc if index exists, else client sort
         const usersRef = collection(db, 'users');
-        const q = query(usersRef, orderBy('totalTimeSpent', 'desc'));
+        // Fetch all documents directly without complex queries to avoid index issues
+        const snapshot = await getDocs(usersRef);
 
-        try {
-            const snapshot = await getDocs(q);
-            return snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            } as UserStats));
-        } catch (indexError) {
-            console.warn('Index missing, falling back to unordered fetch', indexError);
-            // Fallback if index missing
-            const snapshot = await getDocs(usersRef);
-            return snapshot.docs
-                .map(doc => ({ id: doc.id, ...doc.data() } as UserStats))
-                .sort((a, b) => b.totalTimeSpent - a.totalTimeSpent);
-        }
+        const users = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        } as UserStats));
+
+        // Sort client-side
+        return users.sort((a, b) => (b.totalTimeSpent || 0) - (a.totalTimeSpent || 0));
 
     } catch (error) {
         console.error('Error fetching user stats:', error);
