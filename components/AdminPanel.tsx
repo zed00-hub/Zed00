@@ -8,7 +8,7 @@ import {
     CourseFile
 } from '../services/coursesService';
 import { useAuth } from '../contexts/AuthContext';
-import { X, Plus, Trash2, Edit2, Save, FileText, Upload, BookOpen, AlertCircle, Check, FileUp, Loader2 } from 'lucide-react';
+import { X, Plus, Trash2, Edit2, Save, FileText, Upload, BookOpen, AlertCircle, Check, FileUp, Loader2, Eye, EyeOff } from 'lucide-react';
 import { extractTextFromPDF } from '../utils/pdfUtils';
 
 interface AdminPanelProps {
@@ -24,7 +24,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
     const [showAddForm, setShowAddForm] = useState(false);
     const [editingCourse, setEditingCourse] = useState<CourseFile | null>(null);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+
+    // PDF Handling State
     const [isExtractingPDF, setIsExtractingPDF] = useState(false);
+    const [showContentPreview, setShowContentPreview] = useState(true); // Toggle for viewing raw content
 
     // Form state
     const [courseName, setCourseName] = useState('');
@@ -57,6 +60,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
         setShowAddForm(false);
         setEditingCourse(null);
         setSaveStatus('idle');
+        setShowContentPreview(true);
     };
 
     const handleSaveCourse = async () => {
@@ -108,6 +112,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
         setCourseContent(course.content || '');
         setCourseCategory(course.category || 'other');
         setShowAddForm(true);
+        // If content is huge, maybe hide it by default?
+        setShowContentPreview(course.content.length < 1000);
     };
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -121,23 +127,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
                 setIsExtractingPDF(true);
                 setShowAddForm(true);
                 setCourseName(file.name.replace(/\.pdf$/i, ''));
-                setCourseContent('جاري استخراج النص من ملف PDF...');
+                // Don't show "Extracting..." in the text box instantly, show loader
+                setCourseContent('');
+                setShowContentPreview(false); // Hide the raw text box while processing or after
 
                 const text = await extractTextFromPDF(file);
+
                 setCourseContent(text);
                 setIsExtractingPDF(false);
+                // Keep preview hidden for large files to simulate "Analysis" feel
+                setShowContentPreview(false);
             } else {
                 // Text file
                 const text = await file.text();
                 setCourseName(file.name.replace(/\.[^/.]+$/, ''));
                 setCourseContent(text);
                 setShowAddForm(true);
+                setShowContentPreview(true);
             }
         } catch (error: any) {
             console.error('Error reading file:', error);
             alert(error.message || 'فشل قراءة الملف');
             setIsExtractingPDF(false);
             setCourseContent('');
+            setShowContentPreview(true);
         }
 
         // Reset input
@@ -151,7 +164,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
 
     if (!isOpen) return null;
 
-    // Check if user is admin
     if (!isAdmin(user?.email)) {
         return (
             <>
@@ -238,37 +250,69 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
                                         </option>
                                     ))}
                                 </select>
-                                <p className="text-xs text-gray-500 mt-1">
-                                    يساعد التصنيف البوت في العثور على المعلومات المناسبة
-                                </p>
                             </div>
 
                             {/* Course Content */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    📄 محتوى الدرس
-                                </label>
-                                <div className="relative">
-                                    <textarea
-                                        value={courseContent}
-                                        onChange={(e) => setCourseContent(e.target.value)}
-                                        placeholder="الصق محتوى الدرس هنا أو ارفع ملف PDF..."
-                                        rows={12}
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        📄 محتوى الدرس
+                                    </label>
+                                    <button
+                                        onClick={() => setShowContentPreview(!showContentPreview)}
+                                        className="text-xs text-amber-500 hover:text-amber-600 flex items-center gap-1"
                                         disabled={isExtractingPDF}
-                                        className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-dark-bg text-gray-800 dark:text-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all resize-none font-mono text-sm disabled:opacity-50"
-                                    />
-                                    {isExtractingPDF && (
-                                        <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-dark-bg/80 rounded-xl">
-                                            <div className="flex items-center gap-3 text-amber-600">
-                                                <Loader2 className="w-6 h-6 animate-spin" />
-                                                <span className="font-medium">جاري استخراج النص من PDF...</span>
+                                    >
+                                        {showContentPreview ? (
+                                            <>
+                                                <EyeOff size={14} />
+                                                <span>إخفاء المحتوى</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Eye size={14} />
+                                                <span>عرض/تعديل المحتوى</span>
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+
+                                <div className="relative">
+                                    {isExtractingPDF ? (
+                                        <div className="w-full p-8 border-2 border-dashed border-amber-300 bg-amber-50 dark:bg-amber-900/10 rounded-xl flex flex-col items-center justify-center text-center animate-pulse">
+                                            <Loader2 className="w-10 h-10 text-amber-500 animate-spin mb-3" />
+                                            <p className="font-bold text-amber-700 dark:text-amber-400">جاري تحليل ملف PDF...</p>
+                                            <p className="text-xs text-amber-600/70 mt-1">يتم استخراج النصوص وفهرسة المحتوى</p>
+                                        </div>
+                                    ) : !showContentPreview && courseContent ? (
+                                        <div className="w-full p-4 border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 rounded-xl flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg text-green-600">
+                                                    <Check size={20} />
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-gray-700 dark:text-gray-200">تم تحليل الملف بنجاح</p>
+                                                    <p className="text-xs text-gray-500">
+                                                        {(courseContent.length / 1024).toFixed(1)} KB من النصوص جاهزة للمعالجة
+                                                    </p>
+                                                </div>
                                             </div>
                                         </div>
+                                    ) : (
+                                        <textarea
+                                            value={courseContent}
+                                            onChange={(e) => setCourseContent(e.target.value)}
+                                            placeholder="الصق محتوى الدرس هنا أو ارفع ملف PDF..."
+                                            rows={12}
+                                            className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-dark-bg text-gray-800 dark:text-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all resize-none font-mono text-sm"
+                                        />
                                     )}
                                 </div>
-                                <p className="text-xs text-gray-500 mt-1">
-                                    {courseContent.length.toLocaleString()} حرف | {(new Blob([courseContent]).size / 1024).toFixed(1)} KB
-                                </p>
+                                {!isExtractingPDF && (
+                                    <p className="text-xs text-gray-500 mt-1 flex justify-end">
+                                        {courseContent.length > 0 ? `${courseContent.length.toLocaleString()} حرف` : 'فارغ'}
+                                    </p>
+                                )}
                             </div>
 
                             {/* Save Button */}
@@ -294,23 +338,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
                             {/* Actions Bar */}
                             <div className="flex gap-3 flex-wrap">
                                 <button
-                                    onClick={() => setShowAddForm(true)}
+                                    onClick={() => {
+                                        resetForm();
+                                        setShowAddForm(true);
+                                    }}
                                     className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium transition-all"
                                 >
                                     <Plus size={18} />
-                                    <span>إضافة مادة جديدة</span>
+                                    <span>إضافة مادة يدوياً</span>
                                 </button>
 
-                                <label className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-all cursor-pointer">
-                                    <Upload size={18} />
-                                    <span>رفع ملف نصي</span>
-                                    <input type="file" accept=".txt,.md" onChange={handleFileUpload} className="hidden" />
-                                </label>
-
-                                <label className="flex items-center gap-2 px-4 py-2.5 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl font-medium transition-all cursor-pointer border border-red-200 dark:border-red-800">
-                                    <FileUp size={18} />
-                                    <span>رفع ملف PDF</span>
-                                    <input type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" />
+                                <label className="flex items-center gap-2 px-4 py-2.5 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl font-medium transition-all cursor-pointer border border-red-200 dark:border-red-800 hover:border-red-400">
+                                    {isExtractingPDF ? <Loader2 size={18} className="animate-spin" /> : <FileUp size={18} />}
+                                    <span>{isExtractingPDF ? 'جاري التحليل...' : 'تحليل ملف PDF'}</span>
+                                    <input type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" disabled={isLoading || isExtractingPDF} />
                                 </label>
                             </div>
 
@@ -324,7 +365,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
                                 <div className="text-center py-12 text-gray-500">
                                     <FileText className="w-16 h-16 mx-auto mb-4 opacity-30" />
                                     <p className="font-medium">لا توجد مواد مضافة بعد</p>
-                                    <p className="text-sm">اضغط على "إضافة مادة جديدة" أو ارفع ملف PDF</p>
+                                    <p className="text-sm">اضغط على "تحليل ملف PDF" لإضافة مادة</p>
                                 </div>
                             ) : (
                                 <div className="grid gap-3">
