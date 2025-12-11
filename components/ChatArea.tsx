@@ -9,6 +9,7 @@ interface ChatAreaProps {
   setInput: (val: string) => void;
   isLoading: boolean;
   onSend: () => void;
+  onStopGeneration: () => void;
   onToggleSidebar: () => void;
   onUpload: (files: FileList | null) => void;
   pendingAttachments?: string[];
@@ -23,6 +24,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   setInput,
   isLoading,
   onSend,
+  onStopGeneration,
   onToggleSidebar,
   onUpload,
   pendingAttachments = [],
@@ -220,8 +222,21 @@ const ChatArea: React.FC<ChatAreaProps> = ({
               : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed shadow-none'
               }`}
           >
-            {isLoading ? <LoadingIcon /> : <SendIcon />}
+            <SendIcon />
           </button>
+
+          {/* Stop Generation Button - Shows when loading */}
+          {isLoading && (
+            <button
+              onClick={onStopGeneration}
+              className="p-3.5 rounded-xl flex items-center justify-center transition-all duration-300 bg-red-500 hover:bg-red-600 text-white hover:scale-110 active:scale-95 shadow-lg shadow-red-500/30"
+              title="إيقاف الرد"
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <rect x="6" y="6" width="12" height="12" rx="2" />
+              </svg>
+            </button>
+          )}
         </div>
         <p className="text-center text-xs text-gray-500 dark:text-gray-400 mt-3 font-medium">
           IA Paramédicale - Vérifiez toujours les informations médicales.

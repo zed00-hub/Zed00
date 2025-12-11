@@ -147,6 +147,18 @@ const AppContent: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+  // Ref for aborting AI response
+  const abortControllerRef = React.useRef<AbortController | null>(null);
+
+  // Function to stop AI generation
+  const stopGeneration = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setIsProcessing(false);
+    }
+  }, []);
+
   // Get settings from context
   const { settings } = useSettings();
 
@@ -377,14 +389,26 @@ const AppContent: React.FC = () => {
     const messagesWithBot = [...updatedMessages, botMessage];
     updateCurrentSessionMessages(messagesWithBot, newTitle);
 
+    // Create abort controller for this request
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
     try {
       let streamedContent = '';
+      let wasAborted = false;
+
+      // Check for abort during streaming
+      signal.addEventListener('abort', () => {
+        wasAborted = true;
+      });
 
       await generateResponseStream(
         userMessage.content,
         files,
         messages,
         (chunk) => {
+          if (wasAborted) return; // Stop processing if aborted
+
           // Update bot message content in real-time
           streamedContent += chunk;
           const updatedBot: Message = {
@@ -396,14 +420,22 @@ const AppContent: React.FC = () => {
         settings // Pass user settings
       );
 
-      // Final update with complete content
-      const finalBot: Message = {
-        ...botMessage,
-        content: streamedContent || 'عذراً، لم أتمكن من إنشاء إجابة.'
-      };
-      updateCurrentSessionMessages([...updatedMessages, finalBot], newTitle);
+      // Final update with complete content (only if not aborted)
+      if (!wasAborted) {
+        const finalBot: Message = {
+          ...botMessage,
+          content: streamedContent || 'عذراً، لم أتمكن من إنشاء إجابة.'
+        };
+        updateCurrentSessionMessages([...updatedMessages, finalBot], newTitle);
+      }
 
     } catch (error: any) {
+      // Don't show error if it was just aborted by user
+      if (error?.name === 'AbortError' || signal.aborted) {
+        console.log('Generation stopped by user');
+        return;
+      }
+
       console.error(error);
 
       let errorContent = "عذراً، حدث خطأ. تأكد من اتصالك بالإنترنت.";
@@ -427,6 +459,7 @@ const AppContent: React.FC = () => {
       };
       updateCurrentSessionMessages([...updatedMessages, errorMessage], newTitle);
     } finally {
+      abortControllerRef.current = null;
       setIsProcessing(false);
     }
   };
@@ -585,6 +618,7 @@ const AppContent: React.FC = () => {
                   setInput={setInput}
                   isLoading={isProcessing}
                   onSend={handleSendMessage}
+                  onStopGeneration={stopGeneration}
                   onToggleSidebar={() => setIsSidebarOpen(true)}
                   onUpload={handleFileUpload}
                   pendingAttachments={pendingAttachments}

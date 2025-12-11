@@ -15,26 +15,26 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'logo.png'],
         manifest: {
-          name: 'مساعد الطالب الشبه طبي',
-          short_name: 'Paramedical AI',
-          description: 'مساعد ذكي للطلاب الشبه طبيين في الجزائر',
+          name: 'PARABOT - مساعد الطالب الشبه طبي',
+          short_name: 'PARABOT',
+          description: 'PARABOT - مساعد ذكي للطلاب الشبه طبيين في الجزائر',
           theme_color: '#0284c7',
           background_color: '#f8fafc',
           display: 'standalone',
           orientation: 'portrait',
           icons: [
             {
-              src: 'icon.svg',
+              src: 'logo.png',
               sizes: '192x192',
-              type: 'image/svg+xml',
-              purpose: 'any maskable'
+              type: 'image/png',
+              purpose: 'any'
             },
             {
-              src: 'icon.svg',
+              src: 'logo.png',
               sizes: '512x512',
-              type: 'image/svg+xml',
+              type: 'image/png',
               purpose: 'any maskable'
             }
           ]
