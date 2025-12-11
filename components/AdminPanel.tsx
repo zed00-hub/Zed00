@@ -7,8 +7,17 @@ import {
     COURSE_CATEGORIES,
     CourseFile
 } from '../services/coursesService';
+import {
+    getAllUsersStats,
+    UserStats,
+    getUserLevel
+} from '../services/analyticsService';
 import { useAuth } from '../contexts/AuthContext';
-import { X, Plus, Trash2, Edit2, Save, FileText, Upload, BookOpen, AlertCircle, Check, FileUp, Loader2, Eye, EyeOff } from 'lucide-react';
+import {
+    X, Plus, Trash2, Edit2, Save, FileText, Upload, BookOpen,
+    AlertCircle, Check, FileUp, Loader2, Eye, EyeOff, LayoutDashboard,
+    Users, Clock, MessageCircle, Medal
+} from 'lucide-react';
 import { extractTextFromPDF } from '../utils/pdfUtils';
 
 interface AdminPanelProps {
@@ -19,40 +28,49 @@ interface AdminPanelProps {
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdated }) => {
     const { user } = useAuth();
-    const [courses, setCourses] = useState<CourseFile[]>([]);
+
+    // UI State
+    const [activeTab, setActiveTab] = useState<'courses' | 'analytics'>('courses');
     const [isLoading, setIsLoading] = useState(true);
+
+    // Courses State
+    const [courses, setCourses] = useState<CourseFile[]>([]);
     const [showAddForm, setShowAddForm] = useState(false);
     const [editingCourse, setEditingCourse] = useState<CourseFile | null>(null);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
-
-    // PDF Handling State
     const [isExtractingPDF, setIsExtractingPDF] = useState(false);
-    const [showContentPreview, setShowContentPreview] = useState(true); // Toggle for viewing raw content
-
-    // Form state
+    const [showContentPreview, setShowContentPreview] = useState(true);
     const [courseName, setCourseName] = useState('');
     const [courseContent, setCourseContent] = useState('');
     const [courseCategory, setCourseCategory] = useState('other');
 
-    // Load courses on mount
+    // Analytics State
+    const [userStats, setUserStats] = useState<UserStats[]>([]);
+
     useEffect(() => {
         if (isOpen) {
-            loadCourses();
+            loadData();
         }
-    }, [isOpen]);
+    }, [isOpen, activeTab]);
 
-    const loadCourses = async () => {
+    const loadData = async () => {
         setIsLoading(true);
         try {
-            const loaded = await loadCoursesFromFirestore();
-            setCourses(loaded);
+            if (activeTab === 'courses') {
+                const loaded = await loadCoursesFromFirestore();
+                setCourses(loaded);
+            } else {
+                const stats = await getAllUsersStats();
+                setUserStats(stats);
+            }
         } catch (error) {
-            console.error('Error loading courses:', error);
+            console.error('Error loading data:', error);
         } finally {
             setIsLoading(false);
         }
     };
 
+    // --- Course Functions ---
     const resetForm = () => {
         setCourseName('');
         setCourseContent('');
@@ -83,7 +101,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
 
             setTimeout(() => {
                 resetForm();
-                loadCourses();
+                loadData();
                 onCoursesUpdated();
             }, 1000);
 
@@ -99,7 +117,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
 
         try {
             await deleteCourseFromFirestore(courseId);
-            loadCourses();
+            loadData();
             onCoursesUpdated();
         } catch (error) {
             console.error('Error deleting course:', error);
@@ -112,7 +130,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
         setCourseContent(course.content || '');
         setCourseCategory(course.category || 'other');
         setShowAddForm(true);
-        // If content is huge, maybe hide it by default?
         setShowContentPreview(course.content.length < 1000);
     };
 
@@ -127,18 +144,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
                 setIsExtractingPDF(true);
                 setShowAddForm(true);
                 setCourseName(file.name.replace(/\.pdf$/i, ''));
-                // Don't show "Extracting..." in the text box instantly, show loader
                 setCourseContent('');
-                setShowContentPreview(false); // Hide the raw text box while processing or after
+                setShowContentPreview(false);
 
                 const text = await extractTextFromPDF(file);
 
                 setCourseContent(text);
                 setIsExtractingPDF(false);
-                // Keep preview hidden for large files to simulate "Analysis" feel
                 setShowContentPreview(false);
             } else {
-                // Text file
                 const text = await file.text();
                 setCourseName(file.name.replace(/\.[^/.]+$/, ''));
                 setCourseContent(text);
@@ -152,8 +166,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
             setCourseContent('');
             setShowContentPreview(true);
         }
-
-        // Reset input
         e.target.value = '';
     };
 
@@ -162,259 +174,276 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onCoursesUpdat
         return cat?.labelAr || 'أخرى';
     };
 
+    // --- Format Helper ---
+    const formatTime = (minutes: number) => {
+        const h = Math.floor(minutes / 60);
+        const m = minutes % 60;
+        if (h > 0) return `${h}س ${m}د`;
+        return `${m}د`;
+    };
+
     if (!isOpen) return null;
 
     if (!isAdmin(user?.email)) {
-        return (
-            <>
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" onClick={onClose} />
-                <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-md bg-white dark:bg-dark-surface rounded-3xl shadow-2xl z-50 p-8 text-center">
-                    <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-                    <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2">غير مصرح</h2>
-                    <p className="text-gray-500 dark:text-gray-400 mb-6">ليس لديك صلاحية الوصول لهذه الصفحة.</p>
-                    <button onClick={onClose} className="px-6 py-2 bg-gray-200 dark:bg-gray-700 rounded-xl">
-                        إغلاق
-                    </button>
-                </div>
-            </>
-        );
+        return null;
     }
 
     return (
         <>
-            {/* Backdrop */}
             <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" onClick={onClose} />
-
-            {/* Panel */}
-            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[95%] max-w-4xl max-h-[90vh] bg-white dark:bg-dark-surface rounded-3xl shadow-2xl z-50 overflow-hidden flex flex-col">
-                {/* Header */}
-                <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-amber-50 to-white dark:from-amber-900/20 dark:to-dark-surface shrink-0">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-xl">
-                            <BookOpen className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[95%] max-w-5xl max-h-[90vh] bg-white dark:bg-dark-surface rounded-3xl shadow-2xl z-50 overflow-hidden flex flex-col">
+                {/* Header with Tabs */}
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-surface shrink-0">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-xl">
+                                <LayoutDashboard className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">لوحة القيادة</h2>
+                                <p className="text-xs text-gray-500">مرحباً بك في لوحة تحكم PARABOT</p>
+                            </div>
                         </div>
-                        <div>
-                            <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200">لوحة إدارة المواد</h2>
-                            <p className="text-xs text-gray-500">إضافة وتعديل المواد الدراسية</p>
-                        </div>
+                        <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all">
+                            <X size={24} />
+                        </button>
                     </div>
-                    <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all">
-                        <X size={20} />
-                    </button>
+
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setActiveTab('courses')}
+                            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'courses'
+                                    ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30'
+                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                }`}
+                        >
+                            <BookOpen size={18} />
+                            إدارة المواد
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('analytics')}
+                            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'analytics'
+                                    ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30'
+                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                }`}
+                        >
+                            <Users size={18} />
+                            تحليلات الطلاب
+                        </button>
+                    </div>
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-5">
-                    {showAddForm ? (
-                        /* Add/Edit Form */
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="font-bold text-gray-800 dark:text-gray-200">
-                                    {editingCourse ? 'تعديل المادة' : 'إضافة مادة جديدة'}
-                                </h3>
-                                <button
-                                    onClick={resetForm}
-                                    className="text-sm text-gray-500 hover:text-gray-700"
-                                >
-                                    إلغاء
-                                </button>
-                            </div>
-
-                            {/* Course Name */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    📝 اسم المادة / الدرس
-                                </label>
-                                <input
-                                    type="text"
-                                    value={courseName}
-                                    onChange={(e) => setCourseName(e.target.value)}
-                                    placeholder="مثال: الجريدة الرسمية للتخصصات الشبه طبية"
-                                    className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-dark-bg text-gray-800 dark:text-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all"
-                                />
-                            </div>
-
-                            {/* Category Selection */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    📂 تصنيف المادة
-                                </label>
-                                <select
-                                    value={courseCategory}
-                                    onChange={(e) => setCourseCategory(e.target.value)}
-                                    className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-dark-bg text-gray-800 dark:text-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all"
-                                >
-                                    {COURSE_CATEGORIES.map((cat) => (
-                                        <option key={cat.id} value={cat.id}>
-                                            {cat.labelAr} - {cat.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {/* Course Content */}
-                            <div>
-                                <div className="flex items-center justify-between mb-2">
-                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        📄 محتوى الدرس
-                                    </label>
-                                    <button
-                                        onClick={() => setShowContentPreview(!showContentPreview)}
-                                        className="text-xs text-amber-500 hover:text-amber-600 flex items-center gap-1"
-                                        disabled={isExtractingPDF}
-                                    >
-                                        {showContentPreview ? (
-                                            <>
-                                                <EyeOff size={14} />
-                                                <span>إخفاء المحتوى</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Eye size={14} />
-                                                <span>عرض/تعديل المحتوى</span>
-                                            </>
-                                        )}
+                {/* Content Area */}
+                <div className="flex-1 overflow-y-auto p-5 bg-gray-50 dark:bg-gray-900/50">
+                    {isLoading ? (
+                        <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                            <Loader2 className="w-10 h-10 mb-4 animate-spin text-amber-500" />
+                            <p>جاري تحميل البيانات...</p>
+                        </div>
+                    ) : activeTab === 'courses' ? (
+                        // --- COURSES TAB ---
+                        showAddForm ? (
+                            <div className="space-y-4 bg-white dark:bg-dark-bg p-6 rounded-2xl border border-gray-100 dark:border-gray-700">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="font-bold text-gray-800 dark:text-gray-200">
+                                        {editingCourse ? 'تعديل المادة' : 'إضافة مادة جديدة'}
+                                    </h3>
+                                    <button onClick={resetForm} className="text-sm text-gray-500 hover:text-gray-700">
+                                        إلغاء
                                     </button>
                                 </div>
 
-                                <div className="relative">
-                                    {isExtractingPDF ? (
-                                        <div className="w-full p-8 border-2 border-dashed border-amber-300 bg-amber-50 dark:bg-amber-900/10 rounded-xl flex flex-col items-center justify-center text-center animate-pulse">
-                                            <Loader2 className="w-10 h-10 text-amber-500 animate-spin mb-3" />
-                                            <p className="font-bold text-amber-700 dark:text-amber-400">جاري تحليل ملف PDF...</p>
-                                            <p className="text-xs text-amber-600/70 mt-1">يتم استخراج النصوص وفهرسة المحتوى</p>
-                                        </div>
-                                    ) : !showContentPreview && courseContent ? (
-                                        <div className="w-full p-4 border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 rounded-xl flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg text-green-600">
-                                                    <Check size={20} />
-                                                </div>
-                                                <div>
-                                                    <p className="font-bold text-gray-700 dark:text-gray-200">تم تحليل الملف بنجاح</p>
-                                                    <p className="text-xs text-gray-500">
-                                                        {(courseContent.length / 1024).toFixed(1)} KB من النصوص جاهزة للمعالجة
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <textarea
-                                            value={courseContent}
-                                            onChange={(e) => setCourseContent(e.target.value)}
-                                            placeholder="الصق محتوى الدرس هنا أو ارفع ملف PDF..."
-                                            rows={12}
-                                            className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-dark-bg text-gray-800 dark:text-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all resize-none font-mono text-sm"
-                                        />
-                                    )}
+                                {/* Inputs for Course (Same as before) */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">اسم المادة</label>
+                                    <input
+                                        type="text"
+                                        value={courseName}
+                                        onChange={(e) => setCourseName(e.target.value)}
+                                        className="w-full px-4 py-3 border rounded-xl dark:bg-dark-surface dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500"
+                                    />
                                 </div>
-                                {!isExtractingPDF && (
-                                    <p className="text-xs text-gray-500 mt-1 flex justify-end">
-                                        {courseContent.length > 0 ? `${courseContent.length.toLocaleString()} حرف` : 'فارغ'}
-                                    </p>
-                                )}
-                            </div>
 
-                            {/* Save Button */}
-                            <button
-                                onClick={handleSaveCourse}
-                                disabled={!courseName.trim() || !courseContent.trim() || saveStatus === 'saving' || isExtractingPDF}
-                                className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${saveStatus === 'success'
-                                        ? 'bg-green-500 text-white'
-                                        : saveStatus === 'error'
-                                            ? 'bg-red-500 text-white'
-                                            : 'bg-amber-500 hover:bg-amber-600 text-white disabled:bg-gray-300 disabled:text-gray-500'
-                                    }`}
-                            >
-                                {saveStatus === 'saving' && <Loader2 size={20} className="animate-spin" />}
-                                {saveStatus === 'success' && <Check size={20} />}
-                                {saveStatus === 'idle' && <Save size={20} />}
-                                {saveStatus === 'saving' ? 'جاري الحفظ...' : saveStatus === 'success' ? 'تم الحفظ!' : saveStatus === 'error' ? 'حدث خطأ!' : 'حفظ المادة'}
-                            </button>
-                        </div>
-                    ) : (
-                        /* Courses List */
-                        <div className="space-y-4">
-                            {/* Actions Bar */}
-                            <div className="flex gap-3 flex-wrap">
-                                <button
-                                    onClick={() => {
-                                        resetForm();
-                                        setShowAddForm(true);
-                                    }}
-                                    className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium transition-all"
-                                >
-                                    <Plus size={18} />
-                                    <span>إضافة مادة يدوياً</span>
-                                </button>
-
-                                <label className="flex items-center gap-2 px-4 py-2.5 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl font-medium transition-all cursor-pointer border border-red-200 dark:border-red-800 hover:border-red-400">
-                                    {isExtractingPDF ? <Loader2 size={18} className="animate-spin" /> : <FileUp size={18} />}
-                                    <span>{isExtractingPDF ? 'جاري التحليل...' : 'تحليل ملف PDF'}</span>
-                                    <input type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" disabled={isLoading || isExtractingPDF} />
-                                </label>
-                            </div>
-
-                            {/* Courses Grid */}
-                            {isLoading ? (
-                                <div className="text-center py-12 text-gray-500">
-                                    <Loader2 className="w-10 h-10 mx-auto mb-4 animate-spin text-amber-500" />
-                                    <p>جاري تحميل المواد...</p>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">التصنيف</label>
+                                    <select
+                                        value={courseCategory}
+                                        onChange={(e) => setCourseCategory(e.target.value)}
+                                        className="w-full px-4 py-3 border rounded-xl dark:bg-dark-surface dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500"
+                                    >
+                                        {COURSE_CATEGORIES.map((cat) => (
+                                            <option key={cat.id} value={cat.id}>{cat.labelAr} - {cat.label}</option>
+                                        ))}
+                                    </select>
                                 </div>
-                            ) : courses.length === 0 ? (
-                                <div className="text-center py-12 text-gray-500">
-                                    <FileText className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                                    <p className="font-medium">لا توجد مواد مضافة بعد</p>
-                                    <p className="text-sm">اضغط على "تحليل ملف PDF" لإضافة مادة</p>
-                                </div>
-                            ) : (
-                                <div className="grid gap-3">
-                                    {courses.map((course) => (
-                                        <div
-                                            key={course.id}
-                                            className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border-2 border-gray-200 dark:border-gray-700 hover:border-amber-300 dark:hover:border-amber-700 transition-all group"
+
+                                <div>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">المحتوى</label>
+                                        <button
+                                            onClick={() => setShowContentPreview(!showContentPreview)}
+                                            className="text-xs text-amber-500 hover:text-amber-600 flex items-center gap-1"
+                                            disabled={isExtractingPDF}
                                         >
-                                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                                                <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg shrink-0">
-                                                    <BookOpen size={18} className="text-amber-600 dark:text-amber-400" />
-                                                </div>
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="font-medium text-gray-800 dark:text-gray-200 truncate">{course.name}</p>
-                                                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                                                        <span className="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded-full">
-                                                            {getCategoryLabel(course.category || 'other')}
-                                                        </span>
-                                                        <span>{(course.content?.length || 0).toLocaleString()} حرف</span>
+                                            {showContentPreview ? <><EyeOff size={14} /> إخفاء</> : <><Eye size={14} /> عرض</>}
+                                        </button>
+                                    </div>
+                                    <div className="relative">
+                                        {isExtractingPDF ? (
+                                            <div className="w-full p-8 border-2 border-dashed border-amber-300 bg-amber-50 dark:bg-amber-900/10 rounded-xl flex flex-col items-center justify-center animate-pulse">
+                                                <Loader2 className="w-8 h-8 text-amber-500 animate-spin mb-2" />
+                                                <p className="text-sm font-bold text-amber-700">جاري تحليل ملف PDF...</p>
+                                            </div>
+                                        ) : !showContentPreview && courseContent ? (
+                                            <div className="w-full p-4 border rounded-xl bg-gray-50 flex items-center gap-3">
+                                                <Check size={20} className="text-green-500" />
+                                                <p className="text-sm text-gray-600">المحتوى جاهز ({courseContent.length} حرف)</p>
+                                            </div>
+                                        ) : (
+                                            <textarea
+                                                value={courseContent}
+                                                onChange={(e) => setCourseContent(e.target.value)}
+                                                rows={10}
+                                                className="w-full px-4 py-3 border rounded-xl dark:bg-dark-surface dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 font-mono text-sm"
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={handleSaveCourse}
+                                    disabled={!courseName.trim() || !courseContent.trim() || saveStatus === 'saving'}
+                                    className="w-full py-3 bg-amber-500 text-white rounded-xl font-bold hover:bg-amber-600 transition-all flex items-center justify-center gap-2"
+                                >
+                                    {saveStatus === 'saving' ? <Loader2 className="animate-spin" /> : <Save size={20} />}
+                                    {saveStatus === 'saving' ? 'جاري الحفظ...' : 'حفظ المادة'}
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="flex gap-3">
+                                    <button onClick={() => { resetForm(); setShowAddForm(true); }} className="flex-1 py-3 bg-amber-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-amber-600">
+                                        <Plus size={20} /> إضافة يدوية
+                                    </button>
+                                    <label className="flex-1 py-3 bg-white border border-dashed border-gray-300 text-gray-600 rounded-xl font-bold flex items-center justify-center gap-2 cursor-pointer hover:bg-gray-50">
+                                        <FileUp size={20} /> تحليل PDF
+                                        <input type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" />
+                                    </label>
+                                </div>
+
+                                {courses.length === 0 ? (
+                                    <div className="text-center py-10 text-gray-400">لا توجد مواد مضافة</div>
+                                ) : (
+                                    <div className="grid gap-3">
+                                        {courses.map(course => (
+                                            <div key={course.id} className="p-4 bg-white dark:bg-dark-surface rounded-xl border dark:border-gray-700 flex items-center justify-between shadow-sm">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-2 bg-amber-50 rounded-lg text-amber-600"><BookOpen size={20} /></div>
+                                                    <div>
+                                                        <p className="font-bold text-gray-800 dark:text-gray-200">{course.name}</p>
+                                                        <span className="text-xs px-2 py-0.5 bg-gray-100 rounded-full text-gray-500">{getCategoryLabel(course.category || 'other')}</span>
                                                     </div>
                                                 </div>
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => handleEditCourse(course)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500"><Edit2 size={16} /></button>
+                                                    <button onClick={() => handleDeleteCourse(course.id)} className="p-2 hover:bg-red-50 rounded-lg text-red-500"><Trash2 size={16} /></button>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                                                <button
-                                                    onClick={() => handleEditCourse(course)}
-                                                    className="p-2 text-gray-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-all"
-                                                    title="تعديل"
-                                                >
-                                                    <Edit2 size={16} />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteCourse(course.id)}
-                                                    className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
-                                                    title="حذف"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    ) : (
+                        // --- ANALYTICS TAB ---
+                        <div className="space-y-4">
+                            {/* Stats Summary */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <div className="p-4 bg-white dark:bg-dark-surface rounded-xl border dark:border-gray-700 shadow-sm">
+                                    <p className="text-xs text-gray-500 mb-1">عدد الطلاب</p>
+                                    <p className="text-2xl font-bold text-amber-600">{userStats.length}</p>
                                 </div>
-                            )}
+                                <div className="p-4 bg-white dark:bg-dark-surface rounded-xl border dark:border-gray-700 shadow-sm">
+                                    <p className="text-xs text-gray-500 mb-1">المحادثات</p>
+                                    <p className="text-2xl font-bold text-blue-600">
+                                        {userStats.reduce((acc, u) => acc + (u.conversationsCount || 0), 0)}
+                                    </p>
+                                </div>
+                                <div className="p-4 bg-white dark:bg-dark-surface rounded-xl border dark:border-gray-700 shadow-sm">
+                                    <p className="text-xs text-gray-500 mb-1">وقت التعلم</p>
+                                    <p className="text-xl font-bold text-green-600">
+                                        {formatTime(userStats.reduce((acc, u) => acc + (u.totalTimeSpent || 0), 0))}
+                                    </p>
+                                </div>
+                                <div className="p-4 bg-white dark:bg-dark-surface rounded-xl border dark:border-gray-700 shadow-sm">
+                                    <p className="text-xs text-gray-500 mb-1">متوسط الوقت</p>
+                                    <p className="text-xl font-bold text-purple-600">
+                                        {userStats.length > 0
+                                            ? formatTime(Math.round(userStats.reduce((acc, u) => acc + (u.totalTimeSpent || 0), 0) / userStats.length))
+                                            : '0د'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Students List */}
+                            <div className="bg-white dark:bg-dark-surface rounded-2xl border dark:border-gray-700 shadow-sm overflow-hidden">
+                                <div className="grid grid-cols-12 gap-2 p-4 bg-gray-50 dark:bg-gray-800 text-xs font-bold text-gray-500 border-b dark:border-gray-700">
+                                    <div className="col-span-1 text-center">#</div>
+                                    <div className="col-span-5 md:col-span-4">الطالب</div>
+                                    <div className="col-span-3 md:col-span-2 text-center">المستوى</div>
+                                    <div className="col-span-3 md:col-span-2 text-center">الوقت</div>
+                                    <div className="hidden md:block col-span-2 text-center">المحادثات</div>
+                                    <div className="hidden md:block col-span-1 text-center">آخر ظهور</div>
+                                </div>
+
+                                <div className="divide-y dark:divide-gray-700">
+                                    {userStats.map((stat, index) => {
+                                        const level = getUserLevel(stat.totalTimeSpent || 0);
+                                        return (
+                                            <div key={stat.id} className="grid grid-cols-12 gap-2 p-4 items-center hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                                                <div className="col-span-1 text-center font-bold text-amber-500">
+                                                    {index < 3 ? <Medal size={20} className={`mx-auto ${index === 0 ? 'text-yellow-500' : index === 1 ? 'text-gray-400' : 'text-orange-500'}`} /> : index + 1}
+                                                </div>
+                                                <div className="col-span-5 md:col-span-4 flex items-center gap-3">
+                                                    <img src={stat.avatar || `https://ui-avatars.com/api/?name=${stat.name}&background=random`} alt={stat.name} className="w-8 h-8 rounded-full bg-gray-200" />
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-bold text-gray-800 dark:text-gray-200 truncate">{stat.name}</p>
+                                                        <p className="text-[10px] text-gray-500 truncate">{stat.email}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="col-span-3 md:col-span-2 text-center">
+                                                    <span className={`text-[10px] px-2 py-1 rounded-full font-medium ${level.color}`}>
+                                                        {level.label}
+                                                    </span>
+                                                </div>
+                                                <div className="col-span-3 md:col-span-2 text-center font-mono text-sm text-gray-700 dark:text-gray-300">
+                                                    {formatTime(stat.totalTimeSpent || 0)}
+                                                </div>
+                                                <div className="hidden md:block col-span-2 text-center text-sm text-gray-600 dark:text-gray-400">
+                                                    {stat.conversationsCount || 0}
+                                                </div>
+                                                <div className="hidden md:block col-span-1 text-center text-xs text-gray-400">
+                                                    {/* Simple date format */}
+                                                    {stat.lastActive?.seconds ? new Date(stat.lastActive.seconds * 1000).toLocaleDateString('ar-EG') : '-'}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+
+                                    {userStats.length === 0 && (
+                                        <div className="text-center py-8 text-gray-400">
+                                            لا توجد بيانات طلاب لعرضها حالياً
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
 
                 {/* Footer */}
-                <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 text-center text-xs text-gray-500 shrink-0">
-                    👑 أنت مسؤول | المواد المضافة ستظهر لجميع الطلاب ويستخدمها البوت في إجاباته
+                <div className="p-3 border-t bg-white dark:bg-dark-surface text-center text-[10px] text-gray-400">
+                    PARABOT Admin Panel v2.0
                 </div>
             </div>
         </>

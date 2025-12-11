@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, GoogleAuthProvider } from 'firebase/auth';
 import { auth, googleProvider } from '../services/firebase';
 import { User } from '../types';
+import { syncUserProfile } from '../services/analyticsService';
 
 interface AuthContextType {
   user: User | null;
@@ -35,7 +36,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.error("AuthContext: Redirect login error:", error);
     });
 
-    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+    // ... other imports
+
+    // ...
+
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
         const mappedUser: User = {
           id: fbUser.uid,
@@ -46,6 +51,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Only update if id changed to prevent loops
         setUser(curr => (curr?.id === mappedUser.id ? curr : mappedUser));
         localStorage.setItem('paramedical_user', JSON.stringify(mappedUser));
+
+        // Sync to analytics
+        syncUserProfile(mappedUser);
       } else {
         setUser(null);
         localStorage.removeItem('paramedical_user');

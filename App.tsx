@@ -20,6 +20,7 @@ import SettingsModal from './components/SettingsModal';
 import AdminPanel from './components/AdminPanel';
 import { SettingsProvider, useSettings } from './contexts/SettingsContext';
 import { loadCoursesFromFirestore, isAdmin } from './services/coursesService';
+import { trackTimeSpent, trackNewConversation } from './services/analyticsService';
 import { Crown } from 'lucide-react';
 
 const AppContent: React.FC = () => {
@@ -159,6 +160,21 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
+  // Track Time Spent
+  useEffect(() => {
+    if (!user?.id) return;
+
+    // Track every minute
+    const interval = setInterval(() => {
+      // Only track if document is visible (user is active)
+      if (document.visibilityState === 'visible') {
+        trackTimeSpent(user.id);
+      }
+    }, 60000); // 1 minute
+
+    return () => clearInterval(interval);
+  }, [user?.id]);
+
   // Get settings from context
   const { settings } = useSettings();
 
@@ -188,6 +204,7 @@ const AppContent: React.FC = () => {
 
     if (user?.id) {
       saveSessionToFirestore(user.id, newSession);
+      trackNewConversation(user.id);
     }
   };
 
