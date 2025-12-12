@@ -34,10 +34,17 @@ const QuizSetup: React.FC<QuizSetupProps> = ({ files, onStart, isLoading }) => {
         }
     };
 
+    // S1 Curriculum Subjects (9 subjects)
     const subjects = [
-        "Anatomie", "Physiologie", "Sémiologie", "Pharmacologie",
-        "Pathologie", "Soins Infirmiers", "Pédiatrie", "Cardiologie",
-        "Pneumologie", "Traumatologie"
+        { id: "anatomie", name: "Anatomie-Physiologie", icon: "🦴" },
+        { id: "terminologie", name: "Terminologie Médicale", icon: "📝" },
+        { id: "hygiene", name: "Hygiène Hospitalière", icon: "🧹" },
+        { id: "sante_publique", name: "Santé Publique", icon: "🏥" },
+        { id: "secourisme", name: "Secourisme", icon: "🚑" },
+        { id: "psychologie", name: "Psychologie/Anthropologie", icon: "🧠" },
+        { id: "legislation", name: "Législation/Éthique", icon: "⚖️" },
+        { id: "fondements", name: "Fondements Profession", icon: "👨‍⚕️" },
+        { id: "expression", name: "Expression Écrite/Orale", icon: "✍️" }
     ];
 
     const handleStart = () => {
@@ -96,14 +103,15 @@ const QuizSetup: React.FC<QuizSetupProps> = ({ files, onStart, isLoading }) => {
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                             {subjects.map(sub => (
                                 <button
-                                    key={sub}
-                                    onClick={() => setSelectedSubject(sub)}
-                                    className={`px-3 py-2 rounded-lg text-sm border transition-all ${selectedSubject === sub
+                                    key={sub.id}
+                                    onClick={() => setSelectedSubject(sub.name)}
+                                    className={`px-3 py-3 rounded-lg text-sm border transition-all flex items-center gap-2 ${selectedSubject === sub.name
                                         ? 'bg-medical-500 text-white border-medical-500'
                                         : 'bg-gray-50 dark:bg-dark-bg text-gray-700 dark:text-gray-300 border-transparent hover:bg-gray-100'
                                         }`}
                                 >
-                                    {sub}
+                                    <span className="text-lg">{sub.icon}</span>
+                                    <span className="text-xs font-medium">{sub.name}</span>
                                 </button>
                             ))}
                         </div>
