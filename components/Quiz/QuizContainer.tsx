@@ -187,8 +187,12 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ files, activeQuizSession,
         setState(newState);
 
         if (onQuizUpdate && activeQuizSession) {
+            // Update title with score
+            const newTitle = activeQuizSession.title.split(' | ')[0] + ` | النتيجة: ${score}/${state.questions.length}`;
+
             onQuizUpdate({
                 ...activeQuizSession,
+                title: newTitle, // Save score in title for history visibility
                 score,
                 isFinished: true,
                 userAnswers: state.userAnswers, // Ensure latest answers
