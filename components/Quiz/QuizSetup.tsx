@@ -11,6 +11,7 @@ interface QuizSetupProps {
 const QuizSetup: React.FC<QuizSetupProps> = ({ files, onStart, isLoading }) => {
     const [sourceType, setSourceType] = useState<'subject' | 'file'>('subject');
     const [selectedSubject, setSelectedSubject] = useState<string>('');
+    const [expandedSubject, setExpandedSubject] = useState<string | null>(null);
     const [uploadedFile, setUploadedFile] = useState<FileContext | null>(null);
     const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>('Medium');
     const [questionCount, setQuestionCount] = useState<number>(5);
@@ -34,18 +35,60 @@ const QuizSetup: React.FC<QuizSetupProps> = ({ files, onStart, isLoading }) => {
         }
     };
 
+    // Anatomie subcategories
+    const anatomieSubcategories = [
+        "Cytologie (Anatomie et physiologie)",
+        "Embryologie",
+        "Conseil génétique",
+        "Les principaux tissus",
+        "Système musculaire (App locomoteur)",
+        "Système osseux (App locomoteur)",
+        "Système articulaire",
+        "La cellule nerveuse",
+        "Système nerveux central",
+        "Système nerveux cérébral",
+        "Système respiratoire",
+        "Système cardio-vasculaire",
+        "Les glandes endocrines",
+        "Appareil digestif",
+        "Appareil génito-urinaire"
+    ];
+
     // S1 Curriculum Subjects (9 subjects)
     const subjects = [
-        { id: "anatomie", name: "Anatomie-Physiologie", icon: "🦴" },
-        { id: "terminologie", name: "Terminologie Médicale", icon: "📝" },
-        { id: "hygiene", name: "Hygiène Hospitalière", icon: "🧹" },
-        { id: "sante_publique", name: "Santé Publique", icon: "🏥" },
-        { id: "secourisme", name: "Secourisme", icon: "🚑" },
-        { id: "psychologie", name: "Psychologie/Anthropologie", icon: "🧠" },
-        { id: "legislation", name: "Législation/Éthique", icon: "⚖️" },
-        { id: "fondements", name: "Fondements Profession", icon: "👨‍⚕️" },
-        { id: "expression", name: "Expression Écrite/Orale", icon: "✍️" }
+        { id: "anatomie", name: "Anatomie-Physiologie", icon: "🦴", hasSubcategories: true },
+        { id: "terminologie", name: "Terminologie Médicale", icon: "📝", hasSubcategories: false },
+        { id: "hygiene", name: "Hygiène Hospitalière", icon: "🧹", hasSubcategories: false },
+        { id: "sante_publique", name: "Santé Publique", icon: "🏥", hasSubcategories: false },
+        { id: "secourisme", name: "Secourisme", icon: "🚑", hasSubcategories: false },
+        { id: "psychologie", name: "Psychologie/Anthropologie", icon: "🧠", hasSubcategories: false },
+        { id: "legislation", name: "Législation/Éthique", icon: "⚖️", hasSubcategories: false },
+        { id: "fondements", name: "Fondements Profession", icon: "👨‍⚕️", hasSubcategories: false },
+        { id: "expression", name: "Expression Écrite/Orale", icon: "✍️", hasSubcategories: false }
     ];
+
+    const handleSubjectClick = (sub: typeof subjects[0]) => {
+        if (sub.hasSubcategories) {
+            // Toggle dropdown for subjects with subcategories
+            if (expandedSubject === sub.id) {
+                setExpandedSubject(null);
+            } else {
+                setExpandedSubject(sub.id);
+                // Clear previous selection if it was from a different subject
+                if (!selectedSubject.includes('Anatomie') && !anatomieSubcategories.includes(selectedSubject)) {
+                    setSelectedSubject('');
+                }
+            }
+        } else {
+            // Direct selection for simple subjects
+            setSelectedSubject(sub.name);
+            setExpandedSubject(null);
+        }
+    };
+
+    const handleSubcategorySelect = (subcategory: string) => {
+        setSelectedSubject(`Anatomie: ${subcategory}`);
+    };
 
     const handleStart = () => {
         onStart({
@@ -100,20 +143,58 @@ const QuizSetup: React.FC<QuizSetupProps> = ({ files, onStart, isLoading }) => {
                 {/* Source Details */}
                 <div className="min-h-[100px]">
                     {sourceType === 'subject' ? (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                            {subjects.map(sub => (
-                                <button
-                                    key={sub.id}
-                                    onClick={() => setSelectedSubject(sub.name)}
-                                    className={`px-3 py-3 rounded-lg text-sm border transition-all flex items-center gap-2 ${selectedSubject === sub.name
-                                        ? 'bg-medical-500 text-white border-medical-500'
-                                        : 'bg-gray-50 dark:bg-dark-bg text-gray-700 dark:text-gray-300 border-transparent hover:bg-gray-100'
-                                        }`}
-                                >
-                                    <span className="text-lg">{sub.icon}</span>
-                                    <span className="text-xs font-medium">{sub.name}</span>
-                                </button>
-                            ))}
+                        <div className="space-y-3">
+                            {/* Main Subjects Grid */}
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                {subjects.map(sub => (
+                                    <button
+                                        key={sub.id}
+                                        onClick={() => handleSubjectClick(sub)}
+                                        className={`px-3 py-3 rounded-lg text-sm border transition-all flex items-center gap-2 ${(sub.hasSubcategories && expandedSubject === sub.id) ||
+                                                (!sub.hasSubcategories && selectedSubject === sub.name) ||
+                                                (sub.id === 'anatomie' && selectedSubject.startsWith('Anatomie:'))
+                                                ? 'bg-medical-500 text-white border-medical-500'
+                                                : 'bg-gray-50 dark:bg-dark-bg text-gray-700 dark:text-gray-300 border-transparent hover:bg-gray-100'
+                                            }`}
+                                    >
+                                        <span className="text-lg">{sub.icon}</span>
+                                        <span className="text-xs font-medium">{sub.name}</span>
+                                        {sub.hasSubcategories && (
+                                            <span className={`text-xs ml-auto transition-transform ${expandedSubject === sub.id ? 'rotate-180' : ''}`}>▼</span>
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Anatomie Subcategories Dropdown */}
+                            {expandedSubject === 'anatomie' && (
+                                <div className="bg-gradient-to-br from-medical-50 to-white dark:from-medical-900/20 dark:to-dark-bg border-2 border-medical-200 dark:border-medical-800 rounded-xl p-3 animate-in slide-in-from-top-2 duration-200">
+                                    <p className="text-xs font-bold text-medical-700 dark:text-medical-300 mb-3 text-center">
+                                        🦴 اختر قسم التشريح والفيزيولوجيا:
+                                    </p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+                                        {anatomieSubcategories.map((subcat, index) => (
+                                            <button
+                                                key={index}
+                                                onClick={() => handleSubcategorySelect(subcat)}
+                                                className={`px-3 py-2 rounded-lg text-xs font-medium transition-all text-right ${selectedSubject === `Anatomie: ${subcat}`
+                                                        ? 'bg-medical-500 text-white shadow-md'
+                                                        : 'bg-white dark:bg-dark-surface text-gray-700 dark:text-gray-300 hover:bg-medical-100 dark:hover:bg-medical-900/30 border border-gray-200 dark:border-gray-700'
+                                                    }`}
+                                            >
+                                                {index + 1}. {subcat}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Selected Subject Display */}
+                            {selectedSubject && (
+                                <div className="text-center text-sm text-medical-600 dark:text-medical-400 bg-medical-50 dark:bg-medical-900/20 rounded-lg py-2 px-3">
+                                    ✅ المادة المختارة: <span className="font-bold">{selectedSubject}</span>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <div className="border-2 border-dashed border-gray-300 dark:border-dark-border rounded-xl p-8 flex flex-col items-center justify-center text-center hover:bg-gray-50 dark:hover:bg-dark-bg/50 transition-colors cursor-pointer relative">
