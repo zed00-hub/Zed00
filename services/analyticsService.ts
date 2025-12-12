@@ -106,8 +106,11 @@ export const getUserLevel = (minutes: number) => {
     return { label: 'أسطورة طبية', color: 'bg-purple-100 text-purple-600' };
 };
 
+// Admins list - should match what is in coursesService but for now hardcoded or passed in
+const ADMIN_EMAILS = ['admin@parabot.dz', 'admin@zed00.web.app', 'boudiaf.bilal@etu.univ-batna2.dz']; // Keep in sync
+
 /**
- * Fetch all users for admin analytics
+ * Fetch all users for admin analytics, excluding admins
  */
 export const getAllUsersStats = async (): Promise<UserStats[]> => {
     try {
@@ -115,10 +118,12 @@ export const getAllUsersStats = async (): Promise<UserStats[]> => {
         // Fetch all documents directly without complex queries to avoid index issues
         const snapshot = await getDocs(usersRef);
 
-        const users = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        } as UserStats));
+        const users = snapshot.docs
+            .map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            } as UserStats))
+            .filter(u => !ADMIN_EMAILS.includes(u.email)); // Exclude admins
 
         // Sort client-side
         return users.sort((a, b) => (b.totalTimeSpent || 0) - (a.totalTimeSpent || 0));

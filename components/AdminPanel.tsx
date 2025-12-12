@@ -51,6 +51,9 @@ const AdminPanel: React.FC = () => {
 
     // Analytics State
     const [userStats, setUserStats] = useState<UserStats[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [sortBy, setSortBy] = useState<'totalTimeSpent' | 'conversationsCount' | 'quizzesCount' | 'lastActive'>('totalTimeSpent');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
     // Knowledge State
     const [knowledgeEntries, setKnowledgeEntries] = useState<KnowledgeEntry[]>([]);
@@ -457,6 +460,38 @@ const AdminPanel: React.FC = () => {
                                 </div>
                             </div>
 
+                            {/* Filter and Sort Toolbar */}
+                            <div className="flex flex-col md:flex-row gap-4 mb-4">
+                                <div className="flex-1 relative">
+                                    <input
+                                        type="text"
+                                        placeholder="بحث عن طالب..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-2 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500"
+                                    />
+                                    <Users className="absolute left-3 top-2.5 text-gray-400 w-5 h-5" />
+                                </div>
+                                <div className="flex gap-2">
+                                    <select
+                                        value={sortBy}
+                                        onChange={(e) => setSortBy(e.target.value as any)}
+                                        className="px-4 py-2 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500"
+                                    >
+                                        <option value="totalTimeSpent">الأكثر وقتاً</option>
+                                        <option value="conversationsCount">الأكثر محادثة</option>
+                                        <option value="quizzesCount">الأكثر اختباراً</option>
+                                        <option value="lastActive">آخر ظهور</option>
+                                    </select>
+                                    <button
+                                        onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                                        className="p-2 border rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 dark:border-gray-700"
+                                    >
+                                        {sortOrder === 'desc' ? '⬇️' : '⬆️'}
+                                    </button>
+                                </div>
+                            </div>
+
                             {/* Students List */}
                             <div className="bg-white dark:bg-dark-surface rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
                                 <div className="grid grid-cols-12 gap-2 p-4 bg-gray-50 dark:bg-gray-800 text-xs font-bold text-gray-500 border-b dark:border-gray-700">
@@ -464,46 +499,71 @@ const AdminPanel: React.FC = () => {
                                     <div className="col-span-4 md:col-span-3">الطالب</div>
                                     <div className="col-span-2 text-center">المستوى</div>
                                     <div className="col-span-2 text-center">الوقت</div>
-                                    <div className="col-span-1 text-center hidden md:block">المحادثات</div>
-                                    <div className="col-span-1 text-center hidden md:block">الاختبارات</div>
-                                    <div className="col-span-2 md:col-span-1 text-center">آخر ظهور</div>
+                                    <div className="col-span-1 text-center hidden md:block">نشاط</div>
+                                    <div className="col-span-2 text-center">آخر ظهور</div>
                                 </div>
 
                                 <div className="divide-y dark:divide-gray-700">
-                                    {userStats.map((stat, index) => {
-                                        const level = getUserLevel(stat.totalTimeSpent || 0);
-                                        return (
-                                            <div key={stat.id} className="grid grid-cols-12 gap-2 p-4 items-center hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                                                <div className="col-span-1 text-center font-bold text-amber-500">
-                                                    {index < 3 ? <Medal size={24} className={`mx-auto ${index === 0 ? 'text-yellow-500' : index === 1 ? 'text-gray-400' : 'text-orange-500'}`} /> : index + 1}
-                                                </div>
-                                                <div className="col-span-4 md:col-span-3 flex items-center gap-3">
-                                                    <img src={stat.avatar || `https://ui-avatars.com/api/?name=${stat.name}&background=random`} alt={stat.name} className="w-10 h-10 rounded-full bg-gray-200 shadow-sm" />
-                                                    <div className="min-w-0">
-                                                        <p className="text-sm font-bold text-gray-800 dark:text-gray-200 truncate">{stat.name}</p>
-                                                        <p className="text-xs text-gray-500 truncate">{stat.email}</p>
+                                    {userStats
+                                        .filter(stat =>
+                                            stat.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                            stat.email.toLowerCase().includes(searchTerm.toLowerCase())
+                                        )
+                                        .sort((a, b) => {
+                                            let valA = a[sortBy] || 0;
+                                            let valB = b[sortBy] || 0;
+
+                                            // Handle timestamp for Last Active
+                                            if (sortBy === 'lastActive') {
+                                                valA = a.lastActive?.seconds || 0;
+                                                valB = b.lastActive?.seconds || 0;
+                                            }
+
+                                            return sortOrder === 'asc' ? valA - valB : valB - valA;
+                                        })
+                                        .map((stat, index) => {
+                                            const level = getUserLevel(stat.totalTimeSpent || 0);
+                                            const lastActiveDate = stat.lastActive?.seconds
+                                                ? new Date(stat.lastActive.seconds * 1000)
+                                                : null;
+
+                                            return (
+                                                <div key={stat.id} className="grid grid-cols-12 gap-2 p-4 items-center hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                                                    <div className="col-span-1 text-center font-bold text-amber-500">
+                                                        {index < 3 ? <Medal size={24} className={`mx-auto ${index === 0 ? 'text-yellow-500' : index === 1 ? 'text-gray-400' : 'text-orange-500'}`} /> : index + 1}
+                                                    </div>
+                                                    <div className="col-span-4 md:col-span-3 flex items-center gap-3">
+                                                        <img src={stat.avatar || `https://ui-avatars.com/api/?name=${stat.name}&background=random`} alt={stat.name} className="w-10 h-10 rounded-full bg-gray-200 shadow-sm" />
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm font-bold text-gray-800 dark:text-gray-200 truncate">{stat.name}</p>
+                                                            <p className="text-xs text-gray-500 truncate">{stat.email}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="col-span-2 text-center">
+                                                        <span className={`text-xs px-3 py-1 rounded-full font-bold ${level.color}`}>
+                                                            {level.label}
+                                                        </span>
+                                                    </div>
+                                                    <div className="col-span-2 text-center font-mono text-sm font-bold text-gray-700 dark:text-gray-300">
+                                                        {formatTime(stat.totalTimeSpent || 0)}
+                                                    </div>
+                                                    <div className="col-span-1 text-center hidden md:block">
+                                                        <div className="flex flex-col text-xs text-gray-500">
+                                                            <span>💬 {stat.conversationsCount || 0}</span>
+                                                            <span>📝 {stat.quizzesCount || 0}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="col-span-2 text-center text-xs text-gray-500 flex flex-col items-center justify-center">
+                                                        {lastActiveDate ? (
+                                                            <>
+                                                                <span className="font-bold text-gray-700 dark:text-gray-300">{lastActiveDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                                <span className="text-[10px]">{lastActiveDate.toLocaleDateString('en-GB')}</span>
+                                                            </>
+                                                        ) : '-'}
                                                     </div>
                                                 </div>
-                                                <div className="col-span-2 text-center">
-                                                    <span className={`text-xs px-3 py-1 rounded-full font-bold ${level.color}`}>
-                                                        {level.label}
-                                                    </span>
-                                                </div>
-                                                <div className="col-span-2 text-center font-mono text-sm font-bold text-gray-700 dark:text-gray-300">
-                                                    {formatTime(stat.totalTimeSpent || 0)}
-                                                </div>
-                                                <div className="col-span-1 text-center text-sm font-medium text-gray-600 dark:text-gray-400 hidden md:block">
-                                                    {stat.conversationsCount || 0}
-                                                </div>
-                                                <div className="col-span-1 text-center text-sm font-medium text-gray-600 dark:text-gray-400 hidden md:block">
-                                                    {stat.quizzesCount || 0}
-                                                </div>
-                                                <div className="col-span-2 md:col-span-1 text-center text-xs text-gray-400">
-                                                    {stat.lastActive?.seconds ? new Date(stat.lastActive.seconds * 1000).toLocaleDateString('ar-EG') : '-'}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
 
                                     {userStats.length === 0 && (
                                         <div className="text-center py-12 text-gray-400">
