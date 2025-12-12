@@ -12,7 +12,10 @@ import {
     loadKnowledgeEntries,
     deleteKnowledgeEntry,
     KNOWLEDGE_CATEGORIES,
-    KnowledgeEntry
+    KnowledgeEntry,
+    getBotConfig,
+    saveBotConfig,
+    BotGlobalConfig
 } from '../services/botKnowledgeService';
 import {
     getAllUsersStats,
@@ -36,7 +39,7 @@ const AdminPanel: React.FC = () => {
     const navigate = useNavigate();
 
     // UI State
-    const [activeTab, setActiveTab] = useState<'courses' | 'analytics' | 'knowledge'>('courses');
+    const [activeTab, setActiveTab] = useState<'courses' | 'analytics' | 'knowledge' | 'settings'>('courses');
     const [isLoading, setIsLoading] = useState(true);
 
     // Courses State
@@ -70,6 +73,9 @@ const AdminPanel: React.FC = () => {
     const [knowledgeComment, setKnowledgeComment] = useState('');
     const [isAnalyzing, setIsAnalyzing] = useState(false);
 
+    // Settings State
+    const [botConfig, setBotConfig] = useState<BotGlobalConfig>({ systemInstruction: '', temperature: 0.5 });
+
     useEffect(() => {
         // Redirect if not admin
         if (user && !isAdmin(user.email)) {
@@ -97,6 +103,11 @@ const AdminPanel: React.FC = () => {
             } else if (activeTab === 'knowledge') {
                 const entries = await loadKnowledgeEntries();
                 setKnowledgeEntries(entries);
+            } else if (activeTab === 'settings') {
+                const config = await getBotConfig();
+                if (config) {
+                    setBotConfig(config);
+                }
             }
         } catch (error) {
             console.error('Error loading data:', error);
@@ -331,6 +342,16 @@ const AdminPanel: React.FC = () => {
                         >
                             <Brain size={20} />
                             تغذية البوت
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('settings')}
+                            className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'settings'
+                                ? 'bg-white dark:bg-dark-surface text-amber-600 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                                }`}
+                        >
+                            <Lightbulb size={20} />
+                            تخصيص البوت
                         </button>
                     </div>
                 </div>
@@ -905,6 +926,86 @@ const AdminPanel: React.FC = () => {
                                     </div>
                                 </div>
                             )}
+                        </div>
+                    ) : activeTab === 'settings' ? (
+                        <div className="space-y-6">
+                            <div className="bg-white dark:bg-dark-surface p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
+                                        <Brain className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">تخصيص شخصية البوت</h3>
+                                        <p className="text-sm text-gray-500">تحكم في كيفية تصرف البوت، أسلوبه، وحدوده.</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                                            التعليمات البرمجية (System Instruction)
+                                        </label>
+                                        <p className="text-xs text-gray-500 mb-3">
+                                            هذه التعليمات هي "عقل" البوت. اكتب هنا كيف تريده أن يتصرف، لغته، اسمه، والقواعد التي يجب أن يتبعها.
+                                            <br />
+                                            <span className="text-amber-600 font-bold">ملاحظة:</span> سيتم دمج المعلومات من "تغذية البوت" ومواد الفصل الأول تلقائياً مع هذه التعليمات، لذا لا داعي لكتابتها يدوياً هنا.
+                                        </p>
+                                        <textarea
+                                            value={botConfig.systemInstruction}
+                                            onChange={(e) => setBotConfig({ ...botConfig, systemInstruction: e.target.value })}
+                                            rows={15}
+                                            placeholder={`أنت مساعد ذكي للطلاب...
+قواعدك هي:
+1. ...
+2. ...`}
+                                            className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 font-mono text-sm leading-relaxed"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                                            مستوى الإبداع (Temperature): {botConfig.temperature}
+                                        </label>
+                                        <div className="flex items-center gap-4">
+                                            <span className="text-xs text-gray-500">دقيق (0.0)</span>
+                                            <input
+                                                type="range"
+                                                min="0"
+                                                max="1"
+                                                step="0.1"
+                                                value={botConfig.temperature}
+                                                onChange={(e) => setBotConfig({ ...botConfig, temperature: parseFloat(e.target.value) })}
+                                                className="flex-1 accent-amber-500"
+                                            />
+                                            <span className="text-xs text-gray-500">مبدع (1.0)</span>
+                                        </div>
+                                        <p className="text-xs text-gray-400 mt-1">
+                                            القيم المنخفضة تجعل البوت أكثر دقة وجدية. القيم العالية تجعله أكثر تنوعاً وإبداعاً. (المستحسن: 0.5)
+                                        </p>
+                                    </div>
+
+                                    <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                                        <button
+                                            onClick={async () => {
+                                                setSaveStatus('saving');
+                                                try {
+                                                    await saveBotConfig(botConfig);
+                                                    setSaveStatus('success');
+                                                    setTimeout(() => setSaveStatus('idle'), 2000);
+                                                } catch (error) {
+                                                    console.error(error);
+                                                    setSaveStatus('error');
+                                                    setTimeout(() => setSaveStatus('idle'), 2000);
+                                                }
+                                            }}
+                                            className="w-full py-4 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-all flex items-center justify-center gap-2 shadow-lg active:scale-[0.98]"
+                                        >
+                                            {saveStatus === 'saving' ? <Loader2 className="animate-spin" /> : <Save size={20} />}
+                                            {saveStatus === 'saving' ? 'جاري الحفظ...' : saveStatus === 'success' ? '✓ تم تحديث البوت!' : 'حفظ الإعدادات'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     ) : null}
                 </div>

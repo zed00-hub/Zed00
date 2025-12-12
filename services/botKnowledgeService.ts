@@ -1,5 +1,5 @@
 import { db } from './firebase';
-import { collection, doc, setDoc, getDocs, deleteDoc, query, Timestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, getDoc, getDocs, deleteDoc, query, Timestamp } from 'firebase/firestore';
 
 // Knowledge categories
 export const KNOWLEDGE_CATEGORIES = [
@@ -104,5 +104,40 @@ export const getKnowledgeForBot = async (): Promise<string> => {
     } catch (error) {
         console.error('Error getting knowledge for bot:', error);
         return '';
+    }
+};
+
+
+// --- Bot Global Configuration ---
+
+export interface BotGlobalConfig {
+    systemInstruction: string;
+    temperature: number;
+    // Add other global settings here if needed
+}
+
+export const saveBotConfig = async (config: BotGlobalConfig) => {
+    try {
+        await setDoc(doc(db, 'settings', 'bot_config'), {
+            ...config,
+            updatedAt: Timestamp.now()
+        }, { merge: true }); // Merge true allows partial updates if we add fields later
+        console.log('Bot config saved');
+    } catch (error) {
+        console.error('Error saving bot config:', error);
+        throw error;
+    }
+};
+
+export const getBotConfig = async (): Promise<BotGlobalConfig | null> => {
+    try {
+        const docSnap = await getDoc(doc(db, 'settings', 'bot_config'));
+        if (docSnap.exists()) {
+            return docSnap.data() as BotGlobalConfig;
+        }
+        return null; // Return null if not set, so we use defaults
+    } catch (error) {
+        console.error('Error getting bot config:', error);
+        return null;
     }
 };

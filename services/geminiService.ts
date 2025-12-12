@@ -1,6 +1,6 @@
 import { GoogleGenAI, Content, Part } from "@google/genai";
 import { FileContext, Message } from "../types";
-import { getKnowledgeForBot } from "./botKnowledgeService";
+import { getKnowledgeForBot, getBotConfig, BotGlobalConfig } from "./botKnowledgeService";
 
 // Helper to convert internal Message type to Gemini Content type
 const mapMessagesToContent = (messages: Message[]): Content[] => {
@@ -109,7 +109,33 @@ const defaultSettings: BotSettings = {
 };
 
 // Build dynamic system instruction based on settings
-const buildSystemInstruction = (settings: BotSettings, adminKnowledge: string = ''): string => {
+const buildSystemInstruction = (settings: BotSettings, adminKnowledge: string = '', customInstruction?: string): string => {
+  // If custom instruction is provided from Admin Panel, use it as the MASTER instruction.
+  // We still append the dynamic knowledge base and subjects to ensure the bot has access to them,
+  // unless the admin explicitly wants to handle it (which is hard).
+  // Strategy: Custom Instruction + Knowledge Base + Curriculum
+
+  const s1Subjects = `
+Matières du Semestre 1 (S1) - Tronc Commun:
+1. Anatomie-physiologie 🦴
+2. Anthropologie/Psychologie/Psychosociologie 🧠
+3. Hygiène hospitalière 🧹
+4. Législation/Ethique professionnelle/Déontologie ⚖️
+5. Santé publique/Démographie/Economie de santé 🏥
+6. Secourisme 🚑
+7. Les fondements de la profession paramédicale 👨‍⚕️
+8. Remédiation linguistique/Techniques d'expression écrite et orale ✍️
+9. Terminologie médicale 📝`;
+
+  const knowledgeSection = adminKnowledge
+    ? `\n⚠️ === INFORMATION IMPORTANTE (BASE DE CONNAISSANCES) ===\n${adminKnowledge}\nUtilisez ces informations en priorité pour répondre aux questions sur les spécialités, les lois, ou la recherche.\n=========================================\n`
+    : '';
+
+  if (customInstruction && customInstruction.trim().length > 0) {
+    return `${customInstruction}\n\n${knowledgeSection}\n\n${s1Subjects}`;
+  }
+
+  // Fallback to default logic if no custom instruction
   const lengthGuide = {
     short: 'اجعل إجاباتك مختصرة ومباشرة للنقاط الرئيسية فقط.',
     medium: 'قدم إجابات متوازنة: شاملة لكن دون إطالة غير ضرورية.',
@@ -134,22 +160,9 @@ const buildSystemInstruction = (settings: BotSettings, adminKnowledge: string = 
     ? 'أضف أمثلة توضيحية عملية عند الحاجة.'
     : '';
 
-  // S1 Curriculum subjects
-  const s1Subjects = `
-Matières du Semestre 1 (S1) - Tronc Commun:
-1. Anatomie-physiologie 🦴
-2. Anthropologie/Psychologie/Psychosociologie 🧠
-3. Hygiène hospitalière 🧹
-4. Législation/Ethique professionnelle/Déontologie ⚖️
-5. Santé publique/Démographie/Economie de santé 🏥
-6. Secourisme 🚑
-7. Les fondements de la profession paramédicale 👨‍⚕️
-8. Remédiation linguistique/Techniques d'expression écrite et orale ✍️
-9. Terminologie médicale 📝`;
-
   return `أنت مساعد دراسي خبير للطلاب الشبه طبيين (الجزائر/المغرب العربي).
 
-${adminKnowledge ? `\n⚠️ === INFORMATION IMPORTANTE (BASE DE CONNAISSANCES) ===\n${adminKnowledge}\nUtilisez ces informations en priorité pour répondre aux questions sur les spécialités, les lois, ou la recherche.\n=========================================\n` : ''}
+${knowledgeSection}
 
 ${s1Subjects}
 
@@ -183,10 +196,18 @@ export const generateResponseStream = async (
     const modelId = "gemini-2.5-flash"; // User specific model
 
     // Fetch Admin Knowledge Base
-    const adminKnowledge = await getKnowledgeForBot();
+    // Fetch Admin Knowledge Base and Config
+    const [adminKnowledge, botConfig] = await Promise.all([
+      getKnowledgeForBot(),
+      getBotConfig()
+    ]);
 
     const userSettings = settings || defaultSettings;
-    const systemInstructionContent = buildSystemInstruction(userSettings, adminKnowledge);
+    const systemInstructionContent = buildSystemInstruction(
+      userSettings,
+      adminKnowledge,
+      botConfig?.systemInstruction
+    );
 
     // Smart context selection
     const relevantFiles = selectRelevantFiles(currentPrompt, fileContexts);
@@ -234,7 +255,7 @@ export const generateResponseStream = async (
           role: 'system',
           parts: [{ text: systemInstructionContent }]
         },
-        temperature: 0.5,
+        temperature: botConfig?.temperature ?? 0.5,
         topP: 0.9,
         maxOutputTokens: userSettings.responseLength === 'short' ? 500 : userSettings.responseLength === 'long' ? 2000 : 1000,
       },
