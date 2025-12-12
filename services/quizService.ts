@@ -57,8 +57,12 @@ export const loadQuizzesFromFirestore = async (userId: string): Promise<QuizSess
             } as QuizSession);
         });
 
-        // Sort descending by createdAt
-        const sorted = quizzes.sort((a, b) => b.createdAt - a.createdAt);
+        // Sort descending by lastUpdated (if available) or createdAt
+        const sorted = quizzes.sort((a, b) => {
+            const timeA = a.lastUpdated || a.createdAt;
+            const timeB = b.lastUpdated || b.createdAt;
+            return timeB - timeA;
+        });
         return sorted;
     } catch (error) {
         console.error("Error loading quizzes:", error);

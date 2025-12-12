@@ -85,7 +85,8 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ files, activeQuizSession,
                     userAnswers: {},
                     score: 0,
                     isFinished: false,
-                    currentQuestionIndex: 0
+                    currentQuestionIndex: 0,
+                    lastUpdated: Date.now()
                 };
                 onQuizUpdate(newSession);
             }
@@ -123,8 +124,8 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ files, activeQuizSession,
             if (onQuizUpdate && activeQuizSession) {
                 onQuizUpdate({
                     ...activeQuizSession,
-                    userAnswers: updatedUserAnswers
-                    // We don't update index here, only on Next
+                    userAnswers: updatedUserAnswers,
+                    lastUpdated: Date.now()
                 });
             }
 
@@ -143,11 +144,7 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ files, activeQuizSession,
                 onQuizUpdate({
                     ...activeQuizSession,
                     currentQuestionIndex: nextIndex,
-                    // userAnswers are already updated in selectAnswer, but we make sure we pass the latest state if needed
-                    // Since state updates are async, relying on prev here is safer for local state,
-                    // but for parent update we rely on what we just decided.
-                    // A safer way is possibly calculating things outside.
-                    // But simplest is update currentQuestionIndex
+                    lastUpdated: Date.now()
                 });
             }
 
@@ -188,7 +185,8 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ files, activeQuizSession,
                 ...activeQuizSession,
                 score,
                 isFinished: true,
-                userAnswers: state.userAnswers // Ensure latest answers
+                userAnswers: state.userAnswers, // Ensure latest answers
+                lastUpdated: Date.now()
             });
         }
     };

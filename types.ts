@@ -78,6 +78,7 @@ export interface QuizSession {
   score: number;
   isFinished: boolean;
   currentQuestionIndex: number; // To resume where left off
+  lastUpdated?: number;
 }
 
 // --- Mnemonic Types ---

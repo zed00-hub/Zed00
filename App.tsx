@@ -110,11 +110,9 @@ const AppContent: React.FC = () => {
           // Load Quizzes
           const fetchedQuizzes = await loadQuizzesFromFirestore(user.id);
           setQuizSessions(fetchedQuizzes);
-
-          // Restore last active quiz if valid
-          const lastActiveQuizId = localStorage.getItem('lastActiveQuizId');
-          if (lastActiveQuizId && fetchedQuizzes.some(q => q.id === lastActiveQuizId)) {
-            setCurrentQuizId(lastActiveQuizId);
+          // Auto-select the most recent quiz if available (like conversations)
+          if (fetchedQuizzes.length > 0) {
+            setCurrentQuizId(fetchedQuizzes[0].id);
           } else {
             setCurrentQuizId(null);
           }
@@ -144,22 +142,12 @@ const AppContent: React.FC = () => {
         setCurrentSessionId('default');
         setQuizSessions([]);
         setCurrentQuizId(null);
-        localStorage.removeItem('lastActiveQuizId'); // Clear stored quiz
         setIsDataLoaded(true);
       }
     };
 
     loadData();
   }, [user?.id]);
-
-  // Track active quiz for persistence across reloads
-  useEffect(() => {
-    if (currentQuizId) {
-      localStorage.setItem('lastActiveQuizId', currentQuizId);
-    } else {
-      localStorage.removeItem('lastActiveQuizId');
-    }
-  }, [currentQuizId]);
 
   const [input, setInput] = useState('');
   const [pendingAttachments, setPendingAttachments] = useState<string[]>([]);
