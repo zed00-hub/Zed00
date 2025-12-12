@@ -4,7 +4,7 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import FileSidebar from './components/FileSidebar';
 import ChatArea from './components/ChatArea';
 import LoginPage from './components/LoginPage';
-import { FileContext, Message, ChatSession, QuizSession, QuizResultData } from './types';
+import { FileContext, Message, ChatSession, QuizSession } from './types';
 import { generateResponseStream, BotSettings } from './services/geminiService';
 import { ZGLogo, SunIcon, MoonIcon, LoadingIcon } from './components/Icons';
 import { BookOpen, MessageSquare, Sparkles, Settings } from 'lucide-react';
@@ -268,42 +268,8 @@ const AppContent: React.FC = () => {
     });
   };
 
-  // --- Save Quiz Result to Chat History ---
-  const saveQuizResultToChat = useCallback((quizResult: QuizResultData) => {
-    // Build a formatted text message for the quiz result
-    const lines: string[] = [
-      `📊 **نتيجة الاختبار: ${quizResult.subjectName}**`,
-      ``,
-      `🎯 **النقاط:** ${quizResult.score}/${quizResult.totalQuestions} (${quizResult.percentage}%)`,
-      ``,
-      `---`,
-      ``
-    ];
-
-    // Add each question with answer details
-    quizResult.questions.forEach((q, index) => {
-      const statusIcon = q.isCorrect ? '✅' : '❌';
-      lines.push(`**س${index + 1}:** ${q.questionText}`);
-      lines.push(`${statusIcon} إجابتك: ${q.userAnswer}`);
-      if (!q.isCorrect) {
-        lines.push(`✔️ الإجابة الصحيحة: ${q.correctAnswer}`);
-      }
-      lines.push(``);
-    });
-
-    // Create a regular text message (not quiz_result type) for reliable storage
-    const quizResultMessage: Message = {
-      id: Date.now().toString(),
-      role: 'model',
-      content: lines.join('\n'),
-      timestamp: Date.now()
-      // Note: We don't use type: 'quiz_result' anymore to ensure reliable Firestore storage
-    };
-
-    // Add to current chat session
-    const updatedMessages = [...messages, quizResultMessage];
-    updateCurrentSessionMessages(updatedMessages);
-  }, [messages, currentSessionId, user?.id]);
+  // Note: Quiz results are automatically saved in quiz history via onQuizUpdate
+  // No need to duplicate them in chat history
 
   // --- Quiz Session Management ---
 
@@ -707,7 +673,6 @@ const AppContent: React.FC = () => {
                       files={files}
                       activeQuizSession={activeQuiz}
                       onQuizUpdate={updateQuizSession}
-                      onSaveQuizResult={saveQuizResultToChat}
                     />
                   </div>
                   {/* Mobile Sidebar Toggle for Quiz Mode */}

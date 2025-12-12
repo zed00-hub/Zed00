@@ -93,30 +93,55 @@ const ChatArea: React.FC<ChatAreaProps> = ({
             <div className="space-y-3">
               <h3 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-3">السلام عليكم</h3>
               <p className="max-w-lg mx-auto leading-relaxed text-gray-600 dark:text-gray-300 text-base">
-                أنا مساعدك الدراسي. اسألني عن الدروس والمحاضرات.
+                أنا مساعدك الدراسي للسداسي الأول (S1). اسألني عن أي مادة!
                 <br />
                 <span className="text-sm text-medical-600 dark:text-medical-400 font-semibold mt-2 inline-block">
-                  أجيبك بدقة مع شرح المصطلحات بالفرنسية والعربية.
+                  📚 مواد الجذع المشترك • 📝 اختبارات • 🧠 حيل حفظية
                 </span>
               </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm mt-10 w-full max-w-2xl">
-              <button onClick={() => setInput("Explique-moi le système osseux")} className="p-4 bg-white/80 dark:bg-dark-surface/80 backdrop-blur-sm border-2 border-gray-200 dark:border-gray-700 rounded-2xl hover:border-medical-400 hover:text-medical-600 dark:text-gray-300 dark:hover:text-medical-400 dark:hover:border-medical-500 transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] text-left dir-ltr group">
-                <span className="text-2xl group-hover:scale-110 transition-transform inline-block mr-2">🦴</span>
-                <span className="font-medium">Explique-moi le système osseux</span>
-              </button>
-              <button onClick={() => setInput("Quelles sont les abréviations en Cardiologie ?")} className="p-4 bg-white/80 dark:bg-dark-surface/80 backdrop-blur-sm border-2 border-gray-200 dark:border-gray-700 rounded-2xl hover:border-medical-400 hover:text-medical-600 dark:text-gray-300 dark:hover:text-medical-400 dark:hover:border-medical-500 transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] text-left dir-ltr group">
-                <span className="text-2xl group-hover:scale-110 transition-transform inline-block mr-2">❤️</span>
-                <span className="font-medium">Quelles sont les abréviations en Cardiologie ?</span>
-              </button>
-              <button onClick={() => setInput("ما هي مكونات الخلية؟")} className="p-4 bg-white/80 dark:bg-dark-surface/80 backdrop-blur-sm border-2 border-gray-200 dark:border-gray-700 rounded-2xl hover:border-medical-400 hover:text-medical-600 dark:text-gray-300 dark:hover:text-medical-400 dark:hover:border-medical-500 transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] text-right group">
-                <span className="text-2xl group-hover:scale-110 transition-transform inline-block ml-2">🧬</span>
-                <span className="font-medium">ما هي مكونات الخلية؟</span>
-              </button>
-              <button onClick={() => setInput("أعطني ملخصاً عن المصطلحات الطبية")} className="p-4 bg-white/80 dark:bg-dark-surface/80 backdrop-blur-sm border-2 border-gray-200 dark:border-gray-700 rounded-2xl hover:border-medical-400 hover:text-medical-600 dark:text-gray-300 dark:hover:text-medical-400 dark:hover:border-medical-500 transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] text-right group">
-                <span className="text-2xl group-hover:scale-110 transition-transform inline-block ml-2">📝</span>
-                <span className="font-medium">أعطني ملخصاً عن المصطلحات الطبية</span>
-              </button>
+
+            {/* S1 Subjects Grid */}
+            <div className="w-full max-w-3xl">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 text-center">📖 اختر مادة للسؤال عنها:</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                <button onClick={() => setInput("اشرح لي مادة Anatomie-physiologie")} className="p-3 bg-white/80 dark:bg-dark-surface/80 backdrop-blur-sm border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-medical-400 hover:text-medical-600 dark:text-gray-300 dark:hover:text-medical-400 transition-all hover:shadow-md text-right group">
+                  <span className="text-lg group-hover:scale-110 transition-transform inline-block ml-1">🦴</span>
+                  <span className="font-medium text-xs">Anatomie-physiologie</span>
+                </button>
+                <button onClick={() => setInput("اشرح لي مادة Terminologie médicale")} className="p-3 bg-white/80 dark:bg-dark-surface/80 backdrop-blur-sm border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-medical-400 hover:text-medical-600 dark:text-gray-300 dark:hover:text-medical-400 transition-all hover:shadow-md text-right group">
+                  <span className="text-lg group-hover:scale-110 transition-transform inline-block ml-1">📝</span>
+                  <span className="font-medium text-xs">Terminologie médicale</span>
+                </button>
+                <button onClick={() => setInput("اشرح لي مادة Hygiène hospitalière")} className="p-3 bg-white/80 dark:bg-dark-surface/80 backdrop-blur-sm border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-medical-400 hover:text-medical-600 dark:text-gray-300 dark:hover:text-medical-400 transition-all hover:shadow-md text-right group">
+                  <span className="text-lg group-hover:scale-110 transition-transform inline-block ml-1">🧹</span>
+                  <span className="font-medium text-xs">Hygiène hospitalière</span>
+                </button>
+                <button onClick={() => setInput("اشرح لي مادة Santé publique")} className="p-3 bg-white/80 dark:bg-dark-surface/80 backdrop-blur-sm border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-medical-400 hover:text-medical-600 dark:text-gray-300 dark:hover:text-medical-400 transition-all hover:shadow-md text-right group">
+                  <span className="text-lg group-hover:scale-110 transition-transform inline-block ml-1">🏥</span>
+                  <span className="font-medium text-xs">Santé publique</span>
+                </button>
+                <button onClick={() => setInput("اشرح لي مادة Secourisme")} className="p-3 bg-white/80 dark:bg-dark-surface/80 backdrop-blur-sm border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-medical-400 hover:text-medical-600 dark:text-gray-300 dark:hover:text-medical-400 transition-all hover:shadow-md text-right group">
+                  <span className="text-lg group-hover:scale-110 transition-transform inline-block ml-1">🚑</span>
+                  <span className="font-medium text-xs">Secourisme</span>
+                </button>
+                <button onClick={() => setInput("اشرح لي مادة Psychologie")} className="p-3 bg-white/80 dark:bg-dark-surface/80 backdrop-blur-sm border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-medical-400 hover:text-medical-600 dark:text-gray-300 dark:hover:text-medical-400 transition-all hover:shadow-md text-right group">
+                  <span className="text-lg group-hover:scale-110 transition-transform inline-block ml-1">🧠</span>
+                  <span className="font-medium text-xs">Psychologie</span>
+                </button>
+                <button onClick={() => setInput("اشرح لي مادة Législation et Éthique")} className="p-3 bg-white/80 dark:bg-dark-surface/80 backdrop-blur-sm border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-medical-400 hover:text-medical-600 dark:text-gray-300 dark:hover:text-medical-400 transition-all hover:shadow-md text-right group">
+                  <span className="text-lg group-hover:scale-110 transition-transform inline-block ml-1">⚖️</span>
+                  <span className="font-medium text-xs">Législation/Éthique</span>
+                </button>
+                <button onClick={() => setInput("اشرح لي أساسيات المهنة الشبه طبية")} className="p-3 bg-white/80 dark:bg-dark-surface/80 backdrop-blur-sm border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-medical-400 hover:text-medical-600 dark:text-gray-300 dark:hover:text-medical-400 transition-all hover:shadow-md text-right group">
+                  <span className="text-lg group-hover:scale-110 transition-transform inline-block ml-1">👨‍⚕️</span>
+                  <span className="font-medium text-xs">Fondements profession</span>
+                </button>
+                <button onClick={() => setInput("أعطني قائمة بجميع مواد السداسي الأول S1")} className="p-3 bg-white/80 dark:bg-dark-surface/80 backdrop-blur-sm border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-medical-400 hover:text-medical-600 dark:text-gray-300 dark:hover:text-medical-400 transition-all hover:shadow-md text-right group">
+                  <span className="text-lg group-hover:scale-110 transition-transform inline-block ml-1">📋</span>
+                  <span className="font-medium text-xs">كل مواد S1</span>
+                </button>
+              </div>
             </div>
           </div>
         ) : (
