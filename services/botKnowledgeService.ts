@@ -113,7 +113,8 @@ export const getKnowledgeForBot = async (): Promise<string> => {
 export interface BotGlobalConfig {
     systemInstruction: string;
     temperature: number;
-    // Add other global settings here if needed
+    restrictToStudy?: boolean;
+    interactionStyle?: 'formal' | 'friendly' | 'motivational' | 'coach' | 'default';
 }
 
 export const saveBotConfig = async (config: BotGlobalConfig) => {

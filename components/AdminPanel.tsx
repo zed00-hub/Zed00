@@ -74,7 +74,12 @@ const AdminPanel: React.FC = () => {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
 
     // Settings State
-    const [botConfig, setBotConfig] = useState<BotGlobalConfig>({ systemInstruction: '', temperature: 0.5 });
+    const [botConfig, setBotConfig] = useState<BotGlobalConfig>({
+        systemInstruction: '',
+        temperature: 0.5,
+        restrictToStudy: false,
+        interactionStyle: 'default'
+    });
 
     useEffect(() => {
         // Redirect if not admin
@@ -985,6 +990,55 @@ const AdminPanel: React.FC = () => {
                                     </div>
 
                                     <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                            {/* Interaction Style */}
+                                            <div>
+                                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                                                    نمط التفاعل (Personality Style)
+                                                </label>
+                                                <select
+                                                    value={botConfig.interactionStyle || 'default'}
+                                                    onChange={(e) => setBotConfig({ ...botConfig, interactionStyle: e.target.value as any })}
+                                                    className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500"
+                                                >
+                                                    <option value="default">الافتراضي (Default)</option>
+                                                    <option value="formal">رسمي وأكاديمي (Formal)</option>
+                                                    <option value="friendly">ودود ومشجع (Friendly)</option>
+                                                    <option value="motivational">محفز وحماسي (Motivational)</option>
+                                                    <option value="coach">مدرب صارم (Coach)</option>
+                                                </select>
+                                                <p className="text-xs text-gray-500 mt-1">
+                                                    يحدد نبرة صوت البوت وطريقة تعامله مع الطالب.
+                                                </p>
+                                            </div>
+
+                                            {/* Restriction Toggle */}
+                                            <div className="flex items-center justify-between bg-red-50 dark:bg-red-900/10 p-4 rounded-xl border border-red-100 dark:border-red-900/30">
+                                                <div>
+                                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                                        حصر الإجابات في الدراسة فقط
+                                                    </label>
+                                                    <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                                        عند التفعيل، سيرفض البوت الإجابة عن أي سؤال خارج المنهج الطبي.
+                                                    </p>
+                                                </div>
+                                                <div className="relative inline-block w-12 h-6 transition duration-200 ease-in-out">
+                                                    <input
+                                                        type="checkbox"
+                                                        id="restrictToggle"
+                                                        className="peer sr-only"
+                                                        checked={botConfig.restrictToStudy || false}
+                                                        onChange={(e) => setBotConfig({ ...botConfig, restrictToStudy: e.target.checked })}
+                                                    />
+                                                    <label
+                                                        htmlFor="restrictToggle"
+                                                        className="block bg-gray-300 peer-checked:bg-red-500 w-12 h-6 rounded-full cursor-pointer transition-colors duration-200"
+                                                    ></label>
+                                                    <span className="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 peer-checked:translate-x-6"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <button
                                             onClick={async () => {
                                                 setSaveStatus('saving');

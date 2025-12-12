@@ -109,11 +109,8 @@ const defaultSettings: BotSettings = {
 };
 
 // Build dynamic system instruction based on settings
-const buildSystemInstruction = (settings: BotSettings, adminKnowledge: string = '', customInstruction?: string): string => {
-  // If custom instruction is provided from Admin Panel, use it as the MASTER instruction.
-  // We still append the dynamic knowledge base and subjects to ensure the bot has access to them,
-  // unless the admin explicitly wants to handle it (which is hard).
-  // Strategy: Custom Instruction + Knowledge Base + Curriculum
+const buildSystemInstruction = (settings: BotSettings, adminKnowledge: string = '', globalConfig?: BotGlobalConfig): string => {
+  // Strategy: Custom Instruction (if any) + Restriction Rule + Interaction Style + Knowledge + Curriculum
 
   const s1Subjects = `
 Matières du Semestre 1 (S1) - Tronc Commun:
@@ -131,8 +128,40 @@ Matières du Semestre 1 (S1) - Tronc Commun:
     ? `\n⚠️ === INFORMATION IMPORTANTE (BASE DE CONNAISSANCES) ===\n${adminKnowledge}\nUtilisez ces informations en priorité pour répondre aux questions sur les spécialités, les lois, ou la recherche.\n=========================================\n`
     : '';
 
-  if (customInstruction && customInstruction.trim().length > 0) {
-    return `${customInstruction}\n\n${knowledgeSection}\n\n${s1Subjects}`;
+  // --- Handling Restrictions ---
+  let restrictionRule = "";
+  if (globalConfig?.restrictToStudy) {
+    restrictionRule = `
+⛔ RÈGLE STRICTE (RESTRICTION ACTIVÉE) :
+Tu DOIS REFUSER de répondre à toute question qui n'est pas liée aux études médicales, paramédicales, ou au programme fourni.
+Si l'utilisateur pose une question hors sujet (politique, sport, blagues, code, etc.), réponds poliment :
+"Je suis spécialisé uniquement dans le domaine médical et paramédical. Je ne peux pas répondre à cette question."
+Ne fais AUCUNE exception.`;
+  }
+
+  // --- Handling Interaction Style ---
+  let styleInstruction = "";
+  if (globalConfig?.interactionStyle && globalConfig.interactionStyle !== 'default') {
+    const styles = {
+      formal: "Adoptez un ton professionnel, académique et objectif. Soyez précis et concis.",
+      friendly: "Soyez chaleureux, encourageant et utilisez des emojis. Agissez comme un collègue bienveillant.",
+      motivational: "Soyez très énergique et motivant ! Encouragez l'étudiant à chaque étape : 'Tu vas y arriver !', 'Excellent effort !'.",
+      coach: "Agissez comme un coach strict mais juste. Poussez l'étudiant à réfléchir par lui-même. Ne donnez pas la réponse immédiatement, guidez-le."
+    };
+    styleInstruction = `🎭 STYLE IMPOSÉ : ${styles[globalConfig.interactionStyle]}`;
+  }
+
+  // If custom instruction exists, use it as base but append restrictions/style/knowledge
+  if (globalConfig?.systemInstruction && globalConfig.systemInstruction.trim().length > 0) {
+    return `${globalConfig.systemInstruction}
+      
+${restrictionRule}
+
+${styleInstruction}
+
+${knowledgeSection}
+
+${s1Subjects}`;
   }
 
   // Fallback to default logic if no custom instruction
@@ -148,9 +177,9 @@ Matières du Semestre 1 (S1) - Tronc Commun:
     mixed: 'امزج بين العربية للحوار والفرنسية للمحتوى العلمي.'
   };
 
-  const toneGuide = settings.formalTone
+  const toneGuide = styleInstruction || (settings.formalTone
     ? 'استخدم أسلوباً أكاديمياً رسمياً ومهنياً.'
-    : 'استخدم أسلوباً ودوداً وبسيطاً للشرح.';
+    : 'استخدم أسلوباً ودوداً وبسيطاً للشرح.');
 
   const glossaryGuide = settings.includeGlossary
     ? 'أضف قسم "📚 شرح المصطلحات" في نهاية كل إجابة علمية.'
@@ -172,7 +201,10 @@ ${s1Subjects}
 3. ${lengthGuide[settings.responseLength]}
 4. ${toneGuide}
 ${examplesGuide ? `5. ${examplesGuide}` : ''}
+
 ${glossaryGuide ? `6. ${glossaryGuide}` : ''}
+
+${restrictionRule}
 
 هيكل الرد:
 - مقدمة مختصرة (بلغة الطالب)
@@ -206,7 +238,7 @@ export const generateResponseStream = async (
     const systemInstructionContent = buildSystemInstruction(
       userSettings,
       adminKnowledge,
-      botConfig?.systemInstruction
+      botConfig || undefined
     );
 
     // Smart context selection
