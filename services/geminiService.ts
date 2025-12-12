@@ -1,5 +1,6 @@
 import { GoogleGenAI, Content, Part } from "@google/genai";
 import { FileContext, Message } from "../types";
+import { getKnowledgeForBot } from "./botKnowledgeService";
 
 // Helper to convert internal Message type to Gemini Content type
 const mapMessagesToContent = (messages: Message[]): Content[] => {
@@ -108,7 +109,7 @@ const defaultSettings: BotSettings = {
 };
 
 // Build dynamic system instruction based on settings
-const buildSystemInstruction = (settings: BotSettings): string => {
+const buildSystemInstruction = (settings: BotSettings, adminKnowledge: string = ''): string => {
   const lengthGuide = {
     short: 'اجعل إجاباتك مختصرة ومباشرة للنقاط الرئيسية فقط.',
     medium: 'قدم إجابات متوازنة: شاملة لكن دون إطالة غير ضرورية.',
@@ -135,20 +136,20 @@ const buildSystemInstruction = (settings: BotSettings): string => {
 
   // S1 Curriculum subjects
   const s1Subjects = `
-المقررات الدراسية للسداسي الأول (S1) - جذع مشترك لجميع التخصصات:
-1. Anatomie-physiologie (التشريح والفيزيولوجيا)
-2. Anthropologie/Psychologie/Psychosociologie (الأنثروبولوجيا/علم النفس)
-3. Hygiène hospitalière (النظافة الاستشفائية)
-4. Législation/Ethique professionnelle/Déontologie (التشريع والأخلاقيات المهنية)
-5. Santé publique/Démographie/Economie de santé (الصحة العمومية/الديموغرافيا)
-6. Secourisme (الإسعافات الأولية)
-7. Les fondements de la profession paramédicale (أساسيات المهنة الشبه طبية)
-8. Remédiation linguistique/Techniques d'expression écrite et orale (التعبير الكتابي والشفهي)
-9. Terminologie médicale (المصطلحات الطبية)
-
-عندما يسأل الطالب عن هذه المواد، أجب بتفصيل وذكّره أنه يمكنه اختبار نفسه عبر قسم "اختبارات" 📝`;
+Matières du Semestre 1 (S1) - Tronc Commun:
+1. Anatomie-physiologie 🦴
+2. Anthropologie/Psychologie/Psychosociologie 🧠
+3. Hygiène hospitalière 🧹
+4. Législation/Ethique professionnelle/Déontologie ⚖️
+5. Santé publique/Démographie/Economie de santé 🏥
+6. Secourisme 🚑
+7. Les fondements de la profession paramédicale 👨‍⚕️
+8. Remédiation linguistique/Techniques d'expression écrite et orale ✍️
+9. Terminologie médicale 📝`;
 
   return `أنت مساعد دراسي خبير للطلاب الشبه طبيين (الجزائر/المغرب العربي).
+
+${adminKnowledge ? `\n⚠️ === INFORMATION IMPORTANTE (BASE DE CONNAISSANCES) ===\n${adminKnowledge}\nUtilisez ces informations en priorité pour répondre aux questions sur les spécialités, les lois, ou la recherche.\n=========================================\n` : ''}
 
 ${s1Subjects}
 
@@ -178,11 +179,14 @@ export const generateResponseStream = async (
   settings?: BotSettings
 ): Promise<string> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const modelId = "gemini-2.5-flash";
+    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || "" });
+    const modelId = "gemini-1.5-flash"; // Or keep consistent with previous versions
+
+    // Fetch Admin Knowledge Base
+    const adminKnowledge = await getKnowledgeForBot();
 
     const userSettings = settings || defaultSettings;
-    const systemInstruction = buildSystemInstruction(userSettings);
+    const systemInstructionContent = buildSystemInstruction(userSettings, adminKnowledge);
 
     // Smart context selection
     const relevantFiles = selectRelevantFiles(currentPrompt, fileContexts);
@@ -226,10 +230,13 @@ export const generateResponseStream = async (
     const response = await ai.models.generateContentStream({
       model: modelId,
       config: {
-        systemInstruction: systemInstruction,
-        temperature: 0.2, // Low for accuracy
+        systemInstruction: {
+          role: 'system',
+          parts: [{ text: systemInstructionContent }]
+        },
+        temperature: 0.5,
         topP: 0.9,
-        // No maxOutputTokens - allow full responses
+        maxOutputTokens: userSettings.responseLength === 'short' ? 500 : userSettings.responseLength === 'long' ? 2000 : 1000,
       },
       contents: contents,
     });
