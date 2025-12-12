@@ -12,27 +12,46 @@ export const saveQuizToFirestore = async (userId: string, quiz: QuizSession) => 
 
         const quizRef = doc(db, 'users', userId, 'quizzes', quiz.id);
 
-        // Remove file content from config to save space if it's large (optional, but good practice)
-        // For now, we keep it simple. If data becomes an issue, we can strip data URI.
+        // Optimize quiz data to reduce Firestore document size
         const dataToSave = {
-            ...quiz,
-            lastUpdated: Timestamp.now()
+            id: quiz.id,
+            title: quiz.title,
+            createdAt: quiz.createdAt,
+            score: quiz.score,
+            isFinished: quiz.isFinished,
+            currentQuestionIndex: quiz.currentQuestionIndex,
+            userAnswers: quiz.userAnswers,
+            lastUpdated: Timestamp.now(),
+            // Save minimal config
+            config: {
+                sourceType: quiz.config.sourceType,
+                subject: quiz.config.subject,
+                difficulty: quiz.config.difficulty,
+                questionCount: quiz.config.questionCount,
+                quizType: quiz.config.quizType,
+                // Only save file name, not content
+                fileContext: quiz.config.fileContext ? {
+                    id: quiz.config.fileContext.id,
+                    name: quiz.config.fileContext.name,
+                    type: quiz.config.fileContext.type,
+                    size: quiz.config.fileContext.size
+                } : undefined
+            },
+            // Save minimal question data (remove long explanations)
+            questions: quiz.questions.map(q => ({
+                id: q.id,
+                question: q.question.substring(0, 500), // Limit question length
+                options: q.options.map(opt => opt.substring(0, 200)), // Limit option length
+                correctAnswers: q.correctAnswers
+                // Skip explanation to save space
+            }))
         };
-
-        if (dataToSave.config.fileContext) {
-            // Don't save large base64 data OR raw content to Firestore to avoid 1MB limit
-            // We only need the file metadata (name, id) for history
-            dataToSave.config.fileContext = {
-                ...dataToSave.config.fileContext,
-                data: undefined,
-                content: undefined // Also remove content as it can be large
-            };
-        }
 
         await setDoc(quizRef, dataToSave, { merge: true });
         console.log("saveQuizToFirestore: Quiz saved successfully");
     } catch (error: any) {
         console.error("Error saving quiz:", error);
+        console.error("Error details:", error?.message, error?.code);
     }
 };
 
