@@ -12,6 +12,29 @@ export const saveQuizToFirestore = async (userId: string, quiz: QuizSession) => 
 
         const quizRef = doc(db, 'users', userId, 'quizzes', quiz.id);
 
+        // Build config object without undefined values (Firestore doesn't accept undefined)
+        const configToSave: any = {
+            sourceType: quiz.config.sourceType,
+            difficulty: quiz.config.difficulty,
+            questionCount: quiz.config.questionCount,
+            quizType: quiz.config.quizType
+        };
+
+        // Only add subject if it exists
+        if (quiz.config.subject) {
+            configToSave.subject = quiz.config.subject;
+        }
+
+        // Only add fileContext if it exists
+        if (quiz.config.fileContext) {
+            configToSave.fileContext = {
+                id: quiz.config.fileContext.id,
+                name: quiz.config.fileContext.name,
+                type: quiz.config.fileContext.type,
+                size: quiz.config.fileContext.size
+            };
+        }
+
         // Optimize quiz data to reduce Firestore document size
         const dataToSave = {
             id: quiz.id,
@@ -20,30 +43,15 @@ export const saveQuizToFirestore = async (userId: string, quiz: QuizSession) => 
             score: quiz.score,
             isFinished: quiz.isFinished,
             currentQuestionIndex: quiz.currentQuestionIndex,
-            userAnswers: quiz.userAnswers,
+            userAnswers: quiz.userAnswers || {},
             lastUpdated: Timestamp.now(),
-            // Save minimal config
-            config: {
-                sourceType: quiz.config.sourceType,
-                subject: quiz.config.subject,
-                difficulty: quiz.config.difficulty,
-                questionCount: quiz.config.questionCount,
-                quizType: quiz.config.quizType,
-                // Only save file name, not content
-                fileContext: quiz.config.fileContext ? {
-                    id: quiz.config.fileContext.id,
-                    name: quiz.config.fileContext.name,
-                    type: quiz.config.fileContext.type,
-                    size: quiz.config.fileContext.size
-                } : undefined
-            },
+            config: configToSave,
             // Save minimal question data (remove long explanations)
             questions: quiz.questions.map(q => ({
                 id: q.id,
-                question: q.question.substring(0, 500), // Limit question length
-                options: q.options.map(opt => opt.substring(0, 200)), // Limit option length
+                question: q.question.substring(0, 500),
+                options: q.options.map(opt => opt.substring(0, 200)),
                 correctAnswers: q.correctAnswers
-                // Skip explanation to save space
             }))
         };
 
