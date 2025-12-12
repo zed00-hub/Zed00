@@ -70,19 +70,46 @@ export const loadQuizzesFromFirestore = async (userId: string): Promise<QuizSess
 
         const quizzes: QuizSession[] = [];
         querySnapshot.forEach((docSnapshot) => {
-            const data = docSnapshot.data();
-            quizzes.push({
-                ...data,
-                id: data.id || docSnapshot.id,
-            } as QuizSession);
+            try {
+                const data = docSnapshot.data();
+                console.log("loadQuizzesFromFirestore: Processing quiz:", data.id, data.title);
+
+                // Convert Firestore Timestamp to milliseconds if needed
+                let lastUpdatedMs = data.lastUpdated;
+                if (lastUpdatedMs && typeof lastUpdatedMs.toMillis === 'function') {
+                    lastUpdatedMs = lastUpdatedMs.toMillis();
+                } else if (lastUpdatedMs && lastUpdatedMs.seconds) {
+                    lastUpdatedMs = lastUpdatedMs.seconds * 1000;
+                }
+
+                // Build quiz with proper defaults
+                const quiz: QuizSession = {
+                    id: data.id || docSnapshot.id,
+                    title: data.title || 'اختبار',
+                    createdAt: data.createdAt || Date.now(),
+                    config: data.config || { sourceType: 'subject', difficulty: 'Medium', questionCount: 5, quizType: 'single' },
+                    questions: data.questions || [],
+                    userAnswers: data.userAnswers || {},
+                    score: data.score || 0,
+                    isFinished: data.isFinished || false,
+                    currentQuestionIndex: data.currentQuestionIndex || 0,
+                    lastUpdated: lastUpdatedMs
+                };
+
+                quizzes.push(quiz);
+            } catch (parseError) {
+                console.error("Error parsing quiz document:", docSnapshot.id, parseError);
+            }
         });
 
-        // Sort descending by lastUpdated (if available) or createdAt
+        // Sort descending by lastUpdated or createdAt
         const sorted = quizzes.sort((a, b) => {
-            const timeA = a.lastUpdated || a.createdAt;
-            const timeB = b.lastUpdated || b.createdAt;
+            const timeA = a.lastUpdated || a.createdAt || 0;
+            const timeB = b.lastUpdated || b.createdAt || 0;
             return timeB - timeA;
         });
+
+        console.log("loadQuizzesFromFirestore: Returning", sorted.length, "quizzes");
         return sorted;
     } catch (error) {
         console.error("Error loading quizzes:", error);
