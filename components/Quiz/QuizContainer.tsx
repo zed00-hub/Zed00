@@ -125,6 +125,9 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ files, activeQuizSession,
                 onQuizUpdate({
                     ...activeQuizSession,
                     userAnswers: updatedUserAnswers,
+                    currentQuestionIndex: prev.currentQuestionIndex, // Ensure we keep current index
+                    score: prev.score,
+                    isFinished: false,
                     lastUpdated: Date.now()
                 });
             }
@@ -143,7 +146,10 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ files, activeQuizSession,
             if (onQuizUpdate && activeQuizSession) {
                 onQuizUpdate({
                     ...activeQuizSession,
+                    userAnswers: prev.userAnswers, // Important: pass latest answers explicitly
                     currentQuestionIndex: nextIndex,
+                    score: prev.score,
+                    isFinished: false,
                     lastUpdated: Date.now()
                 });
             }
@@ -186,6 +192,7 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ files, activeQuizSession,
                 score,
                 isFinished: true,
                 userAnswers: state.userAnswers, // Ensure latest answers
+                currentQuestionIndex: state.currentQuestionIndex,
                 lastUpdated: Date.now()
             });
         }
