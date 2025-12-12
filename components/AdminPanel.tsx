@@ -26,7 +26,6 @@ import {
     Users, Clock, MessageCircle, Medal, Brain, Lightbulb
 } from 'lucide-react';
 import { extractTextFromPDF } from '../utils/pdfUtils';
-import { analyzeImage } from '../services/geminiService';
 import { useNavigate } from 'react-router-dom';
 
 const AdminPanel: React.FC = () => {
@@ -57,9 +56,7 @@ const AdminPanel: React.FC = () => {
     const [editingKnowledge, setEditingKnowledge] = useState<KnowledgeEntry | null>(null);
     const [knowledgeTitle, setKnowledgeTitle] = useState('');
     const [knowledgeContent, setKnowledgeContent] = useState('');
-    const [knowledgeComment, setKnowledgeComment] = useState('');
     const [knowledgeCategory, setKnowledgeCategory] = useState('general_info');
-    const [isAnalyzingImage, setIsAnalyzingImage] = useState(false);
 
     useEffect(() => {
         // Redirect if not admin
@@ -200,53 +197,6 @@ const AdminPanel: React.FC = () => {
         const m = minutes % 60;
         if (h > 0) return `${h}س ${m}د`;
         return `${m}د`;
-    };
-
-    // --- Knowledge Helper Functions ---
-    const handleKnowledgeFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-        const isImage = file.type.startsWith('image/');
-
-        try {
-            if (isImage) {
-                setIsAnalyzingImage(true);
-                // Convert to base64
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onloadend = async () => {
-                    try {
-                        const base64Data = (reader.result as string).split(',')[1];
-                        const analysis = await analyzeImage(base64Data, file.type);
-                        setKnowledgeContent(prev => prev ? prev + '\n\n' + analysis : analysis);
-                        if (!knowledgeTitle) setKnowledgeTitle(file.name.split('.')[0]);
-                    } catch (err) {
-                        console.error(err);
-                        alert("فشل تحليل الصورة. تأكد من مفتاح API.");
-                    } finally {
-                        setIsAnalyzingImage(false);
-                    }
-                };
-            } else if (isPDF) {
-                setIsAnalyzingImage(true); // Reusing same loading state
-                const text = await extractTextFromPDF(file);
-                setKnowledgeContent(prev => prev ? prev + '\n\n' + text : text);
-                if (!knowledgeTitle) setKnowledgeTitle(file.name.replace(/\.pdf$/i, ''));
-                setIsAnalyzingImage(false);
-            } else {
-                // Text file
-                const text = await file.text();
-                setKnowledgeContent(prev => prev ? prev + '\n\n' + text : text);
-                if (!knowledgeTitle) setKnowledgeTitle(file.name.split('.')[0]);
-            }
-        } catch (error: any) {
-            console.error('Error handling file:', error);
-            alert('حدث خطأ أثناء معالجة الملف.');
-            setIsAnalyzingImage(false);
-        }
-        e.target.value = '';
     };
 
     if (!user || !isAdmin(user.email)) {
@@ -553,7 +503,6 @@ const AdminPanel: React.FC = () => {
                                                 setEditingKnowledge(null);
                                                 setKnowledgeTitle('');
                                                 setKnowledgeContent('');
-                                                setKnowledgeComment('');
                                                 setKnowledgeCategory('general_info');
                                             }}
                                             className="text-sm text-gray-500 hover:text-gray-700"
@@ -586,45 +535,14 @@ const AdminPanel: React.FC = () => {
                                         </select>
                                     </div>
 
-                                    {/* Upload Buttons */}
-                                    <div className="flex gap-4">
-                                        <label className="flex-1 py-3 bg-gray-100 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl flex items-center justify-center gap-2 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-all text-sm font-bold text-gray-600 dark:text-gray-300">
-                                            <FileText size={20} /> رفع ملف (PDF/Text)
-                                            <input type="file" accept=".pdf,.txt,.md,.json" onChange={handleKnowledgeFileUpload} className="hidden" />
-                                        </label>
-                                        <label className="flex-1 py-3 bg-gray-100 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl flex items-center justify-center gap-2 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-all text-sm font-bold text-gray-600 dark:text-gray-300">
-                                            <Upload size={20} /> تحليل صورة (AI)
-                                            <input type="file" accept="image/*" onChange={handleKnowledgeFileUpload} className="hidden" />
-                                        </label>
-                                    </div>
-
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">المحتوى</label>
-                                        <div className="relative">
-                                            {isAnalyzingImage && (
-                                                <div className="absolute inset-0 bg-white/80 dark:bg-dark-surface/80 flex flex-col items-center justify-center z-10 rounded-xl backdrop-blur-sm">
-                                                    <Loader2 className="w-8 h-8 text-amber-500 animate-spin mb-2" />
-                                                    <p className="text-sm font-bold text-amber-700">جاري تحليل المحتوى...</p>
-                                                </div>
-                                            )}
-                                            <textarea
-                                                value={knowledgeContent}
-                                                onChange={(e) => setKnowledgeContent(e.target.value)}
-                                                rows={8}
-                                                placeholder="أدخل المعلومات التي تريد أن يعرفها البوت... أو قم برفع ملف/صورة لاستخراج المحتوى تلقائياً"
-                                                className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 font-mono text-sm leading-relaxed"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">تعليق إضافي (اختياري)</label>
                                         <textarea
-                                            value={knowledgeComment}
-                                            onChange={(e) => setKnowledgeComment(e.target.value)}
-                                            rows={2}
-                                            placeholder="ملاحظات إضافية للبوت حول هذا المحتوى (مثال: 'هذه المعلومات للصف الثاني فقط')..."
-                                            className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 text-sm"
+                                            value={knowledgeContent}
+                                            onChange={(e) => setKnowledgeContent(e.target.value)}
+                                            rows={8}
+                                            placeholder="أدخل المعلومات التي تريد أن يعرفها البوت..."
+                                            className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 font-mono text-sm leading-relaxed"
                                         />
                                     </div>
 
@@ -639,7 +557,6 @@ const AdminPanel: React.FC = () => {
                                                         title: knowledgeTitle.trim(),
                                                         content: knowledgeContent.trim(),
                                                         category: knowledgeCategory,
-                                                        comment: knowledgeComment.trim(),
                                                         createdAt: editingKnowledge?.createdAt || Date.now()
                                                     });
                                                     setSaveStatus('success');
@@ -648,7 +565,6 @@ const AdminPanel: React.FC = () => {
                                                         setEditingKnowledge(null);
                                                         setKnowledgeTitle('');
                                                         setKnowledgeContent('');
-                                                        setKnowledgeComment('');
                                                         setSaveStatus('idle');
                                                         loadData();
                                                     }, 1000);
@@ -716,7 +632,6 @@ const AdminPanel: React.FC = () => {
                                                                         setEditingKnowledge(entry);
                                                                         setKnowledgeTitle(entry.title);
                                                                         setKnowledgeContent(entry.content);
-                                                                        setKnowledgeComment(entry.comment || '');
                                                                         setKnowledgeCategory(entry.category);
                                                                         setShowKnowledgeForm(true);
                                                                     }}

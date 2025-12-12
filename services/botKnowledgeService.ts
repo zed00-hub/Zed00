@@ -17,7 +17,6 @@ export interface KnowledgeEntry {
     title: string;
     content: string;
     category: string;
-    comment?: string; // Optional admin comment
     createdAt: number;
     updatedAt?: any; // Firestore Timestamp
 }
@@ -52,7 +51,6 @@ export const loadKnowledgeEntries = async (): Promise<KnowledgeEntry[]> => {
                 title: data.title,
                 content: data.content,
                 category: data.category,
-                comment: data.comment,
                 createdAt: data.createdAt || Date.now()
             });
         });
@@ -99,9 +97,6 @@ export const getKnowledgeForBot = async (): Promise<string> => {
             context += `\n--- ${cat?.label || catId} ---\n`;
             catEntries.forEach(entry => {
                 context += `\n[${entry.title}]\n${entry.content}\n`;
-                if (entry.comment) {
-                    context += `(Note: ${entry.comment})\n`;
-                }
             });
         }
 
