@@ -9,7 +9,9 @@ import {
     getDocs,
     getDoc,
     query,
-    orderBy
+    orderBy,
+    collectionGroup,
+    where
 } from 'firebase/firestore';
 import { User } from '../types';
 
@@ -125,11 +127,80 @@ export const getAllUsersStats = async (): Promise<UserStats[]> => {
             } as UserStats))
             .filter(u => !ADMIN_EMAILS.includes(u.email)); // Exclude admins
 
-        // Sort client-side
+        // Sort client-side default (but can be re-sorted by UI)
         return users.sort((a, b) => (b.totalTimeSpent || 0) - (a.totalTimeSpent || 0));
 
     } catch (error) {
         console.error('Error fetching user stats:', error);
         return [];
+    }
+};
+
+/**
+ * Get stats for a specific date range using Collection Group Queries
+ * Requires Firestore Indices on 'sessions' and 'quizzes' collection groups for 'timestamp' and 'createdAt' fields
+ */
+export const getStatsForDateRange = async (startDate: Date, endDate: Date): Promise<Record<string, { conversations: number, quizzes: number }>> => {
+    try {
+        // Convert dates to timestamps (milliseconds) as that's how we store them
+        const startMs = startDate.getTime();
+        const endMs = endDate.getTime();
+
+        console.log(`Getting stats from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+
+        // 1. Query Chat Sessions (collection group 'sessions')
+        // Note: Field is 'timestamp' in chatService
+        // We use db.collectionGroup to query across all users
+        // This requires an index in Firestore: Collection ID 'sessions', Field 'timestamp' Asc/Desc
+        const sessionsQuery = query(
+            collectionGroup(db, 'sessions'),
+            where('timestamp', '>=', startMs),
+            where('timestamp', '<=', endMs)
+        );
+
+        // 2. Query Quizzes (collection group 'quizzes')
+        // Note: Field is 'createdAt' in quizService
+        // This requires an index in Firestore: Collection ID 'quizzes', Field 'createdAt' Asc/Desc
+        const quizzesQuery = query(
+            collectionGroup(db, 'quizzes'),
+            where('createdAt', '>=', startMs),
+            where('createdAt', '<=', endMs)
+        );
+
+        const [sessionsSnap, quizzesSnap] = await Promise.all([
+            getDocs(sessionsQuery),
+            getDocs(quizzesQuery)
+        ]);
+
+        const statsMap: Record<string, { conversations: number, quizzes: number }> = {};
+
+        // Process Sessions
+        sessionsSnap.forEach(doc => {
+            // parent is 'sessions', parent.parent is 'users/{userId}'
+            // ref.parent.parent.id gives userId
+            const userId = doc.ref.parent.parent?.id;
+            if (userId) {
+                if (!statsMap[userId]) statsMap[userId] = { conversations: 0, quizzes: 0 };
+                statsMap[userId].conversations++;
+            }
+        });
+
+        // Process Quizzes
+        quizzesSnap.forEach(doc => {
+            const userId = doc.ref.parent.parent?.id;
+            if (userId) {
+                if (!statsMap[userId]) statsMap[userId] = { conversations: 0, quizzes: 0 };
+                statsMap[userId].quizzes++;
+            }
+        });
+
+        console.log(`Found ${sessionsSnap.size} sessions and ${quizzesSnap.size} quizzes in range.`);
+        return statsMap;
+
+    } catch (error) {
+        console.error("Error fetching stats for date range:", error);
+        // Fallback: return empty stats so UI doesn't crash
+        // Warning: This usually fails if indexes are missing.
+        return {};
     }
 };
