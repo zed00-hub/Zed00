@@ -26,6 +26,7 @@ import {
     Users, Clock, MessageCircle, Medal, Brain, Lightbulb
 } from 'lucide-react';
 import { extractTextFromPDF } from '../utils/pdfUtils';
+import { extractTextFromDocx } from '../utils/docxUtils';
 import { useNavigate } from 'react-router-dom';
 import { analyzeImage } from '../services/geminiService';
 
@@ -43,7 +44,7 @@ const AdminPanel: React.FC = () => {
     const [editingCourse, setEditingCourse] = useState<CourseFile | null>(null);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
     const [isExtractingPDF, setIsExtractingPDF] = useState(false);
-    const [showContentPreview, setShowContentPreview] = useState(true); // Toggle for viewing raw content
+    const [showContentPreview, setShowContentPreview] = useState(false); // Hidden by default as requested
     const [courseName, setCourseName] = useState('');
     const [courseContent, setCourseContent] = useState('');
     const [courseCategory, setCourseCategory] = useState('other');
@@ -157,34 +158,29 @@ const AdminPanel: React.FC = () => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-
         try {
-            if (isPDF) {
-                setIsExtractingPDF(true);
-                setShowAddForm(true);
-                setCourseName(file.name.replace(/\.pdf$/i, ''));
-                setCourseContent('');
-                setShowContentPreview(false);
+            setIsExtractingPDF(true);
+            setShowAddForm(true);
+            setCourseName(file.name.replace(/\.[^/.]+$/, ""));
+            setCourseContent('');
+            setShowContentPreview(false);
 
-                const text = await extractTextFromPDF(file);
-
-                setCourseContent(text);
-                setIsExtractingPDF(false);
-                setShowContentPreview(false);
+            let text = "";
+            if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+                text = await extractTextFromPDF(file);
+            } else if (file.name.endsWith('.docx') || file.type.includes('wordprocessing')) {
+                text = await extractTextFromDocx(file);
             } else {
-                const text = await file.text();
-                setCourseName(file.name.replace(/\.[^/.]+$/, ''));
-                setCourseContent(text);
-                setShowAddForm(true);
-                setShowContentPreview(true);
+                text = await file.text();
             }
+
+            setCourseContent(text);
+            setIsExtractingPDF(false);
         } catch (error: any) {
             console.error('Error reading file:', error);
             alert(error.message || 'فشل قراءة الملف');
             setIsExtractingPDF(false);
             setCourseContent('');
-            setShowContentPreview(true);
         }
         e.target.value = '';
     };
@@ -385,8 +381,8 @@ const AdminPanel: React.FC = () => {
                                         <Plus size={24} /> إضافة مادة يدوياً
                                     </button>
                                     <label className="flex-1 py-4 bg-white dark:bg-dark-surface border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl font-bold flex items-center justify-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
-                                        <FileUp size={24} /> رفع ملف PDF
-                                        <input type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" />
+                                        <FileUp size={24} /> رفع ملف (PDF, Word, Text)
+                                        <input type="file" accept=".pdf,.docx,.txt,.md" onChange={handleFileUpload} className="hidden" />
                                     </label>
                                 </div>
 
@@ -600,14 +596,32 @@ const AdminPanel: React.FC = () => {
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">المحتوى (تم تحليله تلقائياً)</label>
-                                        <textarea
-                                            value={knowledgeContent}
-                                            onChange={(e) => setKnowledgeContent(e.target.value)}
-                                            rows={8}
-                                            placeholder="أدخل المعلومات التي تريد أن يعرفها البوت..."
-                                            className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 font-mono text-sm leading-relaxed"
-                                        />
+                                        <div className="flex items-center justify-between mb-2">
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">المحتوى المستخرج</label>
+                                            <button
+                                                onClick={() => setShowContentPreview(!showContentPreview)} // Reuse the course state for now or add new one? Actually reusing simplifies UI logic here or user can rely on "saving" blindly. Let's make it always hidden or toggleable detail.
+                                                type="button"
+                                                className="text-xs text-amber-500 hover:text-amber-600"
+                                            >
+                                                {/* Reusing showContentPreview might be weird if tabs switch, but acceptable for simple admin. Or better: use 'details' html element. */}
+                                            </button>
+                                        </div>
+                                        <details className="group">
+                                            <summary className="flex cursor-pointer list-none items-center gap-2 font-medium text-amber-600 dark:text-amber-400 text-sm mb-2">
+                                                <span>عرض/تعديل المحتوى المستخرج</span>
+                                                <span className="transition group-open:rotate-180">
+                                                    <svg fill="none" height="24" shapeRendering="geometricPrecision" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
+                                                </span>
+                                            </summary>
+                                            <textarea
+                                                value={knowledgeContent}
+                                                onChange={(e) => setKnowledgeContent(e.target.value)}
+                                                rows={8}
+                                                placeholder="أدخل المعلومات التي تريد أن يعرفها البوت..."
+                                                className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 font-mono text-sm leading-relaxed"
+                                            />
+                                            <p className="text-xs text-gray-400 mt-1">هذا هو النص الذي سيحفظ في ذاكرة البوت.</p>
+                                        </details>
                                     </div>
 
                                     <div className="pt-4">
