@@ -270,14 +270,34 @@ const AppContent: React.FC = () => {
 
   // --- Save Quiz Result to Chat History ---
   const saveQuizResultToChat = useCallback((quizResult: QuizResultData) => {
-    // Create a quiz result message
+    // Build a formatted text message for the quiz result
+    const lines: string[] = [
+      `📊 **نتيجة الاختبار: ${quizResult.subjectName}**`,
+      ``,
+      `🎯 **النقاط:** ${quizResult.score}/${quizResult.totalQuestions} (${quizResult.percentage}%)`,
+      ``,
+      `---`,
+      ``
+    ];
+
+    // Add each question with answer details
+    quizResult.questions.forEach((q, index) => {
+      const statusIcon = q.isCorrect ? '✅' : '❌';
+      lines.push(`**س${index + 1}:** ${q.questionText}`);
+      lines.push(`${statusIcon} إجابتك: ${q.userAnswer}`);
+      if (!q.isCorrect) {
+        lines.push(`✔️ الإجابة الصحيحة: ${q.correctAnswer}`);
+      }
+      lines.push(``);
+    });
+
+    // Create a regular text message (not quiz_result type) for reliable storage
     const quizResultMessage: Message = {
       id: Date.now().toString(),
       role: 'model',
-      content: `📊 نتيجة الاختبار: ${quizResult.subjectName}\nالنقاط: ${quizResult.score}/${quizResult.totalQuestions} (${quizResult.percentage}%)`,
-      timestamp: Date.now(),
-      type: 'quiz_result',
-      quizResultData: quizResult
+      content: lines.join('\n'),
+      timestamp: Date.now()
+      // Note: We don't use type: 'quiz_result' anymore to ensure reliable Firestore storage
     };
 
     // Add to current chat session

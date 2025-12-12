@@ -18,10 +18,8 @@ export const saveSessionToFirestore = async (userId: string, session: ChatSessio
             timestamp: msg.timestamp,
             isError: msg.isError || false,
             // Don't save large base64 image data - only save that it had attachments
-            hasAttachments: msg.attachments && msg.attachments.length > 0 ? true : false,
-            // Preserve message type and quiz result data for structured messages
-            type: msg.type || 'text',
-            quizResultData: msg.quizResultData || undefined
+            hasAttachments: msg.attachments && msg.attachments.length > 0 ? true : false
+            // Note: quiz results are now stored as formatted text in content, no need for quizResultData
         }));
 
         const sessionRef = doc(db, 'users', userId, 'sessions', session.id);
