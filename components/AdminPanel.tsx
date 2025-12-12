@@ -8,6 +8,13 @@ import {
     CourseFile
 } from '../services/coursesService';
 import {
+    saveKnowledgeEntry,
+    loadKnowledgeEntries,
+    deleteKnowledgeEntry,
+    KNOWLEDGE_CATEGORIES,
+    KnowledgeEntry
+} from '../services/botKnowledgeService';
+import {
     getAllUsersStats,
     UserStats,
     getUserLevel
@@ -16,7 +23,7 @@ import { useAuth } from '../contexts/AuthContext';
 import {
     X, Plus, Trash2, Edit2, Save, FileText, Upload, BookOpen,
     AlertCircle, Check, FileUp, Loader2, Eye, EyeOff, LayoutDashboard,
-    Users, Clock, MessageCircle, Medal
+    Users, Clock, MessageCircle, Medal, Brain, Lightbulb
 } from 'lucide-react';
 import { extractTextFromPDF } from '../utils/pdfUtils';
 import { useNavigate } from 'react-router-dom';
@@ -26,7 +33,7 @@ const AdminPanel: React.FC = () => {
     const navigate = useNavigate();
 
     // UI State
-    const [activeTab, setActiveTab] = useState<'courses' | 'analytics'>('courses');
+    const [activeTab, setActiveTab] = useState<'courses' | 'analytics' | 'knowledge'>('courses');
     const [isLoading, setIsLoading] = useState(true);
 
     // Courses State
@@ -42,6 +49,14 @@ const AdminPanel: React.FC = () => {
 
     // Analytics State
     const [userStats, setUserStats] = useState<UserStats[]>([]);
+
+    // Knowledge State
+    const [knowledgeEntries, setKnowledgeEntries] = useState<KnowledgeEntry[]>([]);
+    const [showKnowledgeForm, setShowKnowledgeForm] = useState(false);
+    const [editingKnowledge, setEditingKnowledge] = useState<KnowledgeEntry | null>(null);
+    const [knowledgeTitle, setKnowledgeTitle] = useState('');
+    const [knowledgeContent, setKnowledgeContent] = useState('');
+    const [knowledgeCategory, setKnowledgeCategory] = useState('general_info');
 
     useEffect(() => {
         // Redirect if not admin
@@ -60,9 +75,12 @@ const AdminPanel: React.FC = () => {
             if (activeTab === 'courses') {
                 const loaded = await loadCoursesFromFirestore();
                 setCourses(loaded);
-            } else {
+            } else if (activeTab === 'analytics') {
                 const stats = await getAllUsersStats();
                 setUserStats(stats);
+            } else if (activeTab === 'knowledge') {
+                const entries = await loadKnowledgeEntries();
+                setKnowledgeEntries(entries);
             }
         } catch (error) {
             console.error('Error loading data:', error);
@@ -213,8 +231,8 @@ const AdminPanel: React.FC = () => {
                         <button
                             onClick={() => setActiveTab('courses')}
                             className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'courses'
-                                    ? 'bg-white dark:bg-dark-surface text-amber-600 shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                                ? 'bg-white dark:bg-dark-surface text-amber-600 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
                                 }`}
                         >
                             <BookOpen size={20} />
@@ -223,12 +241,22 @@ const AdminPanel: React.FC = () => {
                         <button
                             onClick={() => setActiveTab('analytics')}
                             className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'analytics'
-                                    ? 'bg-white dark:bg-dark-surface text-amber-600 shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                                ? 'bg-white dark:bg-dark-surface text-amber-600 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
                                 }`}
                         >
                             <Users size={20} />
                             تحليلات الطلاب
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('knowledge')}
+                            className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'knowledge'
+                                ? 'bg-white dark:bg-dark-surface text-amber-600 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                                }`}
+                        >
+                            <Brain size={20} />
+                            تغذية البوت
                         </button>
                     </div>
                 </div>
@@ -361,7 +389,7 @@ const AdminPanel: React.FC = () => {
                                 </div>
                             </div>
                         )
-                    ) : (
+                    ) : activeTab === 'analytics' ? (
                         // --- ANALYTICS TAB ---
                         <div className="space-y-6">
                             {/* Stats Summary */}
@@ -460,7 +488,178 @@ const AdminPanel: React.FC = () => {
                                 </div>
                             </div>
                         </div>
-                    )}
+                    ) : activeTab === 'knowledge' ? (
+                        <div className="space-y-6">
+                            {showKnowledgeForm ? (
+                                <div className="space-y-4 bg-white dark:bg-dark-surface p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="font-bold text-gray-800 dark:text-gray-200 text-lg flex items-center gap-2">
+                                            <Lightbulb className="text-amber-500" />
+                                            {editingKnowledge ? 'تعديل المعلومة' : 'إضافة معلومة للبوت'}
+                                        </h3>
+                                        <button
+                                            onClick={() => {
+                                                setShowKnowledgeForm(false);
+                                                setEditingKnowledge(null);
+                                                setKnowledgeTitle('');
+                                                setKnowledgeContent('');
+                                                setKnowledgeCategory('general_info');
+                                            }}
+                                            className="text-sm text-gray-500 hover:text-gray-700"
+                                        >
+                                            إلغاء
+                                        </button>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">عنوان المعلومة</label>
+                                        <input
+                                            type="text"
+                                            value={knowledgeTitle}
+                                            onChange={(e) => setKnowledgeTitle(e.target.value)}
+                                            placeholder="مثال: معلومات عن تخصص IDE"
+                                            className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 transition-all"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">التصنيف</label>
+                                        <select
+                                            value={knowledgeCategory}
+                                            onChange={(e) => setKnowledgeCategory(e.target.value)}
+                                            className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 transition-all"
+                                        >
+                                            {KNOWLEDGE_CATEGORIES.map((cat) => (
+                                                <option key={cat.id} value={cat.id}>{cat.icon} {cat.labelAr} - {cat.label}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">المحتوى</label>
+                                        <textarea
+                                            value={knowledgeContent}
+                                            onChange={(e) => setKnowledgeContent(e.target.value)}
+                                            rows={8}
+                                            placeholder="أدخل المعلومات التي تريد أن يعرفها البوت..."
+                                            className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 font-mono text-sm leading-relaxed"
+                                        />
+                                    </div>
+
+                                    <div className="pt-4">
+                                        <button
+                                            onClick={async () => {
+                                                if (!knowledgeTitle.trim() || !knowledgeContent.trim()) return;
+                                                setSaveStatus('saving');
+                                                try {
+                                                    await saveKnowledgeEntry({
+                                                        id: editingKnowledge?.id || `knowledge-${Date.now()}`,
+                                                        title: knowledgeTitle.trim(),
+                                                        content: knowledgeContent.trim(),
+                                                        category: knowledgeCategory,
+                                                        createdAt: editingKnowledge?.createdAt || Date.now()
+                                                    });
+                                                    setSaveStatus('success');
+                                                    setTimeout(() => {
+                                                        setShowKnowledgeForm(false);
+                                                        setEditingKnowledge(null);
+                                                        setKnowledgeTitle('');
+                                                        setKnowledgeContent('');
+                                                        setSaveStatus('idle');
+                                                        loadData();
+                                                    }, 1000);
+                                                } catch (error) {
+                                                    console.error('Error saving knowledge:', error);
+                                                    setSaveStatus('error');
+                                                    setTimeout(() => setSaveStatus('idle'), 2000);
+                                                }
+                                            }}
+                                            disabled={!knowledgeTitle.trim() || !knowledgeContent.trim() || saveStatus === 'saving'}
+                                            className="w-full py-4 bg-amber-500 text-white rounded-xl font-bold hover:bg-amber-600 transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl active:scale-[0.98]"
+                                        >
+                                            {saveStatus === 'saving' ? <Loader2 className="animate-spin" /> : <Save size={20} />}
+                                            {saveStatus === 'saving' ? 'جاري الحفظ...' : saveStatus === 'success' ? '✓ تم الحفظ!' : 'حفظ المعلومة'}
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    <button
+                                        onClick={() => setShowKnowledgeForm(true)}
+                                        className="w-full py-4 bg-amber-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-amber-600 shadow-lg hover:shadow-amber-500/20 transition-all"
+                                    >
+                                        <Plus size={24} /> إضافة معلومة جديدة للبوت
+                                    </button>
+
+                                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-start gap-3">
+                                        <Brain className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+                                        <div>
+                                            <p className="text-sm font-bold text-blue-800 dark:text-blue-200">كيف يعمل؟</p>
+                                            <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
+                                                المعلومات التي تضيفها هنا ستكون متاحة للبوت للإجابة على أسئلة الطلاب.
+                                                يمكنك إضافة معلومات عن التخصصات، نصائح للامتحانات، بحوث، قوانين، وغيرها.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white dark:bg-dark-surface rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                                        <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+                                            <h3 className="font-bold text-gray-800 dark:text-gray-200">المعلومات المضافة ({knowledgeEntries.length})</h3>
+                                        </div>
+                                        {knowledgeEntries.length === 0 ? (
+                                            <div className="text-center py-12 text-gray-400">لم تضف أي معلومات بعد</div>
+                                        ) : (
+                                            <div className="divide-y dark:divide-gray-700">
+                                                {knowledgeEntries.map(entry => {
+                                                    const cat = KNOWLEDGE_CATEGORIES.find(c => c.id === entry.category);
+                                                    return (
+                                                        <div key={entry.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors flex items-start justify-between group">
+                                                            <div className="flex items-start gap-4">
+                                                                <div className="p-3 bg-amber-50 dark:bg-amber-900/10 rounded-xl text-2xl group-hover:scale-110 transition-transform">
+                                                                    {cat?.icon || '📎'}
+                                                                </div>
+                                                                <div>
+                                                                    <p className="font-bold text-gray-800 dark:text-gray-200 text-lg">{entry.title}</p>
+                                                                    <span className="text-xs px-2.5 py-1 bg-gray-100 dark:bg-gray-700 rounded-full text-gray-500 dark:text-gray-400 font-medium">
+                                                                        {cat?.labelAr || 'أخرى'}
+                                                                    </span>
+                                                                    <p className="text-xs text-gray-500 mt-2 line-clamp-2">{entry.content.substring(0, 150)}...</p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setEditingKnowledge(entry);
+                                                                        setKnowledgeTitle(entry.title);
+                                                                        setKnowledgeContent(entry.content);
+                                                                        setKnowledgeCategory(entry.category);
+                                                                        setShowKnowledgeForm(true);
+                                                                    }}
+                                                                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 hover:text-blue-500 transition-colors"
+                                                                >
+                                                                    <Edit2 size={20} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={async () => {
+                                                                        if (!confirm('هل أنت متأكد من حذف هذه المعلومة؟')) return;
+                                                                        await deleteKnowledgeEntry(entry.id);
+                                                                        loadData();
+                                                                    }}
+                                                                    className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-gray-500 hover:text-red-500 transition-colors"
+                                                                >
+                                                                    <Trash2 size={20} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ) : null}
                 </div>
 
                 {/* Footer */}
