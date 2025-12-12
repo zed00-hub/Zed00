@@ -105,7 +105,12 @@ const AppContent: React.FC = () => {
           }
 
           // Load Quizzes
+          console.log("App: About to load quizzes for user:", user.id);
           const fetchedQuizzes = await loadQuizzesFromFirestore(user.id);
+          console.log("App: Loaded quizzes count:", fetchedQuizzes.length);
+          if (fetchedQuizzes.length > 0) {
+            console.log("App: First quiz:", fetchedQuizzes[0].id, fetchedQuizzes[0].title);
+          }
           setQuizSessions(fetchedQuizzes);
           // Auto-select the most recent quiz if available (like conversations)
           if (fetchedQuizzes.length > 0) {
@@ -302,11 +307,19 @@ const AppContent: React.FC = () => {
       setCurrentQuizId(updatedSession.id);
     }
 
+    // Save to Firestore
     if (user?.id) {
-      saveQuizToFirestore(user.id, updatedSession);
+      console.log("App: Saving quiz to Firestore:", updatedSession.id, updatedSession.title, "isFinished:", updatedSession.isFinished);
+      saveQuizToFirestore(user.id, updatedSession).then(() => {
+        console.log("App: Quiz saved successfully to Firestore");
+      }).catch(err => {
+        console.error("App: Failed to save quiz:", err);
+      });
       if (isNew) {
         trackNewQuiz(user.id);
       }
+    } else {
+      console.warn("App: No user id, cannot save quiz to Firestore");
     }
   };
 
