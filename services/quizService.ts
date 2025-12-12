@@ -19,12 +19,13 @@ export const saveQuizToFirestore = async (userId: string, quiz: QuizSession) => 
             lastUpdated: Timestamp.now()
         };
 
-        if (dataToSave.config.fileContext && dataToSave.config.fileContext.data) {
-            // Don't save large base64 data to Firestore
-            // Instead, we might want to just save the metadata
+        if (dataToSave.config.fileContext) {
+            // Don't save large base64 data OR raw content to Firestore to avoid 1MB limit
+            // We only need the file metadata (name, id) for history
             dataToSave.config.fileContext = {
                 ...dataToSave.config.fileContext,
-                data: undefined
+                data: undefined,
+                content: undefined // Also remove content as it can be large
             };
         }
 
