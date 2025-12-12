@@ -54,10 +54,7 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
-  // Check for admin route FIRST
-  if (location.pathname === '/admin') {
-    return <AdminPanel />;
-  }
+
 
   useEffect(() => {
     loadSharedCourses();
@@ -508,6 +505,11 @@ const AppContent: React.FC = () => {
 
   if (!user) {
     return <LoginPage />;
+  }
+
+  // Check for admin route here, AFTER all hooks are declared to avoid "Rules of Hooks" violation
+  if (location.pathname === '/admin') {
+    return <AdminPanel />;
   }
 
   const activeQuiz = currentQuizId ? quizSessions.find(q => q.id === currentQuizId) : null;
