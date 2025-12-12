@@ -290,7 +290,7 @@ export const generateQuiz = async (
   fileContexts: FileContext[] // Global files (courses) or specific uploaded file
 ): Promise<QuizQuestion[]> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || "" });
     // Use flash model for speed and cost efficiency
     const modelId = "gemini-2.5-flash";
 
@@ -400,7 +400,7 @@ export const generateMnemonic = async (
   context?: string
 ): Promise<MnemonicResponse> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || "" });
     const modelId = "gemini-2.5-flash";
 
     const systemInstruction = `
