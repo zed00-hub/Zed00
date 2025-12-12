@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { extractTextFromPDF } from '../utils/pdfUtils';
 import { useNavigate } from 'react-router-dom';
+import { analyzeImage } from '../services/geminiService';
 
 const AdminPanel: React.FC = () => {
     const { user } = useAuth();
@@ -57,6 +58,8 @@ const AdminPanel: React.FC = () => {
     const [knowledgeTitle, setKnowledgeTitle] = useState('');
     const [knowledgeContent, setKnowledgeContent] = useState('');
     const [knowledgeCategory, setKnowledgeCategory] = useState('general_info');
+    const [knowledgeComment, setKnowledgeComment] = useState('');
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
 
     useEffect(() => {
         // Redirect if not admin
@@ -189,6 +192,32 @@ const AdminPanel: React.FC = () => {
     const getCategoryLabel = (categoryId: string) => {
         const cat = COURSE_CATEGORIES.find(c => c.id === categoryId);
         return cat?.labelAr || 'أخرى';
+    };
+
+    const handleKnowledgeFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsAnalyzing(true);
+        try {
+            let content = "";
+            if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+                content = await extractTextFromPDF(file);
+            } else if (file.type.startsWith('image/')) {
+                content = await analyzeImage(file);
+            } else {
+                content = await file.text();
+            }
+
+            setKnowledgeContent(content);
+            setKnowledgeTitle(file.name.replace(/\.[^/.]+$/, "")); // Auto title
+        } catch (error) {
+            console.error("Knowledge upload error:", error);
+            alert("فشل تحليل الملف: " + error);
+        } finally {
+            setIsAnalyzing(false);
+        }
+        e.target.value = '';
     };
 
     // --- Format Helper ---
@@ -535,8 +564,43 @@ const AdminPanel: React.FC = () => {
                                         </select>
                                     </div>
 
+                                    <div className="mb-4">
+                                        <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
+                                            {isAnalyzing ? (
+                                                <div className="flex flex-col items-center text-amber-500">
+                                                    <Loader2 className="w-8 h-8 animate-spin mb-2" />
+                                                    <span className="text-sm font-bold">جاري تحليل الملف/الصورة...</span>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                                                    <span className="text-sm font-bold text-gray-600 dark:text-gray-300">اضغط لرفع ملف أو صورة</span>
+                                                    <span className="text-xs text-gray-400 mt-1">PDF, TXT, Images (مع تحليل ذكي)</span>
+                                                </>
+                                            )}
+                                            <input
+                                                type="file"
+                                                accept=".pdf,.txt,.md,.json,image/*"
+                                                onChange={handleKnowledgeFileUpload}
+                                                disabled={isAnalyzing}
+                                                className="hidden"
+                                            />
+                                        </label>
+                                    </div>
+
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">المحتوى</label>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">تعليق إضافي (اختياري)</label>
+                                        <input
+                                            type="text"
+                                            value={knowledgeComment}
+                                            onChange={(e) => setKnowledgeComment(e.target.value)}
+                                            placeholder="أضف ملاحظة أو سياق لهذا المحتوى..."
+                                            className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 transition-all"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">المحتوى (تم تحليله تلقائياً)</label>
                                         <textarea
                                             value={knowledgeContent}
                                             onChange={(e) => setKnowledgeContent(e.target.value)}
@@ -552,10 +616,14 @@ const AdminPanel: React.FC = () => {
                                                 if (!knowledgeTitle.trim() || !knowledgeContent.trim()) return;
                                                 setSaveStatus('saving');
                                                 try {
+                                                    const finalContent = knowledgeComment.trim()
+                                                        ? `[ملاحظة: ${knowledgeComment.trim()}]\n\n${knowledgeContent.trim()}`
+                                                        : knowledgeContent.trim();
+
                                                     await saveKnowledgeEntry({
                                                         id: editingKnowledge?.id || `knowledge-${Date.now()}`,
                                                         title: knowledgeTitle.trim(),
-                                                        content: knowledgeContent.trim(),
+                                                        content: finalContent,
                                                         category: knowledgeCategory,
                                                         createdAt: editingKnowledge?.createdAt || Date.now()
                                                     });
@@ -565,6 +633,7 @@ const AdminPanel: React.FC = () => {
                                                         setEditingKnowledge(null);
                                                         setKnowledgeTitle('');
                                                         setKnowledgeContent('');
+                                                        setKnowledgeComment('');
                                                         setSaveStatus('idle');
                                                         loadData();
                                                     }, 1000);

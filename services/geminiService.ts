@@ -460,3 +460,54 @@ export const generateMnemonic = async (
     throw new Error("Échec de la génération de la mnémonique.");
   }
 };
+
+// --- Image Analysis for Admin Panel ---
+
+export const analyzeImage = async (imageFile: File): Promise<string> => {
+  try {
+    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || "" });
+    const modelId = "gemini-2.5-flash"; // Use generic model with vision capabilities
+
+    // Convert file to base64
+    const base64Data = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        // Remove data URL prefix (e.g., "data:image/jpeg;base64,")
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(imageFile);
+    });
+
+    const result = await ai.models.generateContent({
+      model: modelId,
+      config: {
+        systemInstruction: {
+          role: 'system',
+          parts: [{ text: "Tu es un assistant expert chargé d'analyser des images médicales ou éducatives pour une base de connaissances. Décris l'image en détail, en français, en te concentrant sur les informations utiles pour un étudiant paramédical." }]
+        }
+      },
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              inlineData: {
+                mimeType: imageFile.type,
+                data: base64Data
+              }
+            },
+            { text: "Analyse cette image en détail pour la base de connaissances." }
+          ]
+        }
+      ]
+    });
+
+    return result.text || "Pas de description.";
+  } catch (error) {
+    console.error("Image Analysis Error:", error);
+    throw new Error("Fermez l'analyse de l'image. / فشل تحليل الصورة.");
+  }
+};
