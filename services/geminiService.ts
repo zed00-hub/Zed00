@@ -292,7 +292,7 @@ export const generateQuiz = async (
   try {
     const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || "" });
     // Use flash model for speed and cost efficiency
-    const modelId = "gemini-2.5-flash";
+    const modelId = "gemini-1.5-flash";
 
     let sourceContext = "";
     let filePart: Part | undefined;
@@ -401,7 +401,7 @@ export const generateMnemonic = async (
 ): Promise<MnemonicResponse> => {
   try {
     const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || "" });
-    const modelId = "gemini-2.5-flash";
+    const modelId = "gemini-1.5-flash";
 
     const systemInstruction = `
       Rôle: Expert en Mnémonique Médicale et Pédagogie (Créditeur de phrases mémo-techniques).
