@@ -9,6 +9,22 @@ export interface FileContext {
   category?: string;
 }
 
+// Quiz Result Data for storing quiz results in chat messages
+export interface QuizResultQuestion {
+  questionText: string;
+  userAnswer: string;
+  correctAnswer: string;
+  isCorrect: boolean;
+}
+
+export interface QuizResultData {
+  subjectName: string;
+  score: number;
+  totalQuestions: number;
+  percentage: number;
+  questions: QuizResultQuestion[];
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'model';
@@ -16,6 +32,8 @@ export interface Message {
   timestamp: number;
   isError?: boolean;
   attachments?: string[]; // Array of Data URLs (images)
+  type?: 'text' | 'quiz_result'; // Message type, defaults to 'text'
+  quizResultData?: QuizResultData; // Structured data for quiz results
 }
 
 export interface ChatSession {

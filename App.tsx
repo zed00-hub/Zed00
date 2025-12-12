@@ -4,7 +4,7 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import FileSidebar from './components/FileSidebar';
 import ChatArea from './components/ChatArea';
 import LoginPage from './components/LoginPage';
-import { FileContext, Message, ChatSession, QuizSession } from './types';
+import { FileContext, Message, ChatSession, QuizSession, QuizResultData } from './types';
 import { generateResponseStream, BotSettings } from './services/geminiService';
 import { ZGLogo, SunIcon, MoonIcon, LoadingIcon } from './components/Icons';
 import { BookOpen, MessageSquare, Sparkles, Settings } from 'lucide-react';
@@ -267,6 +267,23 @@ const AppContent: React.FC = () => {
       });
     });
   };
+
+  // --- Save Quiz Result to Chat History ---
+  const saveQuizResultToChat = useCallback((quizResult: QuizResultData) => {
+    // Create a quiz result message
+    const quizResultMessage: Message = {
+      id: Date.now().toString(),
+      role: 'model',
+      content: `📊 نتيجة الاختبار: ${quizResult.subjectName}\nالنقاط: ${quizResult.score}/${quizResult.totalQuestions} (${quizResult.percentage}%)`,
+      timestamp: Date.now(),
+      type: 'quiz_result',
+      quizResultData: quizResult
+    };
+
+    // Add to current chat session
+    const updatedMessages = [...messages, quizResultMessage];
+    updateCurrentSessionMessages(updatedMessages);
+  }, [messages, currentSessionId, user?.id]);
 
   // --- Quiz Session Management ---
 
@@ -670,6 +687,7 @@ const AppContent: React.FC = () => {
                       files={files}
                       activeQuizSession={activeQuiz}
                       onQuizUpdate={updateQuizSession}
+                      onSaveQuizResult={saveQuizResultToChat}
                     />
                   </div>
                   {/* Mobile Sidebar Toggle for Quiz Mode */}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { QuizConfig, QuizState, FileContext, QuizQuestion, QuizSession } from '../../types';
+import { QuizConfig, QuizState, FileContext, QuizQuestion, QuizSession, QuizResultData } from '../../types';
 import { generateQuiz } from '../../services/geminiService';
 import QuizSetup from './QuizSetup';
 import QuizActive from './QuizActive';
@@ -10,9 +10,10 @@ interface QuizContainerProps {
     files: FileContext[];
     activeQuizSession?: QuizSession | null;
     onQuizUpdate?: (session: QuizSession | null) => void;
+    onSaveQuizResult?: (quizResult: QuizResultData) => void; // Callback to save quiz result to chat
 }
 
-const QuizContainer: React.FC<QuizContainerProps> = ({ files, activeQuizSession, onQuizUpdate }) => {
+const QuizContainer: React.FC<QuizContainerProps> = ({ files, activeQuizSession, onQuizUpdate, onSaveQuizResult }) => {
     const [state, setState] = useState<QuizState>({
         isActive: false,
         config: null,
@@ -164,6 +165,8 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ files, activeQuizSession,
     const handleFinish = () => {
         // Calculate score
         let score = 0;
+        const questionResults: QuizResultData['questions'] = [];
+
         state.questions.forEach(q => {
             const userAns = state.userAnswers[q.id] || [];
             const correctAns = q.correctAnswers || [];
@@ -172,9 +175,18 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ files, activeQuizSession,
             const sortedUser = [...userAns].sort();
             const sortedCorrect = [...correctAns].sort();
 
-            if (JSON.stringify(sortedUser) === JSON.stringify(sortedCorrect)) {
+            const isCorrect = JSON.stringify(sortedUser) === JSON.stringify(sortedCorrect);
+            if (isCorrect) {
                 score++;
             }
+
+            // Build question result for chat history
+            questionResults.push({
+                questionText: q.question,
+                userAnswer: userAns.map(idx => q.options[idx]).join(', ') || 'لم يتم الإجابة',
+                correctAnswer: correctAns.map(idx => q.options[idx]).join(', '),
+                isCorrect
+            });
         });
 
         const newState = {
@@ -185,6 +197,24 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ files, activeQuizSession,
         };
 
         setState(newState);
+
+        // Calculate percentage
+        const percentage = Math.round((score / state.questions.length) * 100);
+
+        // Get subject name for the quiz result
+        const subjectName = state.config?.subject || state.config?.fileContext?.name || 'اختبار';
+
+        // Save quiz result to chat history
+        if (onSaveQuizResult) {
+            const quizResultData: QuizResultData = {
+                subjectName,
+                score,
+                totalQuestions: state.questions.length,
+                percentage,
+                questions: questionResults
+            };
+            onSaveQuizResult(quizResultData);
+        }
 
         if (onQuizUpdate && activeQuizSession) {
             // Update title with score
