@@ -6,6 +6,7 @@ export interface FileContext {
   data?: string; // Base64 string, optional for pre-loaded text files
   content?: string; // Raw text content for pre-loaded files
   size: number;
+  category?: string;
 }
 
 export interface Message {

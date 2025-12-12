@@ -24,6 +24,9 @@ export const isAdmin = (email: string | undefined): boolean => {
 
 // Course categories for organization
 export const COURSE_CATEGORIES = [
+    { id: 'general_info', label: 'Informations Générales', labelAr: 'معلومات عامة' },
+    { id: 'specialties', label: 'Spécialités Paramédicales', labelAr: 'التخصصات شبه الطبية' },
+    { id: 'laws', label: 'Lois et Règlements', labelAr: 'القوانين والأنظمة' },
     { id: 'anatomy', label: 'Anatomie-Physiologie', labelAr: 'التشريح والفيزيولوجيا' },
     { id: 'terminology', label: 'Terminologie Médicale', labelAr: 'المصطلحات الطبية' },
     { id: 'legislation', label: 'Législation / Textes Juridiques', labelAr: 'التشريع والنصوص القانونية' },

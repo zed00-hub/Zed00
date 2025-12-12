@@ -42,6 +42,16 @@ const selectRelevantFiles = (query: string, files: FileContext[]): FileContext[]
     'صحة': ['santé publique'],
     'psycho': ['psychologie', 'anthropologie'],
     'نفس': ['psychologie'],
+    // New Categories
+    'loi': ['laws', 'legislation', 'juridique', 'règlement'],
+    'droit': ['laws', 'legislation', 'juridique'],
+    'قانون': ['laws', 'legislation', 'juridique'],
+    'تشريع': ['laws', 'legislation', 'juridique'],
+    'spécialité': ['specialties', 'paramédical'],
+    'filière': ['specialties'],
+    'تخصص': ['specialties'],
+    'info': ['general_info'],
+    'معلومات': ['general_info'],
   };
 
   // Find matching keywords
@@ -62,8 +72,13 @@ const selectRelevantFiles = (query: string, files: FileContext[]): FileContext[]
   const relevantFiles = files.filter(file => {
     const nameLower = file.name.toLowerCase();
     const contentLower = file.content?.toLowerCase() || '';
+    const categoryLower = file.category?.toLowerCase() || '';
+
     return relevantTerms.some(term =>
-      nameLower.includes(term) || contentLower.includes(term)
+      nameLower.includes(term) ||
+      contentLower.includes(term) ||
+      categoryLower.includes(term) ||
+      (file.category === term) // Direct category match
     );
   });
 
