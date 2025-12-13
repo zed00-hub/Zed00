@@ -16,6 +16,8 @@ interface ChatAreaProps {
   onRemoveAttachment?: (index: number) => void;
   isDarkMode: boolean;
   toggleTheme: () => void;
+  onEditMessage?: (messageId: string, newContent: string) => void;
+  onNavigateVersion?: (messageId: string, direction: 'prev' | 'next') => void;
 }
 
 const ChatArea: React.FC<ChatAreaProps> = ({
@@ -30,7 +32,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   pendingAttachments = [],
   onRemoveAttachment,
   isDarkMode,
-  toggleTheme
+  toggleTheme,
+  onEditMessage,
+  onNavigateVersion
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -146,7 +150,12 @@ const ChatArea: React.FC<ChatAreaProps> = ({
           </div>
         ) : (
           messages.map((msg) => (
-            <MessageBubble key={msg.id} msg={msg} />
+            <MessageBubble
+              key={msg.id}
+              msg={msg}
+              onEdit={onEditMessage}
+              onNavigateVersion={onNavigateVersion}
+            />
           ))
         )}
 

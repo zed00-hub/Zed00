@@ -4,7 +4,7 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import FileSidebar from './components/FileSidebar';
 import ChatArea from './components/ChatArea';
 import LoginPage from './components/LoginPage';
-import { FileContext, Message, ChatSession, QuizSession } from './types';
+import { FileContext, Message, ChatSession, QuizSession, MessageVersion } from './types';
 import { generateResponseStream, BotSettings } from './services/geminiService';
 import { ZGLogo, SunIcon, MoonIcon, LoadingIcon } from './components/Icons';
 import { BookOpen, MessageSquare, Sparkles, Settings } from 'lucide-react';
@@ -508,6 +508,190 @@ const AppContent: React.FC = () => {
     }
   };
 
+  // --- Message Edit Handler ---
+  const handleEditMessage = async (messageId: string, newContent: string) => {
+    if (isProcessing) return; // Prevent editing during generation
+
+    const messageIndex = messages.findIndex(m => m.id === messageId);
+    if (messageIndex === -1 || messages[messageIndex].role !== 'user') return;
+
+    const originalMessage = messages[messageIndex];
+
+    // Mark message as edited and preserve original content
+    const editedMessage: Message = {
+      ...originalMessage,
+      content: newContent,
+      isEdited: true,
+      originalContent: originalMessage.originalContent || originalMessage.content,
+    };
+
+    // Get the bot response that followed this user message (if exists)
+    const botResponseIndex = messageIndex + 1;
+    const existingBotResponse = messages[botResponseIndex];
+
+    // Keep all messages up to user message, replace user message with edited version
+    const messagesBeforeBot = [...messages.slice(0, messageIndex), editedMessage];
+
+    // Remove old bot response temporarily
+    const messagesWithoutOldBot = messagesBeforeBot;
+
+    // Update UI immediately with edited message
+    updateCurrentSessionMessages(messagesWithoutOldBot);
+
+    // Start processing new response
+    setIsProcessing(true);
+
+    // Create new bot message
+    const newBotMessageId = Date.now().toString();
+    const newBotMessage: Message = {
+      id: existingBotResponse?.id || newBotMessageId, // Reuse ID if editing
+      role: 'model',
+      content: '',
+      timestamp: Date.now()
+    };
+
+    // Initialize edit history for bot response
+    if (existingBotResponse) {
+      // Preserve all previous versions
+      const previousVersions: MessageVersion[] = existingBotResponse.editedVersions || [
+        {
+          content: existingBotResponse.originalContent || existingBotResponse.content,
+          timestamp: existingBotResponse.timestamp
+        }
+      ];
+
+      // Add current content as another version if not already there
+      if (existingBotResponse.content !== existingBotResponse.originalContent) {
+        previousVersions.push({
+          content: existingBotResponse.content,
+          timestamp: existingBotResponse.timestamp
+        });
+      }
+
+      newBotMessage.editedVersions = previousVersions;
+      newBotMessage.originalContent = existingBotResponse.originalContent || existingBotResponse.content;
+      newBotMessage.isEdited = true;
+      newBotMessage.currentVersionIndex = previousVersions.length; // Point to new version
+    }
+
+    const messagesWithNewBot = [...messagesWithoutOldBot, newBotMessage];
+    updateCurrentSessionMessages(messagesWithNewBot);
+
+    // Create abort controller
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
+    try {
+      let streamedContent = '';
+      let wasAborted = false;
+
+      signal.addEventListener('abort', () => {
+        wasAborted = true;
+      });
+
+      // Get message history before the edited message for context
+      const historyForRegeneration = messages.slice(0, messageIndex);
+
+      await generateResponseStream(
+        newContent,
+        files,
+        historyForRegeneration,
+        (chunk) => {
+          if (wasAborted) return;
+
+          streamedContent += chunk;
+          const updatedBot: Message = {
+            ...newBotMessage,
+            content: streamedContent
+          };
+          updateCurrentSessionMessages([...messagesWithoutOldBot, updatedBot]);
+        },
+        settings
+      );
+
+      if (!wasAborted) {
+        const finalBot: Message = {
+          ...newBotMessage,
+          content: streamedContent || 'عذراً، لم أتمكن من إنشاء إجابة.'
+        };
+
+        // Add new response as latest version
+        if (finalBot.editedVersions) {
+          finalBot.editedVersions.push({
+            content: finalBot.content,
+            timestamp: Date.now()
+          });
+          finalBot.currentVersionIndex = finalBot.editedVersions.length - 1;
+        }
+
+        updateCurrentSessionMessages([...messagesWithoutOldBot, finalBot]);
+      }
+
+    } catch (error: any) {
+      if (error?.name === 'AbortError' || signal.aborted) {
+        console.log('Regeneration stopped by user');
+        return;
+      }
+
+      console.error('Regeneration error:', error);
+
+      const errorMessage: Message = {
+        id: newBotMessageId,
+        role: 'model',
+        content: 'عذراً، حدث خطأ أثناء إعادة التوليد.',
+        timestamp: Date.now(),
+        isError: true
+      };
+      updateCurrentSessionMessages([...messagesWithoutOldBot, errorMessage]);
+    } finally {
+      abortControllerRef.current = null;
+      setIsProcessing(false);
+    }
+  };
+
+  // --- Version Navigation Handler ---
+  const handleNavigateVersion = (messageId: string, direction: 'prev' | 'next') => {
+    setSessions(prev => {
+      return prev.map(session => {
+        if (session.id === currentSessionId) {
+          const updatedMessages = session.messages.map(msg => {
+            if (msg.id === messageId && msg.editedVersions) {
+              const currentIndex = msg.currentVersionIndex ?? 0;
+              const totalVersions = msg.editedVersions.length;
+
+              let newIndex = currentIndex;
+              if (direction === 'prev' && currentIndex > 0) {
+                newIndex = currentIndex - 1;
+              } else if (direction === 'next' && currentIndex < totalVersions - 1) {
+                newIndex = currentIndex + 1;
+              }
+
+              return {
+                ...msg,
+                content: msg.editedVersions[newIndex].content,
+                currentVersionIndex: newIndex
+              };
+            }
+            return msg;
+          });
+
+          const updatedSession = {
+            ...session,
+            messages: updatedMessages,
+            timestamp: Date.now()
+          };
+
+          if (user?.id) {
+            saveSessionToFirestore(user.id, updatedSession);
+          }
+
+          return updatedSession;
+        }
+        return session;
+      });
+    });
+  };
+
   if (isAuthLoading || (user && !isDataLoaded)) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-gray-50 dark:bg-gray-900">
@@ -674,6 +858,8 @@ const AppContent: React.FC = () => {
                   onRemoveAttachment={removePendingAttachment}
                   isDarkMode={isDarkMode}
                   toggleTheme={toggleTheme}
+                  onEditMessage={handleEditMessage}
+                  onNavigateVersion={handleNavigateVersion}
                 />
               }
             />

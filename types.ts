@@ -25,6 +25,11 @@ export interface QuizResultData {
   questions: QuizResultQuestion[];
 }
 
+export interface MessageVersion {
+  content: string;
+  timestamp: number;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'model';
@@ -34,6 +39,11 @@ export interface Message {
   attachments?: string[]; // Array of Data URLs (images)
   type?: 'text' | 'quiz_result'; // Message type, defaults to 'text'
   quizResultData?: QuizResultData; // Structured data for quiz results
+  // Edit history tracking
+  isEdited?: boolean; // Whether message has been edited
+  originalContent?: string; // Original content before first edit
+  editedVersions?: MessageVersion[]; // History of all edits (including responses)
+  currentVersionIndex?: number; // Current version being displayed (for navigation)
 }
 
 export interface ChatSession {
