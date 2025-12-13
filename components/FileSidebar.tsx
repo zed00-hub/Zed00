@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { FileContext, ChatSession, QuizSession } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { FileIcon, TrashIcon, CloseIcon, BookOpen, SearchIcon, PlusIcon, ChatIcon, LayersIcon, EditIcon, CheckIcon, XIcon, LogOutIcon } from './Icons';
-import { Sparkles, Settings, Crown, Sun, Moon } from 'lucide-react';
+import { Sparkles, Settings, Crown, Sun, Moon, ClipboardList } from 'lucide-react';
 import { formatFileSize } from '../utils/fileHelpers';
 
 interface SidebarProps {
@@ -29,8 +29,8 @@ interface SidebarProps {
   onRenameQuiz: (id: string, newTitle: string) => void;
 
   // App Mode
-  appMode: 'chat' | 'quiz' | 'mnemonics';
-  onModeChange: (mode: 'chat' | 'quiz' | 'mnemonics') => void;
+  appMode: 'chat' | 'quiz' | 'mnemonics' | 'checklist';
+  onModeChange: (mode: 'chat' | 'quiz' | 'mnemonics' | 'checklist') => void;
 
   // Theme & Settings
   isDarkMode: boolean;
@@ -211,6 +211,27 @@ const FileSidebar: React.FC<SidebarProps> = ({
           </button>
 
 
+        </div>
+
+
+
+        {/* Afriha Tool (Checklist) */}
+        <div className="px-5 pt-3 pb-0">
+          <button
+            onClick={() => {
+              onModeChange('checklist');
+              if (window.innerWidth < 768) onClose();
+            }}
+            className={`w-full flex items-center justify-center gap-3 py-3 rounded-2xl transition-all shadow-sm active:scale-95 border-2 ${appMode === 'checklist'
+              ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-500 text-teal-600 dark:text-teal-400'
+              : 'bg-white dark:bg-dark-surface border-gray-200 dark:border-gray-700 text-gray-500 hover:border-teal-300 dark:hover:border-teal-700'
+              }`}
+          >
+            <div className="p-1.5 bg-gradient-to-br from-teal-100 to-cyan-100 dark:from-teal-900/40 dark:to-cyan-900/40 rounded-lg shadow-sm">
+              <ClipboardList size={18} className="text-teal-600 dark:text-teal-400" />
+            </div>
+            <span className="text-sm font-bold">Afriha (Checklist)</span>
+          </button>
         </div>
 
         {/* Mnemonics Tool */}

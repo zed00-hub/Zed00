@@ -4,15 +4,16 @@ import remarkGfm from 'remark-gfm';
 import { Message } from '../types';
 import { UserIcon, ZGLogo } from './Icons';
 import QuizResultBubble from './QuizResultBubble';
-import { Edit2, Copy, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { Edit2, Copy, ChevronLeft, ChevronRight, Check, RefreshCw } from 'lucide-react';
 
 interface MessageBubbleProps {
     msg: Message;
     onEdit?: (messageId: string, newContent: string) => void;
     onNavigateVersion?: (messageId: string, direction: 'prev' | 'next') => void;
+    onContinue?: (messageId: string) => void;
 }
 
-const MessageBubble: React.FC<MessageBubbleProps> = ({ msg, onEdit, onNavigateVersion }) => {
+const MessageBubble: React.FC<MessageBubbleProps> = ({ msg, onEdit, onNavigateVersion, onContinue }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editedText, setEditedText] = useState(msg.content);
     const [copied, setCopied] = useState(false);
@@ -63,8 +64,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ msg, onEdit, onNavigateVe
             </div>
 
             {/* Bubble */}
-            <div className="flex-1 flex flex-col gap-2">
-                <div className={`max-w-[95%] md:max-w-[85%] rounded-3xl shadow-xl backdrop-blur-sm relative ${isQuizResult
+            <div className="flex flex-col gap-2" style={{ maxWidth: msg.role === 'user' ? 'fit-content' : '85%' }}>
+                <div className={`rounded-3xl shadow-xl backdrop-blur-sm relative ${isQuizResult
                     ? 'p-0 overflow-hidden'
                     : `p-5 ${msg.role === 'user'
                         ? 'bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-br-md shadow-indigo-200/50 dark:shadow-indigo-900/30'
@@ -218,6 +219,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ msg, onEdit, onNavigateVe
                                     <ChevronLeft className="w-4 h-4" />
                                 </button>
                             </div>
+                        )}
+
+                        {/* Continue Button - For model messages that may be incomplete */}
+                        {msg.role === 'model' && onContinue && !msg.isError && (
+                            <button
+                                onClick={() => onContinue(msg.id)}
+                                className="p-2 rounded-lg bg-medical-100 dark:bg-medical-900/40 hover:bg-medical-200 dark:hover:bg-medical-800/60 text-medical-700 dark:text-medical-300 transition-all hover:scale-110 flex items-center gap-1"
+                                title="إكمال الرد"
+                            >
+                                <RefreshCw className="w-4 h-4" />
+                                <span className="text-xs hidden sm:inline">أكمل</span>
+                            </button>
                         )}
 
                         {/* Edited Indicator */}

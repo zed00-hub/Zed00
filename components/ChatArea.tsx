@@ -18,6 +18,7 @@ interface ChatAreaProps {
   toggleTheme: () => void;
   onEditMessage?: (messageId: string, newContent: string) => void;
   onNavigateVersion?: (messageId: string, direction: 'prev' | 'next') => void;
+  onContinueResponse?: (messageId: string) => void;
 }
 
 const ChatArea: React.FC<ChatAreaProps> = ({
@@ -34,7 +35,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   isDarkMode,
   toggleTheme,
   onEditMessage,
-  onNavigateVersion
+  onNavigateVersion,
+  onContinueResponse
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -155,6 +157,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
               msg={msg}
               onEdit={onEditMessage}
               onNavigateVersion={onNavigateVersion}
+              onContinue={onContinueResponse}
             />
           ))
         )}

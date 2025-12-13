@@ -124,3 +124,21 @@ export interface MnemonicResponse {
   explanation: string;
   funFact?: string;
 }
+
+// --- Checklist Types (Afriha Tool) ---
+
+export interface ChecklistItem {
+  id: string;
+  title: string;
+  description?: string;
+  isCompleted: boolean;
+  subItems?: ChecklistItem[];
+}
+
+export interface ChecklistResponse {
+  title: string;
+  summary: string;
+  items: ChecklistItem[];
+  estimatedTime?: string;
+  tips?: string[];
+}

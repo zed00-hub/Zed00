@@ -564,3 +564,102 @@ export const analyzeImage = async (imageFile: File): Promise<string> => {
     throw new Error("Fermez l'analyse de l'image. / فشل تحليل الصورة.");
   }
 };
+
+// --- Checklist Generation Service (Afriha Tool) ---
+
+import { ChecklistResponse, ChecklistItem } from "../types";
+
+export const generateChecklist = async (
+  lessonContent: string,
+  lessonTitle?: string
+): Promise<ChecklistResponse> => {
+  try {
+    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || "" });
+    const modelId = "gemini-2.5-flash";
+
+    const systemInstruction = `
+      Rôle: Expert pédagogique spécialisé dans la création de check-lists d'étude pour étudiants paramédicaux.
+      Objectif: Transformer un cours/leçon en une liste de tâches claire et actionnable pour aider l'étudiant à organiser sa révision.
+      
+      RÈGLES:
+      1. Analyser le contenu fourni et identifier les concepts clés, chapitres, ou sujets principaux.
+      2. Créer des tâches spécifiques et réalisables (pas trop générales).
+      3. Organiser les tâches de manière logique (du simple au complexe).
+      4. Ajouter des sous-tâches si nécessaire pour les concepts complexes.
+      5. Estimer le temps total nécessaire pour compléter toutes les tâches.
+      6. Fournir des conseils pratiques pour la révision.
+      
+      LANGUE: Répondre en Français avec termes médicaux appropriés.
+      
+      FORMAT DE SORTIE (STRICT JSON):
+      {
+        "title": "Titre du cours",
+        "summary": "Résumé bref du contenu (1-2 phrases)",
+        "items": [
+          {
+            "id": "1",
+            "title": "Tâche principale",
+            "description": "Description optionnelle plus détaillée",
+            "isCompleted": false,
+            "subItems": [
+              {
+                "id": "1.1",
+                "title": "Sous-tâche",
+                "isCompleted": false
+              }
+            ]
+          }
+        ],
+        "estimatedTime": "2-3 heures",
+        "tips": ["Conseil 1", "Conseil 2"]
+      }
+    `;
+
+    const prompt = `
+      Titre du cours: "${lessonTitle || 'Cours médical'}"
+      
+      Contenu à analyser:
+      ${lessonContent.substring(0, 25000)}
+      
+      Génère une check-list d'étude complète maintenant.
+    `;
+
+    const result = await ai.models.generateContent({
+      model: modelId,
+      config: {
+        systemInstruction: systemInstruction,
+        temperature: 0.4,
+        responseMimeType: "application/json",
+      },
+      contents: [{ role: 'user', parts: [{ text: prompt }] }]
+    });
+
+    const responseText = result.text;
+    if (!responseText) throw new Error("Réponse vide");
+
+    const parsed = JSON.parse(responseText);
+
+    // Ensure all items have isCompleted: false
+    const processItems = (items: any[]): ChecklistItem[] => {
+      return items.map((item, idx) => ({
+        id: item.id || `${idx + 1}`,
+        title: item.title,
+        description: item.description,
+        isCompleted: false,
+        subItems: item.subItems ? processItems(item.subItems) : undefined
+      }));
+    };
+
+    return {
+      title: parsed.title || lessonTitle || 'Check-list d\'étude',
+      summary: parsed.summary || '',
+      items: processItems(parsed.items || []),
+      estimatedTime: parsed.estimatedTime,
+      tips: parsed.tips
+    };
+
+  } catch (error) {
+    console.error("Checklist Generation Error:", error);
+    throw new Error("Échec de la génération de la check-list. / فشل إنشاء قائمة المهام.");
+  }
+};

@@ -7,9 +7,10 @@ import LoginPage from './components/LoginPage';
 import { FileContext, Message, ChatSession, QuizSession, MessageVersion } from './types';
 import { generateResponseStream, BotSettings } from './services/geminiService';
 import { ZGLogo, SunIcon, MoonIcon, LoadingIcon } from './components/Icons';
-import { BookOpen, MessageSquare, Sparkles, Settings } from 'lucide-react';
+import { BookOpen, MessageSquare, Sparkles, Settings, ClipboardList } from 'lucide-react';
 import QuizContainer from './components/Quiz/QuizContainer';
 import MnemonicsContainer from './components/Mnemonics/MnemonicsContainer';
+import ChecklistContainer from './components/Checklist/ChecklistContainer';
 import { fileToBase64 } from './utils/fileHelpers';
 import { INITIAL_COURSES } from './data/courses';
 import { useAuth } from './contexts/AuthContext';
@@ -28,11 +29,12 @@ const AppContent: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const appMode = location.pathname.includes('quiz') ? 'quiz' : (location.pathname.includes('mnemonics') ? 'mnemonics' : 'chat');
+  const appMode = location.pathname.includes('quiz') ? 'quiz' : (location.pathname.includes('mnemonics') ? 'mnemonics' : (location.pathname.includes('checklist') ? 'checklist' : 'chat'));
 
-  const handleModeChange = (mode: 'chat' | 'quiz' | 'mnemonics') => {
+  const handleModeChange = (mode: 'chat' | 'quiz' | 'mnemonics' | 'checklist') => {
     if (mode === 'chat') navigate('/conversation');
     else if (mode === 'quiz') navigate('/quiz');
+    else if (mode === 'checklist') navigate('/checklist');
     else navigate('/mnemonics');
   };
 
@@ -692,6 +694,84 @@ const AppContent: React.FC = () => {
     });
   };
 
+  // --- Continue Response Handler ---
+  const handleContinueResponse = async (messageId: string) => {
+    if (isProcessing) return;
+
+    const messageIndex = messages.findIndex(m => m.id === messageId);
+    if (messageIndex === -1 || messages[messageIndex].role !== 'model') return;
+
+    const targetMessage = messages[messageIndex];
+
+    // Find the user message that preceded this response
+    let userMessageIndex = messageIndex - 1;
+    while (userMessageIndex >= 0 && messages[userMessageIndex].role !== 'user') {
+      userMessageIndex--;
+    }
+
+    const userMessage = userMessageIndex >= 0 ? messages[userMessageIndex] : null;
+    if (!userMessage) return;
+
+    setIsProcessing(true);
+
+    // Create prompt to continue the response
+    const continuePrompt = `أكمل إجابتك السابقة من حيث توقفت. الإجابة السابقة كانت:
+---
+${targetMessage.content}
+---
+أكمل من حيث توقفت بدون تكرار ما قيل.`;
+
+    // Create abort controller
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
+    try {
+      let streamedContent = targetMessage.content;
+      let wasAborted = false;
+
+      signal.addEventListener('abort', () => {
+        wasAborted = true;
+      });
+
+      // Get message history before the target message for context
+      const historyForContinuation = messages.slice(0, messageIndex);
+
+      await generateResponseStream(
+        continuePrompt,
+        files,
+        historyForContinuation,
+        (chunk) => {
+          if (wasAborted) return;
+
+          streamedContent += chunk;
+          const updatedMessages = messages.map((msg, idx) =>
+            idx === messageIndex ? { ...msg, content: streamedContent } : msg
+          );
+          updateCurrentSessionMessages(updatedMessages);
+        },
+        settings
+      );
+
+      if (!wasAborted) {
+        const finalMessages = messages.map((msg, idx) =>
+          idx === messageIndex ? { ...msg, content: streamedContent } : msg
+        );
+        updateCurrentSessionMessages(finalMessages);
+      }
+
+    } catch (error: any) {
+      if (error?.name === 'AbortError' || signal.aborted) {
+        console.log('Continue stopped by user');
+        return;
+      }
+
+      console.error('Continue error:', error);
+    } finally {
+      abortControllerRef.current = null;
+      setIsProcessing(false);
+    }
+  };
+
   if (isAuthLoading || (user && !isDataLoaded)) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-gray-50 dark:bg-gray-900">
@@ -838,6 +918,16 @@ const AppContent: React.FC = () => {
                 <Sparkles className="w-4 h-4" />
                 <span>حيل حفظية</span>
               </button>
+              <button
+                onClick={() => handleModeChange('checklist')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${appMode === 'checklist'
+                  ? 'bg-white dark:bg-dark-bg text-teal-600 shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
+                  }`}
+              >
+                <ClipboardList className="w-4 h-4" />
+                <span>Afriha</span>
+              </button>
             </div>
           </div>
 
@@ -860,6 +950,7 @@ const AppContent: React.FC = () => {
                   toggleTheme={toggleTheme}
                   onEditMessage={handleEditMessage}
                   onNavigateVersion={handleNavigateVersion}
+                  onContinueResponse={handleContinueResponse}
                 />
               }
             />
@@ -892,6 +983,23 @@ const AppContent: React.FC = () => {
                     <MnemonicsContainer />
                   </div>
                   {/* Mobile Sidebar Toggle for Mnemonics Mode */}
+                  <button
+                    onClick={() => setIsSidebarOpen(true)}
+                    className="md:hidden absolute top-4 right-4 p-2 rounded-lg bg-white/80 dark:bg-dark-surface/80 shadow-sm z-50 text-gray-500"
+                  >
+                    <ZGLogo />
+                  </button>
+                </div>
+              }
+            />
+            <Route
+              path="/checklist"
+              element={
+                <div className="flex-1 overflow-hidden relative">
+                  <div className="absolute inset-0">
+                    <ChecklistContainer />
+                  </div>
+                  {/* Mobile Sidebar Toggle for Checklist Mode */}
                   <button
                     onClick={() => setIsSidebarOpen(true)}
                     className="md:hidden absolute top-4 right-4 p-2 rounded-lg bg-white/80 dark:bg-dark-surface/80 shadow-sm z-50 text-gray-500"
