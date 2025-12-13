@@ -335,7 +335,7 @@ const FileSidebar: React.FC<SidebarProps> = ({
         </div >
 
         {/* Content Area */}
-        < div className="flex-1 overflow-y-auto px-3 py-3" >
+        < div className="flex-1 overflow-y-auto px-3 py-3 pb-20 custom-scrollbar" >
 
           {/* --- CHATS TAB --- */}
           {activeTab === 'chats' && (
