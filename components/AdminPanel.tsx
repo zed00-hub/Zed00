@@ -52,6 +52,9 @@ const AdminPanel: React.FC = () => {
     const [courseName, setCourseName] = useState('');
     const [courseContent, setCourseContent] = useState('');
     const [courseCategory, setCourseCategory] = useState('other');
+    const [formMode, setFormMode] = useState<'create' | 'append'>('create');
+    const [lessonTitle, setLessonTitle] = useState('');
+    const [selectedCourseId, setSelectedCourseId] = useState('');
 
     // Analytics State
     const [userStats, setUserStats] = useState<UserStats[]>([]);
@@ -167,24 +170,43 @@ const AdminPanel: React.FC = () => {
         setEditingCourse(null);
         setSaveStatus('idle');
         setShowContentPreview(true);
+        setLessonTitle('');
+        setSelectedCourseId('');
+        setFormMode('create');
     };
 
     const handleSaveCourse = async () => {
-        if (!courseName.trim() || !courseContent.trim()) return;
+        if (formMode === 'create' && (!courseName.trim() || !courseContent.trim())) return;
+        if (formMode === 'append' && (!selectedCourseId || !courseContent.trim())) return;
 
         setSaveStatus('saving');
         try {
-            const newCourse: CourseFile = {
-                id: editingCourse?.id || `course-${Date.now()}`,
-                name: courseName.trim(),
-                type: 'text/plain',
-                content: courseContent.trim(),
-                size: new Blob([courseContent]).size,
-                category: courseCategory,
-                createdAt: editingCourse?.createdAt || Date.now()
-            };
+            if (formMode === 'create') {
+                const newCourse: CourseFile = {
+                    id: editingCourse?.id || `course-${Date.now()}`,
+                    name: courseName.trim(),
+                    type: 'text/plain',
+                    content: courseContent.trim(),
+                    size: new Blob([courseContent]).size,
+                    category: courseCategory,
+                    createdAt: editingCourse?.createdAt || Date.now()
+                };
+                await saveCourseToFirestore(newCourse);
+            } else {
+                const courseToUpdate = courses.find(c => c.id === selectedCourseId);
+                if (!courseToUpdate) throw new Error("المادة غير موجودة");
 
-            await saveCourseToFirestore(newCourse);
+                const separator = `\n\n---\n**${lessonTitle || 'درس جديد'}**\n---\n\n`;
+                const newContent = courseToUpdate.content + separator + courseContent.trim();
+
+                const updatedCourse: CourseFile = {
+                    ...courseToUpdate,
+                    content: newContent,
+                    size: new Blob([newContent]).size
+                };
+                await saveCourseToFirestore(updatedCourse);
+            }
+
             setSaveStatus('success');
 
             setTimeout(() => {
@@ -215,6 +237,7 @@ const AdminPanel: React.FC = () => {
         setCourseName(course.name);
         setCourseContent(course.content || '');
         setCourseCategory(course.category || 'other');
+        setFormMode('create'); // Edit is essentially a "create" mode (full edit)
         setShowAddForm(true);
         setShowContentPreview(course.content.length < 1000);
     };
@@ -225,8 +248,15 @@ const AdminPanel: React.FC = () => {
 
         try {
             setIsExtractingPDF(true);
-            setShowAddForm(true);
-            setCourseName(file.name.replace(/\.[^/.]+$/, ""));
+            setIsExtractingPDF(true);
+            if (!showAddForm) setShowAddForm(true); // Ensure form is open if triggered externally
+
+            if (formMode === 'create') {
+                setCourseName(file.name.replace(/\.[^/.]+$/, ""));
+            } else {
+                setLessonTitle(file.name.replace(/\.[^/.]+$/, ""));
+            }
+
             setCourseContent('');
             setShowContentPreview(false);
 
@@ -374,7 +404,7 @@ const AdminPanel: React.FC = () => {
                             <div className="space-y-4 bg-white dark:bg-dark-surface p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
                                 <div className="flex items-center justify-between mb-4">
                                     <h3 className="font-bold text-gray-800 dark:text-gray-200 text-lg">
-                                        {editingCourse ? 'تعديل المادة' : 'إضافة مادة جديدة'}
+                                        {editingCourse ? 'تعديل المادة' : (formMode === 'create' ? 'إضافة مادة جديدة' : 'إضافة درس لمادة سابقة')}
                                     </h3>
                                     <button onClick={resetForm} className="text-sm text-gray-500 hover:text-gray-700">
                                         إلغاء
@@ -382,39 +412,75 @@ const AdminPanel: React.FC = () => {
                                 </div>
 
                                 {/* Inputs for Course (Same as before) */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">اسم المادة</label>
-                                    <input
-                                        type="text"
-                                        value={courseName}
-                                        onChange={(e) => setCourseName(e.target.value)}
-                                        className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 transition-all"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">التصنيف</label>
-                                    <select
-                                        value={courseCategory}
-                                        onChange={(e) => setCourseCategory(e.target.value)}
-                                        className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 transition-all"
-                                    >
-                                        {COURSE_CATEGORIES.map((cat) => (
-                                            <option key={cat.id} value={cat.id}>{cat.labelAr} - {cat.label}</option>
-                                        ))}
-                                    </select>
-                                </div>
+                                {formMode === 'create' ? (
+                                    <>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">اسم المادة</label>
+                                            <input
+                                                type="text"
+                                                value={courseName}
+                                                onChange={(e) => setCourseName(e.target.value)}
+                                                className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 transition-all"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">التصنيف</label>
+                                            <select
+                                                value={courseCategory}
+                                                onChange={(e) => setCourseCategory(e.target.value)}
+                                                className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 transition-all"
+                                            >
+                                                {COURSE_CATEGORIES.map((cat) => (
+                                                    <option key={cat.id} value={cat.id}>{cat.labelAr} - {cat.label}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">اختر المادة</label>
+                                            <select
+                                                value={selectedCourseId}
+                                                onChange={(e) => setSelectedCourseId(e.target.value)}
+                                                className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 transition-all"
+                                            >
+                                                <option value="">اختر مادة من القائمة...</option>
+                                                {courses.map((course) => (
+                                                    <option key={course.id} value={course.id}>{course.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">عنوان الدرس (اختياري)</label>
+                                            <input
+                                                type="text"
+                                                value={lessonTitle}
+                                                onChange={(e) => setLessonTitle(e.target.value)}
+                                                placeholder="مثال: درس القلعة العصبية"
+                                                className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 transition-all"
+                                            />
+                                        </div>
+                                    </>
+                                )}
 
                                 <div>
                                     <div className="flex items-center justify-between mb-2">
                                         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">المحتوى</label>
-                                        <button
-                                            onClick={() => setShowContentPreview(!showContentPreview)}
-                                            className="text-xs text-amber-500 hover:text-amber-600 flex items-center gap-1"
-                                            disabled={isExtractingPDF}
-                                        >
-                                            {showContentPreview ? <><EyeOff size={14} /> إخفاء</> : <><Eye size={14} /> عرض</>}
-                                        </button>
+                                        <div className="flex gap-2">
+                                            <label className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded cursor-pointer flex items-center gap-1 text-gray-600 dark:text-gray-300 transition-colors">
+                                                <Upload size={12} />
+                                                <span>رفع ملف</span>
+                                                <input type="file" accept=".pdf,.docx,.txt,.md" onChange={handleFileUpload} className="hidden" />
+                                            </label>
+                                            <button
+                                                onClick={() => setShowContentPreview(!showContentPreview)}
+                                                className="text-xs text-amber-500 hover:text-amber-600 flex items-center gap-1"
+                                                disabled={isExtractingPDF}
+                                            >
+                                                {showContentPreview ? <><EyeOff size={14} /> إخفاء</> : <><Eye size={14} /> عرض</>}
+                                            </button>
+                                        </div>
                                     </div>
                                     <div className="relative">
                                         {isExtractingPDF ? (
@@ -432,6 +498,7 @@ const AdminPanel: React.FC = () => {
                                                 value={courseContent}
                                                 onChange={(e) => setCourseContent(e.target.value)}
                                                 rows={12}
+                                                placeholder={formMode === 'append' ? "اكتب محتوى الدرس هنا أو ارفع ملف..." : "اكتب محتوى المادة هنا..."}
                                                 className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 font-mono text-sm leading-relaxed"
                                             />
                                         )}
@@ -441,24 +508,52 @@ const AdminPanel: React.FC = () => {
                                 <div className="pt-4">
                                     <button
                                         onClick={handleSaveCourse}
-                                        disabled={!courseName.trim() || !courseContent.trim() || saveStatus === 'saving'}
+                                        disabled={
+                                            (formMode === 'create' && (!courseName.trim() || !courseContent.trim())) ||
+                                            (formMode === 'append' && (!selectedCourseId || !courseContent.trim())) ||
+                                            saveStatus === 'saving'
+                                        }
                                         className="w-full py-4 bg-amber-500 text-white rounded-xl font-bold hover:bg-amber-600 transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl active:scale-[0.98]"
                                     >
                                         {saveStatus === 'saving' ? <Loader2 className="animate-spin" /> : <Save size={20} />}
-                                        {saveStatus === 'saving' ? 'جاري الحفظ...' : 'حفظ المادة'}
+                                        {saveStatus === 'saving' ? 'جاري الحفظ...' : (formMode === 'create' ? 'حفظ المادة' : 'إضافة الدرس')}
                                     </button>
                                 </div>
                             </div>
                         ) : (
                             <div className="space-y-6">
-                                <div className="flex gap-4">
-                                    <button onClick={() => { resetForm(); setShowAddForm(true); }} className="flex-1 py-4 bg-amber-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-amber-600 shadow-lg hover:shadow-amber-500/20 transition-all">
-                                        <Plus size={24} /> إضافة مادة يدوياً
-                                    </button>
-                                    <label className="flex-1 py-4 bg-white dark:bg-dark-surface border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl font-bold flex items-center justify-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
-                                        <FileUp size={24} /> رفع ملف (PDF, Word, Text)
-                                        <input type="file" accept=".pdf,.docx,.txt,.md" onChange={handleFileUpload} className="hidden" />
-                                    </label>
+                                <div className="bg-white dark:bg-dark-surface p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                                    <h3 className="font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+                                        <Plus className="text-amber-500" />
+                                        إضافة دروس
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <button
+                                            onClick={() => { resetForm(); setFormMode('append'); setShowAddForm(true); }}
+                                            className="p-6 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl flex flex-col items-center justify-center gap-3 hover:border-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-all group"
+                                        >
+                                            <div className="p-3 bg-amber-100 dark:bg-amber-900/20 rounded-full text-amber-600 group-hover:scale-110 transition-transform">
+                                                <FileText size={28} />
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="font-bold text-gray-800 dark:text-gray-200">إضافة درس لمادة سابقة</p>
+                                                <p className="text-xs text-gray-500 mt-1">إضافة محتوى جديد لمادة موجودة بالفعل</p>
+                                            </div>
+                                        </button>
+
+                                        <button
+                                            onClick={() => { resetForm(); setFormMode('create'); setShowAddForm(true); }}
+                                            className="p-6 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl flex flex-col items-center justify-center gap-3 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all group"
+                                        >
+                                            <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-full text-blue-600 group-hover:scale-110 transition-transform">
+                                                <BookOpen size={28} />
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="font-bold text-gray-800 dark:text-gray-200">إضافة مادة جديدة بالكامل</p>
+                                                <p className="text-xs text-gray-500 mt-1">إنشاء سجل جديد لمادة وتصنيف جديد</p>
+                                            </div>
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className="bg-white dark:bg-dark-surface rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">

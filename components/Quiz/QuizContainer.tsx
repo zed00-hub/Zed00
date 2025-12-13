@@ -161,6 +161,34 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ files, activeQuizSession,
         });
     };
 
+    const handlePrevious = () => {
+        setState(prev => {
+            const prevIndex = Math.max(0, prev.currentQuestionIndex - 1);
+
+            if (onQuizUpdate && activeQuizSession) {
+                onQuizUpdate({
+                    ...activeQuizSession,
+                    userAnswers: prev.userAnswers,
+                    currentQuestionIndex: prevIndex,
+                    lastUpdated: Date.now()
+                });
+            }
+
+            return {
+                ...prev,
+                currentQuestionIndex: prevIndex
+            };
+        });
+    };
+
+    const handleExit = () => {
+        if (confirm('هل أنت متأكد من الخروج من الاختبار؟ سيتم حفظ تقدمك.')) {
+            if (onQuizUpdate) {
+                onQuizUpdate(null);
+            }
+        }
+    };
+
     const handleFinish = () => {
         // Calculate score
         let score = 0;
@@ -266,6 +294,8 @@ const QuizContainer: React.FC<QuizContainerProps> = ({ files, activeQuizSession,
                     quizType={state.config?.quizType || 'single'}
                     onSelectAnswer={handleSelectAnswer}
                     onNext={handleNext}
+                    onPrevious={handlePrevious}
+                    onCancel={handleExit}
                     onFinish={handleFinish}
                 />
             )}

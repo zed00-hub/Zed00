@@ -1,6 +1,6 @@
 import React from 'react';
 import { QuizQuestion } from '../../types';
-import { CheckCircle, XCircle, ArrowLeft, RotateCcw } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowLeft, RotateCcw, ArrowRight, X } from 'lucide-react';
 
 interface QuizActiveProps {
     question: QuizQuestion;
@@ -10,6 +10,8 @@ interface QuizActiveProps {
     quizType: 'single' | 'multiple';
     onSelectAnswer: (index: number) => void;
     onNext: () => void;
+    onPrevious: () => void;
+    onCancel: () => void;
     onFinish: () => void;
 }
 
@@ -21,14 +23,25 @@ const QuizActive: React.FC<QuizActiveProps> = ({
     quizType,
     onSelectAnswer,
     onNext,
+    onPrevious,
+    onCancel,
     onFinish
 }) => {
     const isLastQuestion = currentQuestionIndex === totalQuestions - 1;
 
     return (
         <div className="max-w-3xl mx-auto p-4 sm:p-6 mt-4">
-            {/* Progress Bar */}
+            {/* Progress Bar & Header */}
             <div className="mb-8">
+                <div className="flex justify-between items-center mb-4">
+                    <button
+                        onClick={onCancel}
+                        className="text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1 bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg"
+                    >
+                        <X size={18} />
+                        <span className="text-sm font-bold">إلغاء الاختبار</span>
+                    </button>
+                </div>
                 <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400 mb-2 font-medium">
                     <span>سؤال {currentQuestionIndex + 1} من {totalQuestions}</span>
                     <span>{Math.round(((currentQuestionIndex + 1) / totalQuestions) * 100)}%</span>
@@ -90,8 +103,20 @@ const QuizActive: React.FC<QuizActiveProps> = ({
                 </div>
 
                 <div className="p-4 bg-gray-50 dark:bg-dark-bg/50 border-t border-gray-100 dark:border-dark-border flex justify-between items-center">
-                    <div className="text-sm text-gray-400">
-                        اختر إجابة للمتابعة
+                    <div>
+                        {currentQuestionIndex > 0 ? (
+                            <button
+                                onClick={onPrevious}
+                                className="px-4 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all flex items-center gap-2"
+                            >
+                                <ArrowRight className="w-5 h-5" />
+                                السابق
+                            </button>
+                        ) : (
+                            <div className="text-sm text-gray-400 px-2">
+                                اختر إجابة للمتابعة
+                            </div>
+                        )}
                     </div>
                     <button
                         onClick={isLastQuestion ? onFinish : onNext}
