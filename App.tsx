@@ -926,7 +926,7 @@ ${targetMessage.content}
                   }`}
               >
                 <ClipboardList className="w-4 h-4" />
-                <span>Afriha</span>
+                <span>Chekiha</span>
               </button>
             </div>
           </div>

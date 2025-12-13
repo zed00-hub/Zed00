@@ -37,7 +37,14 @@ const ChecklistContainer: React.FC = () => {
             setIsLoadingCourses(true);
             try {
                 const loadedCourses = await loadCoursesFromFirestore();
-                setCourses(loadedCourses);
+                // Filter out laws, legislation, and official journals
+                const filteredCourses = loadedCourses.filter(course => {
+                    const isLaw = course.category === 'laws' || course.category === 'legislation';
+                    const isOfficialJournal = course.name.toLowerCase().includes('journal officiel') ||
+                        course.name.includes('الجريدة الرسمية');
+                    return !isLaw && !isOfficialJournal;
+                });
+                setCourses(filteredCourses);
             } catch (err) {
                 console.error('Error loading courses:', err);
             } finally {
@@ -210,16 +217,16 @@ const ChecklistContainer: React.FC = () => {
             <div key={item.id} className={`${level > 0 ? 'mr-6 border-r-2 border-gray-200 dark:border-gray-700 pr-4' : ''}`}>
                 <div
                     className={`flex items-start gap-3 p-4 rounded-xl transition-all ${item.isCompleted
-                            ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50'
-                            : 'bg-white dark:bg-dark-surface border border-gray-200 dark:border-gray-700 hover:border-teal-300 dark:hover:border-teal-700'
+                        ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50'
+                        : 'bg-white dark:bg-dark-surface border border-gray-200 dark:border-gray-700 hover:border-teal-300 dark:hover:border-teal-700'
                         } ${level > 0 ? 'mt-2' : 'mb-3'}`}
                 >
                     {/* Checkbox */}
                     <button
                         onClick={() => toggleItemCompletion(item.id)}
                         className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all ${item.isCompleted
-                                ? 'bg-green-500 border-green-500 text-white'
-                                : 'border-gray-300 dark:border-gray-600 hover:border-teal-500'
+                            ? 'bg-green-500 border-green-500 text-white'
+                            : 'border-gray-300 dark:border-gray-600 hover:border-teal-500'
                             }`}
                     >
                         {item.isCompleted && <Check className="w-4 h-4" />}
@@ -229,8 +236,8 @@ const ChecklistContainer: React.FC = () => {
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                             <h4 className={`font-medium ${item.isCompleted
-                                    ? 'text-green-700 dark:text-green-400 line-through'
-                                    : 'text-gray-800 dark:text-gray-200'
+                                ? 'text-green-700 dark:text-green-400 line-through'
+                                : 'text-gray-800 dark:text-gray-200'
                                 }`}>
                                 {item.title}
                             </h4>
@@ -272,7 +279,7 @@ const ChecklistContainer: React.FC = () => {
                     <ClipboardList className="w-8 h-8 text-teal-600 dark:text-teal-400" />
                 </div>
                 <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-600 to-cyan-600 dark:from-teal-400 dark:to-cyan-400 mb-2">
-                    Afriha
+                    Chekiha
                 </h1>
                 <p className="text-gray-600 dark:text-gray-300 max-w-lg mx-auto">
                     حول درسك إلى مهام واضحة | Transformez votre cours en tâches claires
@@ -292,8 +299,8 @@ const ChecklistContainer: React.FC = () => {
                             <button
                                 onClick={() => setSourceType('library')}
                                 className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${sourceType === 'library'
-                                        ? 'bg-white dark:bg-dark-surface text-teal-600 shadow-sm'
-                                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                                    ? 'bg-white dark:bg-dark-surface text-teal-600 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
                                     }`}
                             >
                                 <Library className="w-4 h-4" />
@@ -302,8 +309,8 @@ const ChecklistContainer: React.FC = () => {
                             <button
                                 onClick={() => setSourceType('upload')}
                                 className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${sourceType === 'upload'
-                                        ? 'bg-white dark:bg-dark-surface text-teal-600 shadow-sm'
-                                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                                    ? 'bg-white dark:bg-dark-surface text-teal-600 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
                                     }`}
                             >
                                 <Upload className="w-4 h-4" />
@@ -365,8 +372,8 @@ const ChecklistContainer: React.FC = () => {
                                 <label
                                     htmlFor="file-upload"
                                     className={`flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-xl cursor-pointer transition-all ${uploadedContent
-                                            ? 'border-teal-400 bg-teal-50 dark:bg-teal-900/20'
-                                            : 'border-gray-300 dark:border-gray-600 hover:border-teal-400 bg-gray-50 dark:bg-dark-bg'
+                                        ? 'border-teal-400 bg-teal-50 dark:bg-teal-900/20'
+                                        : 'border-gray-300 dark:border-gray-600 hover:border-teal-400 bg-gray-50 dark:bg-dark-bg'
                                         }`}
                                 >
                                     {isExtractingFile ? (

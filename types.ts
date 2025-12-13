@@ -125,7 +125,7 @@ export interface MnemonicResponse {
   funFact?: string;
 }
 
-// --- Checklist Types (Afriha Tool) ---
+// --- Checklist Types (Chekiha Tool) ---
 
 export interface ChecklistItem {
   id: string;

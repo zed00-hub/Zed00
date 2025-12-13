@@ -230,7 +230,7 @@ const FileSidebar: React.FC<SidebarProps> = ({
             <div className="p-1.5 bg-gradient-to-br from-teal-100 to-cyan-100 dark:from-teal-900/40 dark:to-cyan-900/40 rounded-lg shadow-sm">
               <ClipboardList size={18} className="text-teal-600 dark:text-teal-400" />
             </div>
-            <span className="text-sm font-bold">Afriha (Checklist)</span>
+            <span className="text-sm font-bold">Chekiha (Checklist)</span>
           </button>
         </div>
 

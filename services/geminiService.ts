@@ -565,7 +565,7 @@ export const analyzeImage = async (imageFile: File): Promise<string> => {
   }
 };
 
-// --- Checklist Generation Service (Afriha Tool) ---
+// --- Checklist Generation Service (Chekiha Tool) ---
 
 import { ChecklistResponse, ChecklistItem } from "../types";
 
