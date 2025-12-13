@@ -142,3 +142,13 @@ export interface ChecklistResponse {
   estimatedTime?: string;
   tips?: string[];
 }
+
+export interface ChecklistSession {
+  id: string;
+  title: string;
+  createdAt: number;
+  lastUpdated?: number;
+  checklist: ChecklistResponse;
+  progress: number; // 0-100
+  isFinished: boolean;
+}

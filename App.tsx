@@ -4,10 +4,10 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import FileSidebar from './components/FileSidebar';
 import ChatArea from './components/ChatArea';
 import LoginPage from './components/LoginPage';
-import { FileContext, Message, ChatSession, QuizSession, MessageVersion } from './types';
+import { FileContext, Message, ChatSession, QuizSession, MessageVersion, ChecklistSession } from './types';
 import { generateResponseStream, BotSettings } from './services/geminiService';
 import { ZGLogo, SunIcon, MoonIcon, LoadingIcon } from './components/Icons';
-import { BookOpen, MessageSquare, Sparkles, Settings, ClipboardList } from 'lucide-react';
+import { BookOpen, MessageSquare, Sparkles, Settings, ClipboardList, ListChecks } from 'lucide-react';
 import QuizContainer from './components/Quiz/QuizContainer';
 import MnemonicsContainer from './components/Mnemonics/MnemonicsContainer';
 import ChecklistContainer from './components/Checklist/ChecklistContainer';
@@ -16,6 +16,7 @@ import { INITIAL_COURSES } from './data/courses';
 import { useAuth } from './contexts/AuthContext';
 import { saveSessionToFirestore, loadSessionsFromFirestore, deleteSessionFromFirestore } from './services/chatService';
 import { saveQuizToFirestore, loadQuizzesFromFirestore, deleteQuizFromFirestore } from './services/quizService';
+import { saveChecklistToFirestore, loadChecklistsFromFirestore, deleteChecklistFromFirestore } from './services/checklistService';
 import ReloadPrompt from './components/ReloadPrompt';
 import SettingsModal from './components/SettingsModal';
 import AdminPanel from './components/AdminPanel';
@@ -77,6 +78,10 @@ const AppContent: React.FC = () => {
   const [quizSessions, setQuizSessions] = useState<QuizSession[]>([]);
   const [currentQuizId, setCurrentQuizId] = useState<string | null>(null);
 
+  // Initialize Checklist Sessions
+  const [checklistSessions, setChecklistSessions] = useState<ChecklistSession[]>([]);
+  const [currentChecklistId, setCurrentChecklistId] = useState<string | null>(null);
+
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   // Load user data (Sessions and Quizzes) from Firestore
@@ -87,8 +92,13 @@ const AppContent: React.FC = () => {
         setIsDataLoaded(false);
 
         try {
-          // Load Chats
-          const fetchedSessions = await loadSessionsFromFirestore(user.id);
+          const [fetchedSessions, fetchedQuizzes, fetchedChecklists] = await Promise.all([
+            loadSessionsFromFirestore(user.id),
+            loadQuizzesFromFirestore(user.id),
+            loadChecklistsFromFirestore(user.id)
+          ]);
+
+          // Handle Chats
           if (fetchedSessions.length > 0) {
             setSessions(fetchedSessions);
             setCurrentSessionId(fetchedSessions[0].id);
@@ -103,22 +113,24 @@ const AppContent: React.FC = () => {
             };
             setSessions([newSession]);
             setCurrentSessionId(newId);
-            saveSessionToFirestore(user.id, newSession);
+            await saveSessionToFirestore(user.id, newSession);
           }
 
-          // Load Quizzes
-          console.log("App: About to load quizzes for user:", user.id);
-          const fetchedQuizzes = await loadQuizzesFromFirestore(user.id);
-          console.log("App: Loaded quizzes count:", fetchedQuizzes.length);
-          if (fetchedQuizzes.length > 0) {
-            console.log("App: First quiz:", fetchedQuizzes[0].id, fetchedQuizzes[0].title);
-          }
+          // Handle Quizzes
           setQuizSessions(fetchedQuizzes);
-          // Auto-select the most recent quiz if available (like conversations)
+          // We don't automatically set currentQuizId, user chooses from sidebar
           if (fetchedQuizzes.length > 0) {
             setCurrentQuizId(fetchedQuizzes[0].id);
           } else {
             setCurrentQuizId(null);
+          }
+
+          // Handle Checklists
+          setChecklistSessions(fetchedChecklists);
+          if (fetchedChecklists.length > 0) {
+            setCurrentChecklistId(fetchedChecklists[0].id);
+          } else {
+            setCurrentChecklistId(null);
           }
 
         } catch (error) {
@@ -146,6 +158,8 @@ const AppContent: React.FC = () => {
         setCurrentSessionId('default');
         setQuizSessions([]);
         setCurrentQuizId(null);
+        setChecklistSessions([]);
+        setCurrentChecklistId(null);
         setIsDataLoaded(true);
       }
     };
@@ -325,20 +339,18 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const deleteQuiz = (id: string) => {
-    const newQuizzes = quizSessions.filter(q => q.id !== id);
-    setQuizSessions(newQuizzes);
-
-    if (id === currentQuizId) {
-      setCurrentQuizId(null); // Go to new quiz screen
-    }
-
-    if (user?.id) {
-      deleteQuizFromFirestore(user.id, id);
+  const deleteQuiz = async (id: string) => {
+    if (!user?.id) return;
+    try {
+      await deleteQuizFromFirestore(user.id, id);
+      setQuizSessions(prev => prev.filter(q => q.id !== id));
+      if (currentQuizId === id) setCurrentQuizId(null);
+    } catch (error) {
+      console.error('Error deleting quiz:', error);
     }
   };
 
-  const renameQuiz = (id: string, newTitle: string) => {
+  const renameQuiz = async (id: string, newTitle: string) => {
     let updatedQuiz: QuizSession | undefined;
     setQuizSessions(prev => prev.map(quiz => {
       if (quiz.id === id) {
@@ -351,6 +363,33 @@ const AppContent: React.FC = () => {
     if (updatedQuiz && user?.id) {
       saveQuizToFirestore(user.id, updatedQuiz);
     }
+  };
+
+  // --- Checklist Management ---
+  const createNewChecklist = () => {
+    setCurrentChecklistId(null);
+  };
+
+  const deleteChecklist = async (id: string) => {
+    if (!user?.id) return;
+    try {
+      await deleteChecklistFromFirestore(user.id, id);
+      setChecklistSessions(prev => prev.filter(s => s.id !== id));
+      if (currentChecklistId === id) setCurrentChecklistId(null);
+    } catch (error) {
+      console.error('Error deleting checklist:', error);
+    }
+  };
+
+  const updateChecklistSession = (session: ChecklistSession) => {
+    setChecklistSessions(prev => {
+      const exists = prev.find(s => s.id === session.id);
+      if (exists) {
+        return prev.map(s => s.id === session.id ? session : s);
+      } else {
+        return [session, ...prev];
+      }
+    });
   };
 
   // --------------------------
@@ -823,19 +862,25 @@ ${targetMessage.content}
               isOpen={true} // Always open on desktop
               onClose={() => { }}
               // Chat Props
-              sessions={sessions}
+              chatSessions={sessions}
               currentSessionId={currentSessionId}
+              onSessionSelect={setCurrentSessionId}
               onNewChat={createNewSession}
-              onSwitchChat={setCurrentSessionId}
-              onDeleteChat={deleteSession}
-              onRenameChat={renameSession}
+              onDeleteSession={deleteSession}
+              onRenameSession={renameSession}
               // Quiz Props
               quizSessions={quizSessions}
               currentQuizId={currentQuizId}
+              onQuizSelect={setCurrentQuizId}
               onNewQuiz={createNewQuiz}
-              onSwitchQuiz={setCurrentQuizId}
               onDeleteQuiz={deleteQuiz}
               onRenameQuiz={renameQuiz}
+              // Checklist Props
+              checklistSessions={checklistSessions}
+              currentChecklistId={currentChecklistId}
+              onChecklistSelect={setCurrentChecklistId}
+              onNewChecklist={createNewChecklist}
+              onDeleteChecklist={deleteChecklist}
               // App Mode
               appMode={appMode}
               onModeChange={handleModeChange}
@@ -852,31 +897,33 @@ ${targetMessage.content}
         {/* Mobile Sidebar Logic */}
         <div className="md:hidden">
           <FileSidebar
-            files={files}
-            setFiles={setFiles}
             isOpen={isSidebarOpen}
             onClose={() => setIsSidebarOpen(false)}
-            // Chat Props
-            sessions={sessions}
+            files={files}
+            onFileSelect={() => { }}
+            chatSessions={sessions}
             currentSessionId={currentSessionId}
+            onSessionSelect={setCurrentSessionId}
             onNewChat={createNewSession}
-            onSwitchChat={setCurrentSessionId}
-            onDeleteChat={deleteSession}
-            onRenameChat={renameSession}
-            // Quiz Props
-            quizSessions={quizSessions}
-            currentQuizId={currentQuizId}
-            onNewQuiz={createNewQuiz}
-            onSwitchQuiz={setCurrentQuizId}
-            onDeleteQuiz={deleteQuiz}
-            onRenameQuiz={renameQuiz}
-            // App Mode
-            appMode={appMode}
-            onModeChange={handleModeChange}
-            // Theme & Settings
+            onDeleteSession={deleteSession}
+            onRenameSession={renameSession}
             isDarkMode={isDarkMode}
             onToggleTheme={toggleTheme}
             onOpenSettings={() => setIsSettingsOpen(true)}
+            quizSessions={quizSessions}
+            currentQuizId={currentQuizId}
+            onQuizSelect={setCurrentQuizId}
+            onNewQuiz={createNewQuiz}
+            onDeleteQuiz={deleteQuiz}
+            onRenameQuiz={renameQuiz}
+            appMode={appMode}
+            onModeChange={handleModeChange}
+            // Checklist Props
+            checklistSessions={checklistSessions}
+            currentChecklistId={currentChecklistId}
+            onChecklistSelect={setCurrentChecklistId}
+            onNewChecklist={createNewChecklist}
+            onDeleteChecklist={deleteChecklist}
             onOpenAdmin={() => navigate('/admin')}
             isAdmin={isAdmin(user?.email)}
           />
@@ -997,7 +1044,12 @@ ${targetMessage.content}
               element={
                 <div className="flex-1 overflow-hidden relative">
                   <div className="absolute inset-0">
-                    <ChecklistContainer />
+                    <ChecklistContainer
+                      initialSession={checklistSessions.find(s => s.id === currentChecklistId)}
+                      onSaveSession={updateChecklistSession}
+                      userId={user?.id}
+                      onNewChecklist={createNewChecklist}
+                    />
                   </div>
                   {/* Mobile Sidebar Toggle for Checklist Mode */}
                   <button

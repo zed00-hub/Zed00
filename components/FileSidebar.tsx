@@ -1,32 +1,40 @@
 
 import React, { useState } from 'react';
-import { FileContext, ChatSession, QuizSession } from '../types';
+import { FileContext, ChatSession, QuizSession, ChecklistSession } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { FileIcon, TrashIcon, CloseIcon, BookOpen, SearchIcon, PlusIcon, ChatIcon, LayersIcon, EditIcon, CheckIcon, XIcon, LogOutIcon } from './Icons';
-import { Sparkles, Settings, Crown, Sun, Moon, ClipboardList } from 'lucide-react';
+import { Sparkles, Settings, Crown, Sun, Moon, ClipboardList, MessageSquare } from 'lucide-react';
 import { formatFileSize } from '../utils/fileHelpers';
 
 interface SidebarProps {
   files: FileContext[];
-  setFiles: React.Dispatch<React.SetStateAction<FileContext[]>>;
+  setFiles?: React.Dispatch<React.SetStateAction<FileContext[]>>;
+  onFileSelect?: (file: FileContext) => void;
   isOpen: boolean;
   onClose: () => void;
 
-  // Chat Session Props
-  sessions: ChatSession[];
+  // Chat
+  chatSessions: ChatSession[];
   currentSessionId: string;
+  onSessionSelect: (id: string) => void;
   onNewChat: () => void;
-  onSwitchChat: (id: string) => void;
-  onDeleteChat: (id: string) => void;
-  onRenameChat: (id: string, newTitle: string) => void;
+  onDeleteSession: (id: string) => void;
+  onRenameSession: (id: string, newTitle: string) => void;
 
-  // Quiz Session Props
+  // Quiz
   quizSessions: QuizSession[];
   currentQuizId: string | null;
+  onQuizSelect: (id: string) => void;
   onNewQuiz: () => void;
-  onSwitchQuiz: (id: string) => void;
   onDeleteQuiz: (id: string) => void;
   onRenameQuiz: (id: string, newTitle: string) => void;
+
+  // Checklist
+  checklistSessions: ChecklistSession[];
+  currentChecklistId: string | null;
+  onChecklistSelect: (id: string) => void;
+  onNewChecklist: () => void;
+  onDeleteChecklist: (id: string) => void;
 
   // App Mode
   appMode: 'chat' | 'quiz' | 'mnemonics' | 'checklist';
@@ -43,20 +51,29 @@ interface SidebarProps {
 const FileSidebar: React.FC<SidebarProps> = ({
   files,
   setFiles,
+  onFileSelect,
   isOpen,
   onClose,
-  sessions,
+  chatSessions,
   currentSessionId,
+  onSessionSelect,
   onNewChat,
-  onSwitchChat,
-  onDeleteChat,
-  onRenameChat,
+  onDeleteSession,
+  onRenameSession,
+
   quizSessions,
   currentQuizId,
+  onQuizSelect,
   onNewQuiz,
-  onSwitchQuiz,
   onDeleteQuiz,
   onRenameQuiz,
+
+  checklistSessions = [],
+  currentChecklistId,
+  onChecklistSelect,
+  onNewChecklist,
+  onDeleteChecklist,
+
   appMode,
   onModeChange,
   isDarkMode,
@@ -71,27 +88,26 @@ const FileSidebar: React.FC<SidebarProps> = ({
 
   // States for Editing and Deleting
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
-  const [editTitle, setEditTitle] = useState('');
+  const [newTitle, setNewTitle] = useState(''); // Renamed from editTitle
   const [deleteConfirmationId, setDeleteConfirmationId] = useState<string | null>(null);
 
   const removeFile = (id: string) => {
     setFiles(files.filter(f => f.id !== id));
   };
 
-  const startEditing = (session: ChatSession, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const startEditing = (session: ChatSession | QuizSession, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setEditingSessionId(session.id);
-    setEditTitle(session.title);
+    setNewTitle(session.title || '');
     setDeleteConfirmationId(null); // Close any delete confirmation
   };
 
-  const saveTitle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (editingSessionId && editTitle.trim()) {
+  const handleRename = (id: string) => {
+    if (newTitle.trim()) {
       if (appMode === 'chat') {
-        onRenameChat(editingSessionId, editTitle.trim());
-      } else {
-        onRenameQuiz(editingSessionId, editTitle.trim());
+        onRenameSession(id, newTitle.trim());
+      } else if (appMode === 'quiz') {
+        onRenameQuiz(id, newTitle.trim());
       }
       setEditingSessionId(null);
     }
@@ -111,9 +127,11 @@ const FileSidebar: React.FC<SidebarProps> = ({
   const confirmDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (appMode === 'chat') {
-      onDeleteChat(id);
-    } else {
+      onDeleteSession(id);
+    } else if (appMode === 'quiz') {
       onDeleteQuiz(id);
+    } else if (appMode === 'checklist') {
+      onDeleteChecklist(id);
     }
     setDeleteConfirmationId(null);
   };
@@ -132,18 +150,16 @@ const FileSidebar: React.FC<SidebarProps> = ({
   const systemFiles = filteredFiles.filter(f => !!f.content);
   const userFiles = filteredFiles.filter(f => !f.content);
 
-  // Filter and Switch Logic
-  const sessionsToDisplay = appMode === 'chat' ? sessions : quizSessions;
-
   // Sort sessions by timestamp (newest first)
-  // ChatSession uses 'timestamp', QuizSession uses 'createdAt'
-  const sortedItems = [...sessionsToDisplay].sort((a: any, b: any) => {
+  const sortItems = (items: any[]) => [...items].sort((a: any, b: any) => {
     const timeA = a.timestamp || a.createdAt || 0;
     const timeB = b.timestamp || b.createdAt || 0;
     return timeB - timeA;
   });
 
-  const activeId = appMode === 'chat' ? currentSessionId : (currentQuizId || '');
+  const sortedChatSessions = sortItems(chatSessions);
+  const sortedQuizSessions = sortItems(quizSessions);
+  const sortedChecklistSessions = sortItems(checklistSessions);
 
   return (
     <>
@@ -253,23 +269,57 @@ const FileSidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
 
+        {/* Create New Checklist Button (Only in Checklist Mode) */}
+        {appMode === 'checklist' && (
+          <div className="px-5 pt-3 pb-0 animate-fadeIn">
+            <button
+              onClick={() => {
+                onNewChecklist();
+                if (window.innerWidth < 768) onClose();
+              }}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl transition-all shadow-md active:scale-95"
+            >
+              <div className="bg-white/20 p-1 rounded-full"><PlusIcon /></div>
+              <span className="font-bold">قائمة مهام جديدة</span>
+            </button>
+          </div>
+        )}
+
         {/* Separator */}
         <div className="mx-5 my-4 h-px bg-gray-200 dark:bg-dark-border" />
 
         {/* Tabs */}
         <div className="flex border-b border-gray-200/50 dark:border-dark-border/50 px-5 gap-2 shrink-0 bg-gray-50/30 dark:bg-dark-bg/30">
-          <button
-            onClick={() => setActiveTab('chats')}
-            className={`flex-1 pb-3.5 pt-3 text-sm font-semibold transition-all relative rounded-t-xl ${activeTab === 'chats'
-              ? 'text-medical-600 dark:text-medical-400 bg-white dark:bg-dark-surface shadow-sm'
-              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-              }`}
-          >
-            {appMode === 'chat' ? 'المحادثات' : 'الاختبارات'}
-            {activeTab === 'chats' && (
-              <span className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-medical-600 to-medical-500 dark:from-medical-400 dark:to-medical-500 rounded-t-full" />
-            )}
-          </button>
+          {appMode === 'chat' ? (
+            <button
+              className={`flex-1 pb-3 pt-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'chats'
+                ? 'border-medical-500 text-medical-600 dark:text-medical-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                }`}
+              onClick={() => setActiveTab('chats')}
+            >
+              المحادثات
+            </button>
+          ) : appMode === 'quiz' ? (
+            <button
+              className={`flex-1 pb-3 pt-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'chats' // Reusing 'chats' tab name for primary list for simplicity, or could rename logic
+                ? 'border-medical-500 text-medical-600 dark:text-medical-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                }`}
+              onClick={() => setActiveTab('chats')}
+            >
+              سجل الاختبارات
+            </button>
+          ) : appMode === 'checklist' ? (
+            <button
+              className={`flex-1 pb-3 pt-3 text-sm font-medium border-b-2 transition-colors border-teal-500 text-teal-600 dark:text-teal-400`}
+              onClick={() => setActiveTab('chats')}
+            >
+              سجل المراجعة
+            </button>
+          ) : (
+            <div className="h-4"></div>
+          )}
           <button
             onClick={() => setActiveTab('files')}
             className={`flex-1 pb-3.5 pt-3 text-sm font-semibold transition-all relative rounded-t-xl ${activeTab === 'files'
@@ -288,96 +338,153 @@ const FileSidebar: React.FC<SidebarProps> = ({
         < div className="flex-1 overflow-y-auto px-3 py-3" >
 
           {/* --- CHATS TAB --- */}
-          {
-            activeTab === 'chats' && (
-              <div className="space-y-2">
-                {sortedItems.map((item: any) => (
-                  <div
-                    key={item.id}
-                    onClick={() => {
-                      if (editingSessionId !== item.id) {
-                        if (appMode === 'chat') onSwitchChat(item.id);
-                        else onSwitchQuiz(item.id);
+          {activeTab === 'chats' && (
+            <div className="space-y-2">
 
-                        if (window.innerWidth < 768) onClose();
-                      }
-                    }}
-                    className={`group flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all border-2 ${item.id === activeId
-                      ? 'bg-gradient-to-r from-medical-50 to-medical-100/50 dark:from-medical-900/30 dark:to-medical-800/20 border-medical-300 dark:border-medical-700/50 shadow-md'
-                      : 'bg-transparent border-transparent hover:bg-gray-50/80 dark:hover:bg-gray-800/50 hover:border-gray-200 dark:hover:border-gray-700'
-                      }`}
-                  >
-                    <div className={`p-2.5 rounded-xl shrink-0 transition-all ${item.id === activeId
-                      ? 'bg-gradient-to-br from-medical-500 to-medical-600 text-white shadow-lg'
-                      : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 group-hover:bg-gray-200 dark:group-hover:bg-gray-600'
-                      }`}>
-                      {appMode === 'chat' ? <ChatIcon /> : <BookOpen size={18} />}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      {editingSessionId === item.id ? (
-                        <input
-                          type="text"
-                          value={editTitle}
-                          onChange={(e) => setEditTitle(e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          autoFocus
-                          className="w-full bg-white dark:bg-dark-bg border-2 border-medical-500 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-medical-500/20"
-                        />
-                      ) : (
-                        deleteConfirmationId === item.id ? (
-                          <span className="text-red-600 dark:text-red-400 text-sm font-bold animate-pulse">تأكيد الحذف؟</span>
+              {/* Chat Sessions List */}
+              {appMode === 'chat' && sortedChatSessions.map((session) => (
+                <div
+                  key={session.id}
+                  className={`group relative p-3 rounded-xl cursor-pointer transition-all border ${session.id === currentSessionId
+                    ? 'bg-white dark:bg-dark-surface border-medical-200 shadow-sm'
+                    : 'bg-transparent border-transparent hover:bg-gray-100 dark:hover:bg-dark-surface/50 text-gray-600 dark:text-gray-400'
+                    }`}
+                  onClick={() => {
+                    onSessionSelect(session.id);
+                    if (window.innerWidth < 768) onClose();
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <MessageSquare size={18} className={session.id === currentSessionId ? 'text-medical-500' : 'opacity-50'} />
+                      <div className="min-w-0">
+                        {editingSessionId === session.id ? (
+                          <input
+                            type="text"
+                            value={newTitle}
+                            onChange={(e) => setNewTitle(e.target.value)}
+                            onBlur={() => handleRename(session.id)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleRename(session.id)}
+                            className="w-full bg-white dark:bg-dark-bg border border-medical-300 rounded px-1 text-sm disabled:opacity-50"
+                            autoFocus
+                            onClick={(e) => e.stopPropagation()}
+                          />
                         ) : (
-                          <>
-                            <p className={`text-sm font-semibold truncate ${item.id === activeId
-                              ? 'text-medical-900 dark:text-medical-100'
-                              : 'text-gray-700 dark:text-gray-300'
-                              }`}>
-                              {item.title || (appMode === 'chat' ? 'محادثة جديدة' : 'اختبار جديد')}
-                            </p>
-                            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-                              {new Date(item.timestamp || item.createdAt).toLocaleDateString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                            </p>
-                          </>
-                        )
-                      )}
+                          <h3 className={`font-medium text-sm truncate ${session.id === currentSessionId ? 'text-gray-900 dark:text-white' : ''}`}>
+                            {session.title}
+                          </h3>
+                        )}
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {new Date(session.timestamp).toLocaleDateString('ar-EG')}
+                        </p>
+                      </div>
                     </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex items-center gap-1.5">
-                      {editingSessionId === item.id ? (
-                        <>
-                          <button onClick={saveTitle} className="p-2 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-xl transition-all hover:scale-110 active:scale-95"><CheckIcon /></button>
-                          <button onClick={cancelEdit} className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-xl transition-all hover:scale-110 active:scale-95"><XIcon /></button>
-                        </>
-                      ) : deleteConfirmationId === item.id ? (
-                        <>
-                          <button onClick={(e) => confirmDelete(item.id, e)} className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-xl transition-all hover:scale-110 active:scale-95 font-bold"><CheckIcon /></button>
-                          <button onClick={cancelDelete} className="p-2 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition-all hover:scale-110 active:scale-95"><XIcon /></button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            onClick={(e) => startEditing(item, e)}
-                            className="p-2 text-gray-400 hover:text-medical-600 dark:hover:text-medical-400 hover:bg-medical-50 dark:hover:bg-medical-900/30 rounded-xl transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 hover:scale-110 active:scale-95"
-                            title="تعديل العنوان"
-                          >
-                            <EditIcon />
-                          </button>
-                          <button
-                            onClick={(e) => requestDelete(item.id, e)}
-                            className="p-2 text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 hover:scale-110 active:scale-95"
-                            title="حذف"
-                          >
-                            <TrashIcon />
-                          </button>
-                        </>
-                      )}
+                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => {
+                          startEditing(session, e);
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                      >
+                        <EditIcon />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          confirmDelete(session.id, e);
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+                      >
+                        <TrashIcon />
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
-            )
+                </div>
+              ))}
+
+              {/* Quiz Sessions List */}
+              {appMode === 'quiz' && sortedQuizSessions.map((quiz) => (
+                <div
+                  key={quiz.id}
+                  className={`group relative p-3 rounded-xl cursor-pointer transition-all border ${quiz.id === currentQuizId
+                    ? 'bg-white dark:bg-dark-surface border-medical-200 shadow-sm'
+                    : 'bg-transparent border-transparent hover:bg-gray-100 dark:hover:bg-dark-surface/50 text-gray-600 dark:text-gray-400'
+                    }`}
+                  onClick={() => {
+                    onQuizSelect(quiz.id);
+                    if (window.innerWidth < 768) onClose();
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <BookOpen size={18} className={quiz.id === currentQuizId ? 'text-medical-500' : 'opacity-50'} />
+                      <div className="min-w-0">
+                        <h3 className={`font-medium text-sm truncate ${quiz.id === currentQuizId ? 'text-gray-900 dark:text-white' : ''}`}>
+                          {quiz.title || 'اختبار بدون عنوان'}
+                        </h3>
+                        <p className="text-xs text-gray-400 mt-0.5 flex gap-2">
+                          <span>{new Date(quiz.createdAt).toLocaleDateString('ar-EG')}</span>
+                          {quiz.score !== undefined && (
+                            <span className={quiz.score >= 50 ? 'text-green-500' : 'text-red-500'}>
+                              {Math.round(quiz.score)}%
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        confirmDelete(quiz.id, e);
+                      }}
+                      className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <TrashIcon />
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {/* Checklist Sessions List */}
+              {appMode === 'checklist' && sortedChecklistSessions.map((session) => (
+                <div
+                  key={session.id}
+                  className={`group relative p-3 rounded-xl cursor-pointer transition-all border ${session.id === currentChecklistId
+                    ? 'bg-teal-50 dark:bg-teal-900/10 border-teal-200 shadow-sm'
+                    : 'bg-transparent border-transparent hover:bg-gray-100 dark:hover:bg-dark-surface/50 text-gray-600 dark:text-gray-400'
+                    }`}
+                  onClick={() => {
+                    onChecklistSelect(session.id);
+                    if (window.innerWidth < 768) onClose();
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <ClipboardList size={18} className={session.id === currentChecklistId ? 'text-teal-500' : 'opacity-50'} />
+                      <div className="min-w-0">
+                        <h3 className={`font-medium text-sm truncate ${session.id === currentChecklistId ? 'text-gray-900 dark:text-white' : ''}`}>
+                          {session.title}
+                        </h3>
+                        <p className="text-xs text-gray-400 mt-0.5 flex gap-2">
+                          <span>{new Date(session.createdAt).toLocaleDateString('ar-EG')}</span>
+                          <span className={session.progress === 100 ? 'text-green-500' : 'text-teal-500'}>
+                            {session.progress}%
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        confirmDelete(session.id, e);
+                      }}
+                      className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <TrashIcon />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
           }
 
           {/* --- FILES TAB --- */}

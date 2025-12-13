@@ -1,14 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { ChecklistResponse, ChecklistItem, FileContext } from '../../types';
+import { ChecklistResponse, ChecklistItem, FileContext, ChecklistSession } from '../../types';
 import { generateChecklist } from '../../services/geminiService';
 import { loadCoursesFromFirestore, CourseFile } from '../../services/coursesService';
+import { saveChecklistToFirestore } from '../../services/checklistService';
 import { LoadingIcon } from '../Icons';
 import { ClipboardList, Upload, Library, Check, Clock, Lightbulb, ChevronDown, ChevronUp, RotateCcw, Sparkles } from 'lucide-react';
 import { fileToBase64 } from '../../utils/fileHelpers';
 import { extractTextFromPDF } from '../../utils/pdfUtils';
 import { extractTextFromDocx } from '../../utils/docxUtils';
+import { INITIAL_COURSES } from '../../data/courses';
 
-const ChecklistContainer: React.FC = () => {
+interface ChecklistContainerProps {
+    initialSession?: ChecklistSession;
+    onSaveSession?: (session: ChecklistSession) => void;
+    userId?: string;
+    onNewChecklist?: () => void;
+}
+
+const ChecklistContainer: React.FC<ChecklistContainerProps> = ({ initialSession, onSaveSession, userId, onNewChecklist }) => {
     // Source selection
     const [sourceType, setSourceType] = useState<'library' | 'upload'>('library');
 
@@ -30,6 +39,35 @@ const ChecklistContainer: React.FC = () => {
     const [checklist, setChecklist] = useState<ChecklistResponse | null>(null);
     const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
     const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+    const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+
+    // Load initial session if provided
+    useEffect(() => {
+        if (initialSession) {
+            setChecklist(initialSession.checklist);
+            setChecklistItems(initialSession.checklist.items);
+            setCurrentSessionId(initialSession.id);
+            // Expand all on load
+            const allIds = new Set<string>();
+            const collectIds = (items: ChecklistItem[]) => {
+                items.forEach(item => {
+                    allIds.add(item.id);
+                    if (item.subItems) collectIds(item.subItems);
+                });
+            };
+            collectIds(initialSession.checklist.items);
+            setExpandedItems(allIds);
+        } else {
+            // Reset if no session (New Checklist Mode)
+            setChecklist(null);
+            setChecklistItems([]);
+            setCurrentSessionId(null);
+            setSourceType('library');
+            setUploadedContent('');
+            setUploadedFileName('');
+            setSelectedCourseId('');
+        }
+    }, [initialSession]);
 
     // Load courses from database on mount
     useEffect(() => {
@@ -37,16 +75,51 @@ const ChecklistContainer: React.FC = () => {
             setIsLoadingCourses(true);
             try {
                 const loadedCourses = await loadCoursesFromFirestore();
+
+                // Match INITIAL_COURSES to CourseFile type
+                const formattedInitialCourses: CourseFile[] = INITIAL_COURSES.map(c => ({
+                    id: c.id,
+                    name: c.name,
+                    type: c.type,
+                    content: c.content || '', // Ensure content is string
+                    size: c.size,
+                    category: c.category || 'other',
+                    createdAt: Date.now() // Default timestamp for static files
+                }));
+
+                // Merge INITIAL_COURSES with loadedCourses, avoiding duplicates by ID
+                const initialIds = new Set(formattedInitialCourses.map(c => c.id));
+                const uniqueLoadedCourses = loadedCourses.filter(c => !initialIds.has(c.id));
+                const allCourses = [...formattedInitialCourses, ...uniqueLoadedCourses];
+
                 // Filter out laws, legislation, and official journals
-                const filteredCourses = loadedCourses.filter(course => {
+                const filteredCourses = allCourses.filter(course => {
                     const isLaw = course.category === 'laws' || course.category === 'legislation';
                     const isOfficialJournal = course.name.toLowerCase().includes('journal officiel') ||
                         course.name.includes('الجريدة الرسمية');
                     return !isLaw && !isOfficialJournal;
                 });
+
                 setCourses(filteredCourses);
             } catch (err) {
                 console.error('Error loading courses:', err);
+                // Fallback to initial courses if loading fails
+                const fallbackCourses: CourseFile[] = INITIAL_COURSES.map(c => ({
+                    id: c.id,
+                    name: c.name,
+                    type: c.type,
+                    content: c.content || '',
+                    size: c.size,
+                    category: c.category || 'other',
+                    createdAt: Date.now()
+                }));
+
+                setCourses(fallbackCourses.filter(course => {
+                    const isLaw = course.category === 'laws' || course.category === 'legislation';
+                    const isOfficialJournal = course.name.toLowerCase().includes('journal officiel') ||
+                        course.name.includes('الجريدة الرسمية');
+                    return !isLaw && !isOfficialJournal;
+                }));
             } finally {
                 setIsLoadingCourses(false);
             }
@@ -112,6 +185,25 @@ const ChecklistContainer: React.FC = () => {
             setChecklist(result);
             setChecklistItems(result.items);
 
+            // Create new session
+            const newSessionId = Date.now().toString();
+            setCurrentSessionId(newSessionId);
+
+            const newSession: ChecklistSession = {
+                id: newSessionId,
+                title: result.title,
+                createdAt: Date.now(),
+                checklist: result,
+                progress: 0,
+                isFinished: false
+            };
+
+            // Save session
+            if (userId && onSaveSession) {
+                saveChecklistToFirestore(userId, newSession);
+                onSaveSession(newSession);
+            }
+
             // Expand all items by default
             const allIds = new Set<string>();
             const collectIds = (items: ChecklistItem[]) => {
@@ -128,6 +220,26 @@ const ChecklistContainer: React.FC = () => {
         } finally {
             setIsGenerating(false);
         }
+    };
+
+    // Calculate progress helper
+    const calculateProgressFromItems = (items: ChecklistItem[]): number => {
+        let total = 0;
+        let completed = 0;
+
+        const countItems = (list: ChecklistItem[]) => {
+            list.forEach(item => {
+                if (!item.subItems || item.subItems.length === 0) {
+                    total++;
+                    if (item.isCompleted) completed++;
+                } else {
+                    countItems(item.subItems);
+                }
+            });
+        };
+
+        countItems(items);
+        return total === 0 ? 0 : Math.round((completed / total) * 100);
     };
 
     // Toggle item completion
@@ -160,7 +272,25 @@ const ChecklistContainer: React.FC = () => {
             });
         };
 
-        setChecklistItems(updateItems(checklistItems));
+        const newItems = updateItems(checklistItems);
+        setChecklistItems(newItems);
+
+        // Update session
+        if (checklist && currentSessionId && userId) {
+            const currentProgress = calculateProgressFromItems(newItems);
+            const updatedSession: ChecklistSession = {
+                id: currentSessionId,
+                title: checklist.title,
+                createdAt: initialSession?.createdAt || Date.now(), // Preserve timestamp if exists
+                lastUpdated: Date.now(),
+                checklist: { ...checklist, items: newItems },
+                progress: currentProgress,
+                isFinished: currentProgress === 100
+            };
+
+            saveChecklistToFirestore(userId, updatedSession);
+            if (onSaveSession) onSaveSession(updatedSession);
+        }
     };
 
     // Toggle item expansion
@@ -441,7 +571,10 @@ const ChecklistContainer: React.FC = () => {
                                     </p>
                                 </div>
                                 <button
-                                    onClick={() => setChecklist(null)}
+                                    onClick={() => {
+                                        if (onNewChecklist) onNewChecklist();
+                                        else setChecklist(null);
+                                    }}
                                     className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
                                     title="إنشاء قائمة جديدة"
                                 >
