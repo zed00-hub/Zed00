@@ -392,6 +392,21 @@ const AppContent: React.FC = () => {
     });
   };
 
+  const renameChecklist = async (id: string, newTitle: string) => {
+    let updatedSession: ChecklistSession | undefined;
+    setChecklistSessions(prev => prev.map(session => {
+      if (session.id === id) {
+        updatedSession = { ...session, title: newTitle };
+        return updatedSession;
+      }
+      return session;
+    }));
+
+    if (updatedSession && user?.id) {
+      await saveChecklistToFirestore(user.id, updatedSession);
+    }
+  };
+
   // --------------------------
 
   const handleFileUpload = useCallback(async (filesList: FileList | null) => {
@@ -890,6 +905,7 @@ ${targetMessage.content}
               onOpenSettings={() => setIsSettingsOpen(true)}
               onOpenAdmin={() => navigate('/admin')}
               isAdmin={isAdmin(user?.email)}
+              onRenameChecklist={renameChecklist}
             />
           </div>
         </div>
@@ -926,6 +942,7 @@ ${targetMessage.content}
             onDeleteChecklist={deleteChecklist}
             onOpenAdmin={() => navigate('/admin')}
             isAdmin={isAdmin(user?.email)}
+            onRenameChecklist={renameChecklist}
           />
         </div>
 

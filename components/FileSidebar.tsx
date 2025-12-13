@@ -35,6 +35,7 @@ interface SidebarProps {
   onChecklistSelect: (id: string) => void;
   onNewChecklist: () => void;
   onDeleteChecklist: (id: string) => void;
+  onRenameChecklist: (id: string, newTitle: string) => void;
 
   // App Mode
   appMode: 'chat' | 'quiz' | 'mnemonics' | 'checklist';
@@ -73,6 +74,7 @@ const FileSidebar: React.FC<SidebarProps> = ({
   onChecklistSelect,
   onNewChecklist,
   onDeleteChecklist,
+  onRenameChecklist,
 
   appMode,
   onModeChange,
@@ -95,7 +97,7 @@ const FileSidebar: React.FC<SidebarProps> = ({
     setFiles(files.filter(f => f.id !== id));
   };
 
-  const startEditing = (session: ChatSession | QuizSession, e?: React.MouseEvent) => {
+  const startEditing = (session: ChatSession | QuizSession | ChecklistSession, e?: React.MouseEvent) => {
     e?.stopPropagation();
     setEditingSessionId(session.id);
     setNewTitle(session.title || '');
@@ -108,6 +110,8 @@ const FileSidebar: React.FC<SidebarProps> = ({
         onRenameSession(id, newTitle.trim());
       } else if (appMode === 'quiz') {
         onRenameQuiz(id, newTitle.trim());
+      } else if (appMode === 'checklist') {
+        onRenameChecklist(id, newTitle.trim());
       }
       setEditingSessionId(null);
     }
