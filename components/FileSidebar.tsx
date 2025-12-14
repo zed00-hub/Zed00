@@ -177,8 +177,8 @@ const FileSidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar Container */}
       <aside className={`
-        fixed top-0 right-0 h-[100dvh] w-80 bg-white/95 dark:bg-dark-surface/95 backdrop-blur-xl shadow-2xl z-30 transform transition-transform duration-300 ease-in-out flex flex-col
-        md:translate-x-0 md:static md:shadow-lg border-l border-gray-200/50 dark:border-dark-border/50 flex flex-col
+        fixed top-0 right-0 h-[100dvh] md:h-full w-80 bg-white/95 dark:bg-dark-surface/95 backdrop-blur-xl shadow-2xl z-30 transform transition-transform duration-300 ease-in-out flex flex-col
+        md:translate-x-0 md:static md:shadow-lg border-l border-gray-200/50 dark:border-dark-border/50
         ${isOpen ? 'translate-x-0' : 'translate-x-full'}
       `}>
         {/* Header */}
@@ -339,7 +339,7 @@ const FileSidebar: React.FC<SidebarProps> = ({
         </div >
 
         {/* Content Area */}
-        < div className="flex-1 overflow-y-auto px-3 py-3 pb-20 custom-scrollbar" >
+        <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 pb-20 custom-scrollbar">
 
           {/* --- CHATS TAB --- */}
           {activeTab === 'chats' && (
