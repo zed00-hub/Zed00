@@ -3,6 +3,7 @@ import { ChecklistResponse, ChecklistItem, FileContext, ChecklistSession } from 
 import { generateChecklist } from '../../services/geminiService';
 import { loadCoursesFromFirestore, CourseFile } from '../../services/coursesService';
 import { saveChecklistToFirestore } from '../../services/checklistService';
+import { trackNewChecklist } from '../../services/analyticsService';
 import { LoadingIcon } from '../Icons';
 import { ClipboardList, Upload, Library, Check, Clock, Lightbulb, ChevronDown, ChevronUp, RotateCcw, Sparkles } from 'lucide-react';
 import { fileToBase64 } from '../../utils/fileHelpers';
@@ -202,6 +203,7 @@ const ChecklistContainer: React.FC<ChecklistContainerProps> = ({ initialSession,
             if (userId && onSaveSession) {
                 await saveChecklistToFirestore(userId, newSession);
                 onSaveSession(newSession);
+                await trackNewChecklist(userId); // Track stats
             }
 
             // Expand all items by default

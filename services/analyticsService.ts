@@ -19,6 +19,7 @@ export interface UserStats extends User {
     totalTimeSpent: number; // in minutes
     conversationsCount: number;
     quizzesCount: number;
+    checklistsCount?: number;
     lastActive: any; // Timestamp
     createdAt: any; // Timestamp
 }
@@ -95,6 +96,20 @@ export const trackNewQuiz = async (userId: string) => {
         });
     } catch (error) {
         console.warn('Failed to track quiz:', error);
+    }
+};
+
+/**
+ * Increment checklist count
+ */
+export const trackNewChecklist = async (userId: string) => {
+    try {
+        const userRef = doc(db, 'users', userId);
+        await updateDoc(userRef, {
+            checklistsCount: increment(1)
+        });
+    } catch (error) {
+        console.warn('Failed to track checklist:', error);
     }
 };
 
