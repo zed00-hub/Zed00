@@ -177,7 +177,7 @@ const FileSidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar Container */}
       <aside className={`
-        fixed top-0 right-0 h-full w-80 bg-white/95 dark:bg-dark-surface/95 backdrop-blur-xl shadow-2xl z-30 transform transition-transform duration-300 ease-in-out
+        fixed top-0 right-0 h-[100dvh] w-80 bg-white/95 dark:bg-dark-surface/95 backdrop-blur-xl shadow-2xl z-30 transform transition-transform duration-300 ease-in-out flex flex-col
         md:translate-x-0 md:static md:shadow-lg border-l border-gray-200/50 dark:border-dark-border/50 flex flex-col
         ${isOpen ? 'translate-x-0' : 'translate-x-full'}
       `}>
