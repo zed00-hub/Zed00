@@ -2,12 +2,30 @@ import { db } from './firebase';
 import { collection, doc, setDoc, getDocs, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { ChecklistSession } from '../types';
 
+// Helper to remove undefined values (Firestore doesn't support them)
+const sanitizeData = (data: any): any => {
+    if (Array.isArray(data)) {
+        return data.map(item => sanitizeData(item));
+    } else if (data !== null && typeof data === 'object') {
+        const newObj: any = {};
+        for (const key in data) {
+            const value = data[key];
+            if (value !== undefined) {
+                newObj[key] = sanitizeData(value);
+            }
+        }
+        return newObj;
+    }
+    return data;
+};
+
 export const saveChecklistToFirestore = async (userId: string, session: ChecklistSession): Promise<void> => {
     if (!userId) return;
     try {
         const docRef = doc(db, 'users', userId, 'checklists', session.id);
+        const sanitizedSession = sanitizeData(session);
         await setDoc(docRef, {
-            ...session,
+            ...sanitizedSession,
             lastUpdated: Date.now()
         }, { merge: true });
         console.log('Checklist session saved:', session.id);

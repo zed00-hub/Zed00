@@ -200,7 +200,7 @@ const ChecklistContainer: React.FC<ChecklistContainerProps> = ({ initialSession,
 
             // Save session
             if (userId && onSaveSession) {
-                saveChecklistToFirestore(userId, newSession);
+                await saveChecklistToFirestore(userId, newSession);
                 onSaveSession(newSession);
             }
 
@@ -365,7 +365,7 @@ const ChecklistContainer: React.FC<ChecklistContainerProps> = ({ initialSession,
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                            <h4 className={`font-medium ${item.isCompleted
+                            <h4 className={`font-medium text-sm sm:text-base ${item.isCompleted
                                 ? 'text-green-700 dark:text-green-400 line-through'
                                 : 'text-gray-800 dark:text-gray-200'
                                 }`}>
@@ -381,7 +381,7 @@ const ChecklistContainer: React.FC<ChecklistContainerProps> = ({ initialSession,
                             )}
                         </div>
                         {item.description && (
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
                                 {item.description}
                             </p>
                         )}
@@ -401,24 +401,24 @@ const ChecklistContainer: React.FC<ChecklistContainerProps> = ({ initialSession,
     const progress = calculateProgress();
 
     return (
-        <div className="h-full overflow-y-auto custom-scrollbar p-4 sm:p-6 max-w-4xl mx-auto">
+        <div className="h-full overflow-y-auto custom-scrollbar p-3 sm:p-6 pb-24 sm:pb-10 max-w-4xl mx-auto">
 
             {/* Header */}
-            <div className="text-center mb-8 animate-fadeIn">
-                <div className="inline-flex p-4 bg-gradient-to-br from-teal-100 to-cyan-100 dark:from-teal-900/30 dark:to-cyan-900/30 rounded-full mb-4 shadow-sm border border-teal-200 dark:border-teal-700/50">
-                    <ClipboardList className="w-8 h-8 text-teal-600 dark:text-teal-400" />
+            <div className="text-center mb-6 sm:mb-8 animate-fadeIn">
+                <div className="inline-flex p-3 sm:p-4 bg-gradient-to-br from-teal-100 to-cyan-100 dark:from-teal-900/30 dark:to-cyan-900/30 rounded-full mb-4 shadow-sm border border-teal-200 dark:border-teal-700/50">
+                    <ClipboardList className="w-6 h-6 sm:w-8 sm:h-8 text-teal-600 dark:text-teal-400" />
                 </div>
-                <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-600 to-cyan-600 dark:from-teal-400 dark:to-cyan-400 mb-2">
+                <h1 className="text-2xl sm:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-600 to-cyan-600 dark:from-teal-400 dark:to-cyan-400 mb-2">
                     Chekiha
                 </h1>
-                <p className="text-gray-600 dark:text-gray-300 max-w-lg mx-auto">
+                <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 max-w-lg mx-auto px-4">
                     حول درسك إلى مهام واضحة | Transformez votre cours en tâches claires
                 </p>
             </div>
 
             {/* Input Section - Only show if no checklist yet */}
             {!checklist && (
-                <div className="bg-white dark:bg-dark-surface rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-dark-border mb-8 animate-slideUp">
+                <div className="bg-white dark:bg-dark-surface rounded-2xl p-4 sm:p-6 shadow-lg border border-gray-100 dark:border-dark-border mb-8 animate-slideUp">
 
                     {/* Source Type Selector */}
                     <div className="mb-6">
@@ -512,9 +512,9 @@ const ChecklistContainer: React.FC<ChecklistContainerProps> = ({ initialSession,
                                             <span>جاري استخراج المحتوى...</span>
                                         </div>
                                     ) : uploadedContent ? (
-                                        <div className="flex flex-col items-center gap-2 text-teal-600 dark:text-teal-400">
+                                        <div className="flex flex-col items-center gap-2 text-teal-600 dark:text-teal-400 px-4 text-center">
                                             <Check className="w-10 h-10" />
-                                            <span className="font-medium">{uploadedFileName}</span>
+                                            <span className="font-medium break-all line-clamp-2">{uploadedFileName}</span>
                                             <span className="text-sm text-gray-500">انقر لتغيير الملف</span>
                                         </div>
                                     ) : (
@@ -556,17 +556,17 @@ const ChecklistContainer: React.FC<ChecklistContainerProps> = ({ initialSession,
 
             {/* Checklist Results */}
             {checklist && (
-                <div className="animate-slideUp space-y-6">
+                <div className="animate-slideUp space-y-4 sm:space-y-6">
 
                     {/* Header with Progress */}
-                    <div className="bg-gradient-to-br from-teal-500 to-cyan-600 p-1 rounded-2xl shadow-xl">
-                        <div className="bg-white dark:bg-dark-surface h-full rounded-xl p-6">
+                    <div className="bg-gradient-to-br from-teal-500 to-cyan-600 p-0.5 sm:p-1 rounded-2xl shadow-xl">
+                        <div className="bg-white dark:bg-dark-surface h-full rounded-xl p-4 sm:p-6">
                             <div className="flex items-start justify-between mb-4">
-                                <div>
-                                    <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-1">
+                                <div className="flex-1 min-w-0 ml-2">
+                                    <h2 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-white mb-1 truncate">
                                         {checklist.title}
                                     </h2>
-                                    <p className="text-gray-600 dark:text-gray-300 text-sm">
+                                    <p className="text-gray-600 dark:text-gray-300 text-xs sm:text-sm line-clamp-2">
                                         {checklist.summary}
                                     </p>
                                 </div>
@@ -575,7 +575,7 @@ const ChecklistContainer: React.FC<ChecklistContainerProps> = ({ initialSession,
                                         if (onNewChecklist) onNewChecklist();
                                         else setChecklist(null);
                                     }}
-                                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                                    className="p-2 -mt-2 -mr-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
                                     title="إنشاء قائمة جديدة"
                                 >
                                     ✕
@@ -585,14 +585,14 @@ const ChecklistContainer: React.FC<ChecklistContainerProps> = ({ initialSession,
                             {/* Progress Bar */}
                             <div className="mb-4">
                                 <div className="flex items-center justify-between mb-2">
-                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
                                         التقدم
                                     </span>
-                                    <span className="text-sm font-bold text-teal-600 dark:text-teal-400">
+                                    <span className="text-xs sm:text-sm font-bold text-teal-600 dark:text-teal-400">
                                         {progress}%
                                     </span>
                                 </div>
-                                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+                                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 sm:h-3 overflow-hidden">
                                     <div
                                         className="bg-gradient-to-r from-teal-500 to-cyan-500 h-full rounded-full transition-all duration-500"
                                         style={{ width: `${progress}%` }}
@@ -601,18 +601,18 @@ const ChecklistContainer: React.FC<ChecklistContainerProps> = ({ initialSession,
                             </div>
 
                             {/* Meta Info */}
-                            <div className="flex flex-wrap gap-4 text-sm">
+                            <div className="flex flex-wrap gap-3 sm:gap-4 text-xs sm:text-sm">
                                 {checklist.estimatedTime && (
-                                    <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                                        <Clock className="w-4 h-4" />
+                                    <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded-lg">
+                                        <Clock className="w-3.5 h-3.5" />
                                         <span>{checklist.estimatedTime}</span>
                                     </div>
                                 )}
                                 <button
                                     onClick={resetChecklist}
-                                    className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors"
+                                    className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors px-2 py-1 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
                                 >
-                                    <RotateCcw className="w-4 h-4" />
+                                    <RotateCcw className="w-3.5 h-3.5" />
                                     <span>إعادة تعيين</span>
                                 </button>
                             </div>
@@ -626,15 +626,15 @@ const ChecklistContainer: React.FC<ChecklistContainerProps> = ({ initialSession,
 
                     {/* Tips Section */}
                     {checklist.tips && checklist.tips.length > 0 && (
-                        <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-2xl p-6 border border-amber-200 dark:border-amber-800/50">
-                            <h3 className="font-bold text-amber-800 dark:text-amber-300 mb-3 flex items-center gap-2">
-                                <Lightbulb className="w-5 h-5" />
+                        <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-2xl p-5 sm:p-6 border border-amber-200 dark:border-amber-800/50">
+                            <h3 className="font-bold text-amber-800 dark:text-amber-300 mb-3 flex items-center gap-2 text-sm sm:text-base">
+                                <Lightbulb className="w-5 h-5 shrink-0" />
                                 نصائح للمراجعة
                             </h3>
-                            <ul className="space-y-2">
+                            <ul className="space-y-2.5">
                                 {checklist.tips.map((tip, idx) => (
-                                    <li key={idx} className="flex items-start gap-2 text-amber-700 dark:text-amber-200">
-                                        <span className="text-amber-500">•</span>
+                                    <li key={idx} className="flex items-start gap-2 text-amber-700 dark:text-amber-200 text-sm">
+                                        <span className="text-amber-500 mt-1">•</span>
                                         <span>{tip}</span>
                                     </li>
                                 ))}
@@ -644,10 +644,10 @@ const ChecklistContainer: React.FC<ChecklistContainerProps> = ({ initialSession,
 
                     {/* Completion Celebration */}
                     {progress === 100 && (
-                        <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-8 text-center text-white animate-bounce-once">
-                            <div className="text-5xl mb-4">🎉</div>
-                            <h3 className="text-2xl font-bold mb-2">أحسنت! أكملت كل المهام</h3>
-                            <p className="opacity-90">استمر في التفوق والنجاح!</p>
+                        <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 sm:p-8 text-center text-white animate-bounce-once shadow-lg shadow-green-500/30">
+                            <div className="text-4xl sm:text-5xl mb-4">🎉</div>
+                            <h3 className="text-xl sm:text-2xl font-bold mb-2">أحسنت! أكملت كل المهام</h3>
+                            <p className="opacity-90 text-sm sm:text-base">استمر في التفوق والنجاح!</p>
                         </div>
                     )}
                 </div>

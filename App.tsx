@@ -81,6 +81,7 @@ const AppContent: React.FC = () => {
   // Initialize Checklist Sessions
   const [checklistSessions, setChecklistSessions] = useState<ChecklistSession[]>([]);
   const [currentChecklistId, setCurrentChecklistId] = useState<string | null>(null);
+  const [checklistKey, setChecklistKey] = useState(0);
 
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
@@ -368,6 +369,7 @@ const AppContent: React.FC = () => {
   // --- Checklist Management ---
   const createNewChecklist = () => {
     setCurrentChecklistId(null);
+    setChecklistKey(prev => prev + 1);
   };
 
   const deleteChecklist = async (id: string) => {
@@ -390,6 +392,11 @@ const AppContent: React.FC = () => {
         return [session, ...prev];
       }
     });
+
+    // If we were in "New Checklist" mode (null), switch to this new session
+    if (currentChecklistId === null) {
+      setCurrentChecklistId(session.id);
+    }
   };
 
   const renameChecklist = async (id: string, newTitle: string) => {
@@ -1062,6 +1069,7 @@ ${targetMessage.content}
                 <div className="flex-1 overflow-hidden relative">
                   <div className="absolute inset-0">
                     <ChecklistContainer
+                      key={currentChecklistId || `new-${checklistKey}`}
                       initialSession={checklistSessions.find(s => s.id === currentChecklistId)}
                       onSaveSession={updateChecklistSession}
                       userId={user?.id}
