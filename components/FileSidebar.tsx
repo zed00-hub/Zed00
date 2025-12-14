@@ -596,14 +596,14 @@ const FileSidebar: React.FC<SidebarProps> = ({
               </div>
 
               {/* Action Buttons Row */}
-              <div className="flex items-center gap-1 mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+              <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100 dark:border-gray-800 gap-2">
                 {/* Theme Toggle */}
                 <button
                   onClick={onToggleTheme}
                   className="flex-1 p-2 text-gray-500 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg transition-all flex justify-center items-center"
                   title={isDarkMode ? 'الوضع النهاري' : 'الوضع الليلي'}
                 >
-                  {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+                  {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
                 </button>
 
                 {/* Settings */}
@@ -612,7 +612,7 @@ const FileSidebar: React.FC<SidebarProps> = ({
                   className="flex-1 p-2 text-gray-500 hover:text-medical-600 hover:bg-medical-50 dark:hover:bg-medical-900/30 rounded-lg transition-all flex justify-center items-center"
                   title="إعدادات المساعد"
                 >
-                  <Settings size={18} />
+                  <Settings size={20} />
                 </button>
 
                 {/* Admin Panel - Only for admins */}
@@ -622,11 +622,11 @@ const FileSidebar: React.FC<SidebarProps> = ({
                     className="flex-1 p-2 text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg transition-all flex justify-center items-center"
                     title="لوحة إدارة المواد"
                   >
-                    <Crown size={18} />
+                    <Crown size={20} />
                   </button>
                 )}
 
-                {/* Logout - Always visible */}
+                {/* Logout */}
                 <button
                   onClick={logout}
                   className="flex-1 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all flex justify-center items-center"
