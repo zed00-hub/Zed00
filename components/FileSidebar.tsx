@@ -568,6 +568,7 @@ const FileSidebar: React.FC<SidebarProps> = ({
         </div >
 
         {/* User Profile Section */}
+        {/* User Profile Section */}
         <div className="p-4 border-t border-gray-200/50 dark:border-dark-border/50 bg-gradient-to-r from-gray-50/80 to-white dark:from-dark-bg/50 dark:to-dark-surface/50 backdrop-blur-sm shrink-0">
           {user && (
             <div className="space-y-3">
@@ -582,46 +583,53 @@ const FileSidebar: React.FC<SidebarProps> = ({
                   <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-700"></div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-gray-800 dark:text-gray-200 truncate">{user.name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-bold text-gray-800 dark:text-gray-200 truncate">{user.name}</p>
+                    {isUserAdmin && (
+                      <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] font-bold rounded-md border border-amber-200 dark:border-amber-800">
+                        ADMIN
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{user.email}</p>
                 </div>
               </div>
 
               {/* Action Buttons Row */}
-              <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+              <div className="flex items-center gap-1 mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
                 {/* Theme Toggle */}
                 <button
                   onClick={onToggleTheme}
-                  className="flex-1 p-2 text-gray-500 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg transition-all flex justify-center"
+                  className="flex-1 p-2 text-gray-500 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg transition-all flex justify-center items-center"
                   title={isDarkMode ? 'الوضع النهاري' : 'الوضع الليلي'}
                 >
-                  {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+                  {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
                 </button>
 
                 {/* Settings */}
                 <button
                   onClick={onOpenSettings}
-                  className="flex-1 p-2 text-gray-500 hover:text-medical-600 hover:bg-medical-50 dark:hover:bg-medical-900/30 rounded-lg transition-all flex justify-center"
+                  className="flex-1 p-2 text-gray-500 hover:text-medical-600 hover:bg-medical-50 dark:hover:bg-medical-900/30 rounded-lg transition-all flex justify-center items-center"
                   title="إعدادات المساعد"
                 >
-                  <Settings size={20} />
+                  <Settings size={18} />
                 </button>
 
                 {/* Admin Panel - Only for admins */}
                 {isUserAdmin && (
                   <button
                     onClick={onOpenAdmin}
-                    className="flex-1 p-2 text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg transition-all flex justify-center"
+                    className="flex-1 p-2 text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg transition-all flex justify-center items-center"
                     title="لوحة إدارة المواد"
                   >
-                    <Crown size={20} />
+                    <Crown size={18} />
                   </button>
                 )}
 
-                {/* Logout */}
+                {/* Logout - Always visible */}
                 <button
                   onClick={logout}
-                  className="flex-1 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all flex justify-center"
+                  className="flex-1 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all flex justify-center items-center"
                   title="تسجيل الخروج"
                 >
                   <LogOutIcon />
