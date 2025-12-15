@@ -224,96 +224,101 @@ export const generateResponseStream = async (
   settings?: BotSettings
 ): Promise<string> => {
   try {
+    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || "" });
     const modelId = "gemini-2.5-flash"; // User specific model
-    getKnowledgeForBot(),
+
+    // Fetch Admin Knowledge Base
+    // Fetch Admin Knowledge Base and Config
+    const [adminKnowledge, botConfig] = await Promise.all([
+      getKnowledgeForBot(),
       getBotConfig()
     ]);
 
-const userSettings = settings || defaultSettings;
-const systemInstructionContent = buildSystemInstruction(
-  userSettings,
-  adminKnowledge,
-  botConfig || undefined
-);
+    const userSettings = settings || defaultSettings;
+    const systemInstructionContent = buildSystemInstruction(
+      userSettings,
+      adminKnowledge,
+      botConfig || undefined
+    );
 
-// Smart context selection
-const relevantFiles = selectRelevantFiles(currentPrompt, fileContexts);
+    // Smart context selection
+    const relevantFiles = selectRelevantFiles(currentPrompt, fileContexts);
 
-const fileParts: Part[] = [];
-let contextText = "";
+    const fileParts: Part[] = [];
+    let contextText = "";
 
-relevantFiles.forEach((file) => {
-  if (file.data) {
-    fileParts.push({
-      inlineData: {
-        mimeType: file.type,
-        data: file.data,
-      },
+    relevantFiles.forEach((file) => {
+      if (file.data) {
+        fileParts.push({
+          inlineData: {
+            mimeType: file.type,
+            data: file.data,
+          },
+        });
+      } else if (file.content) {
+        // Full content for scientific accuracy
+        contextText += `\n[SOURCE: ${file.name}]\n${file.content}\n---\n`;
+      }
     });
-  } else if (file.content) {
-    // Full content for scientific accuracy
-    contextText += `\n[SOURCE: ${file.name}]\n${file.content}\n---\n`;
-  }
-});
 
-const fullPrompt = contextText
-  ? `<CONTEXTE>\n${contextText}</CONTEXTE>\n\n<QUESTION>\n${currentPrompt}\n</QUESTION>`
-  : currentPrompt;
+    const fullPrompt = contextText
+      ? `<CONTEXTE>\n${contextText}</CONTEXTE>\n\n<QUESTION>\n${currentPrompt}\n</QUESTION>`
+      : currentPrompt;
 
-const textPart: Part = { text: fullPrompt };
-const currentMessageParts: Part[] = [...fileParts, textPart];
+    const textPart: Part = { text: fullPrompt };
+    const currentMessageParts: Part[] = [...fileParts, textPart];
 
-// Keep reasonable history
-const recentHistory = messageHistory.slice(-8);
+    // Keep reasonable history
+    const recentHistory = messageHistory.slice(-8);
 
-const contents: Content[] = [
-  ...mapMessagesToContent(recentHistory),
-  {
-    role: "user",
-    parts: currentMessageParts
-  }
-];
+    const contents: Content[] = [
+      ...mapMessagesToContent(recentHistory),
+      {
+        role: "user",
+        parts: currentMessageParts
+      }
+    ];
 
-// Use streaming - NO token limit for full scientific responses
-const response = await ai.models.generateContentStream({
-  model: modelId,
-  config: {
-    systemInstruction: {
-      role: 'system',
-      parts: [{ text: systemInstructionContent }]
-    },
-    temperature: botConfig?.temperature ?? 0.5,
-    topP: 0.9,
-    maxOutputTokens: userSettings.responseLength === 'short' ? 1000 : userSettings.responseLength === 'long' ? 8192 : 4000,
-  },
-  contents: contents,
-});
+    // Use streaming - NO token limit for full scientific responses
+    const response = await ai.models.generateContentStream({
+      model: modelId,
+      config: {
+        systemInstruction: {
+          role: 'system',
+          parts: [{ text: systemInstructionContent }]
+        },
+        temperature: botConfig?.temperature ?? 0.5,
+        topP: 0.9,
+        maxOutputTokens: userSettings.responseLength === 'short' ? 1000 : userSettings.responseLength === 'long' ? 8192 : 4000,
+      },
+      contents: contents,
+    });
 
-let fullText = "";
-for await (const chunk of response) {
-  const chunkText = chunk.text || "";
-  fullText += chunkText;
-  onChunk(chunkText);
-}
+    let fullText = "";
+    for await (const chunk of response) {
+      const chunkText = chunk.text || "";
+      fullText += chunkText;
+      onChunk(chunkText);
+    }
 
-return fullText || "عذراً، لم أتمكن من إنشاء إجابة.";
+    return fullText || "عذراً، لم أتمكن من إنشاء إجابة.";
   } catch (error: any) {
-  console.error("Gemini API Error:", error);
+    console.error("Gemini API Error:", error);
 
-  const errorCode = error?.error?.code || error?.status || error?.statusCode || error?.code;
-  const errorStatus = error?.error?.status || error?.status;
-  const errorMessage = error?.error?.message || error?.message || "";
+    const errorCode = error?.error?.code || error?.status || error?.statusCode || error?.code;
+    const errorStatus = error?.error?.status || error?.status;
+    const errorMessage = error?.error?.message || error?.message || "";
 
-  if (errorCode === 429 || errorStatus === "RESOURCE_EXHAUSTED" || errorMessage.includes("quota")) {
-    throw new Error("QUOTA_EXCEEDED: تم تجاوز الحد اليومي. حاول لاحقاً.");
+    if (errorCode === 429 || errorStatus === "RESOURCE_EXHAUSTED" || errorMessage.includes("quota")) {
+      throw new Error("QUOTA_EXCEEDED: تم تجاوز الحد اليومي. حاول لاحقاً.");
+    }
+
+    if (errorCode === 401 || errorMessage.includes("API key")) {
+      throw new Error("API_KEY_INVALID: مفتاح API غير صالح.");
+    }
+
+    throw new Error("حدث خطأ في الاتصال.");
   }
-
-  if (errorCode === 401 || errorMessage.includes("API key")) {
-    throw new Error("API_KEY_INVALID: مفتاح API غير صالح.");
-  }
-
-  throw new Error("حدث خطأ في الاتصال.");
-}
 };
 
 // Non-streaming version (fallback)
