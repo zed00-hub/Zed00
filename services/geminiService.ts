@@ -225,10 +225,9 @@ export const generateResponseStream = async (
 ): Promise<string> => {
   try {
     const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || "" });
-    const modelId = "gemini-2.5-flash"; // User specific model
+    const modelId = "gemini-1.5-flash"; // Use stable flash model with high token limit
 
     // Fetch Admin Knowledge Base
-    // Fetch Admin Knowledge Base and Config
     const [adminKnowledge, botConfig] = await Promise.all([
       getKnowledgeForBot(),
       getBotConfig()
@@ -289,7 +288,7 @@ export const generateResponseStream = async (
         },
         temperature: botConfig?.temperature ?? 0.5,
         topP: 0.9,
-        maxOutputTokens: userSettings.responseLength === 'short' ? 500 : userSettings.responseLength === 'long' ? 2000 : 1000,
+        maxOutputTokens: userSettings.responseLength === 'short' ? 1000 : userSettings.responseLength === 'long' ? 8192 : 4000,
       },
       contents: contents,
     });
