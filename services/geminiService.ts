@@ -280,52 +280,78 @@ export const generateResponseStream = async (
       }
     ];
 
-    // Use streaming - with retry logic for 429
-    const makeRequest = async () => {
-      return await ai.models.generateContentStream({
-        model: modelId,
-        config: {
-          systemInstruction: {
-            role: 'system',
-            parts: [{ text: systemInstructionContent }]
-          },
-          temperature: botConfig?.temperature ?? 0.5,
-          topP: 0.9,
-          maxOutputTokens: userSettings.responseLength === 'short' ? 500 : userSettings.responseLength === 'long' ? 2000 : 1000,
-        },
-        contents: contents,
-      });
-    };
+    // List of models to try in order. 
+    // If primary fails (Quota), fallback to others to keep app running.
+    const MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
 
-    // Retry wrapper
-    let response;
-    let attempts = 0;
-    while (attempts < 3) {
+    let lastError;
+
+    // Outer loop: Try different MODELS
+    for (const modelToTry of MODELS_TO_TRY) {
       try {
-        response = await makeRequest();
-        break;
-      } catch (err: any) {
-        if (err?.status === 429 || err?.code === 429 || err?.error?.code === 429) {
-          attempts++;
-          if (attempts >= 3) throw err;
-          console.log(`Quota exceeded, retrying in ${attempts * 2}s...`);
-          await new Promise(resolve => setTimeout(resolve, attempts * 2000));
-        } else {
-          throw err;
+        console.log(`Trying model: ${modelToTry}...`);
+
+        // Inner function: Make request with current model
+        const makeRequest = async () => {
+          return await ai.models.generateContentStream({
+            model: modelToTry,
+            config: {
+              systemInstruction: {
+                role: 'system',
+                parts: [{ text: systemInstructionContent }]
+              },
+              temperature: botConfig?.temperature ?? 0.5,
+              topP: 0.9,
+              maxOutputTokens: userSettings.responseLength === 'short' ? 500 : userSettings.responseLength === 'long' ? 2000 : 1000,
+            },
+            contents: contents,
+          });
+        };
+
+        // Inner loop: Retry same model for transient errors (up to 2 times)
+        let response;
+        let attempts = 0;
+        while (attempts < 2) {
+          try {
+            response = await makeRequest();
+            break; // Success!
+          } catch (err: any) {
+            // Check for Rate Limit (429)
+            if (err?.status === 429 || err?.code === 429 || err?.error?.code === 429 || (err?.message && err.message.includes('quota'))) {
+              console.warn(`Quota/Rate limit on ${modelToTry}.`);
+              throw err; // Break inner loop to try NEXT MODEL
+            } else {
+              // Other errors (network, timeout) -> Retry same model
+              attempts++;
+              if (attempts >= 2) throw err;
+              console.log(`${modelToTry} error, retrying in 1s...`);
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          }
         }
+
+        if (!response) throw new Error("No response");
+
+        // Process stream
+        let fullText = "";
+        for await (const chunk of response) {
+          const chunkText = chunk.text || "";
+          fullText += chunkText;
+          onChunk(chunkText);
+        }
+
+        // If we got here, success! Return immediately.
+        return fullText || "عذراً، لم أتمكن من إنشاء إجابة.";
+
+      } catch (error: any) {
+        console.warn(`Model ${modelToTry} failed:`, error.message);
+        lastError = error;
+        // Continue to next model in MODELS_TO_TRY
       }
     }
 
-    if (!response) throw new Error("Failed to get response");
-
-    let fullText = "";
-    for await (const chunk of response) {
-      const chunkText = chunk.text || "";
-      fullText += chunkText;
-      onChunk(chunkText);
-    }
-
-    return fullText || "عذراً، لم أتمكن من إنشاء إجابة.";
+    // If all models failed
+    throw lastError || new Error("All models failed.");
   } catch (error: any) {
     console.error("Gemini API Error:", error);
 
