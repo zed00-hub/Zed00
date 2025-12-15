@@ -289,7 +289,7 @@ export const generateResponseStream = async (
         },
         temperature: botConfig?.temperature ?? 0.5,
         topP: 0.9,
-        maxOutputTokens: userSettings.responseLength === 'short' ? 1000 : userSettings.responseLength === 'long' ? 8192 : 4000,
+        maxOutputTokens: userSettings.responseLength === 'short' ? 500 : userSettings.responseLength === 'long' ? 2000 : 1000,
       },
       contents: contents,
     });

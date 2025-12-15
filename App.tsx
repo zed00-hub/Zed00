@@ -270,7 +270,7 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const updateCurrentSessionMessages = (newMessages: Message[], newTitle?: string, skipSave: boolean = false) => {
+  const updateCurrentSessionMessages = (newMessages: Message[], newTitle?: string) => {
     setSessions(prev => {
       return prev.map(session => {
         if (session.id === currentSessionId) {
@@ -280,8 +280,7 @@ const AppContent: React.FC = () => {
             title: newTitle || session.title,
             timestamp: Date.now()
           };
-          // Only save to Firestore if NOT skipping (e.g. during streaming intermediate chunks)
-          if (user?.id && !skipSave) {
+          if (user?.id) {
             saveSessionToFirestore(user.id, updatedSession);
           }
           return updatedSession;
@@ -523,7 +522,7 @@ const AppContent: React.FC = () => {
             ...botMessage,
             content: streamedContent
           };
-          updateCurrentSessionMessages([...updatedMessages, updatedBot], newTitle, true);
+          updateCurrentSessionMessages([...updatedMessages, updatedBot], newTitle);
         },
         settings // Pass user settings
       );
@@ -668,7 +667,7 @@ const AppContent: React.FC = () => {
             ...newBotMessage,
             content: streamedContent
           };
-          updateCurrentSessionMessages([...messagesWithoutOldBot, updatedBot], undefined, true);
+          updateCurrentSessionMessages([...messagesWithoutOldBot, updatedBot]);
         },
         settings
       );
@@ -809,7 +808,7 @@ ${targetMessage.content}
           const updatedMessages = messages.map((msg, idx) =>
             idx === messageIndex ? { ...msg, content: streamedContent } : msg
           );
-          updateCurrentSessionMessages(updatedMessages, undefined, true);
+          updateCurrentSessionMessages(updatedMessages);
         },
         settings
       );
