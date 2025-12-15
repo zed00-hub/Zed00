@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { FileIcon, TrashIcon, CloseIcon, BookOpen, SearchIcon, PlusIcon, ChatIcon, LayersIcon, EditIcon, CheckIcon, XIcon, LogOutIcon } from './Icons';
 import { Sparkles, Settings, Crown, Sun, Moon, ClipboardList, MessageSquare } from 'lucide-react';
 import { formatFileSize } from '../utils/fileHelpers';
+import { isSupervisor, isAdmin } from '../services/coursesService';
 
 interface SidebarProps {
   files: FileContext[];
@@ -584,9 +585,14 @@ const FileSidebar: React.FC<SidebarProps> = ({
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
                     <p className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate max-w-[80px] sm:max-w-[100px]">{user.name}</p>
-                    {isUserAdmin && (
+                    {isAdmin(user.email) && (
                       <span className="px-1 py-0.5 bg-amber-100/80 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[9px] font-bold rounded border border-amber-200 dark:border-amber-800 shrink-0">
                         ADMIN
+                      </span>
+                    )}
+                    {isSupervisor(user.email) && (
+                      <span className="px-1 py-0.5 bg-blue-100/80 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-[9px] font-bold rounded border border-blue-200 dark:border-blue-800 shrink-0">
+                        MUSHRIF
                       </span>
                     )}
                   </div>
@@ -612,7 +618,7 @@ const FileSidebar: React.FC<SidebarProps> = ({
                   <Settings size={18} />
                 </button>
 
-                {isUserAdmin && (
+                {(isUserAdmin || isSupervisor(user.email)) && (
                   <button
                     onClick={onOpenAdmin}
                     className="p-1.5 text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg transition-all"

@@ -12,14 +12,28 @@ import { FileContext } from '../types';
 
 const COURSES_COLLECTION = 'shared_courses';
 
-// Admin emails - only these users can add/edit courses
+// Admin emails - full access
 export const ADMIN_EMAILS = [
     'ziadgaid.ergo@gmail.com',
+];
+
+// Supervisor emails - limited access (Courses + Knowledge only)
+export const SUPERVISOR_EMAILS = [
+    'abdderrahim7676@gmail.com',
 ];
 
 export const isAdmin = (email: string | undefined): boolean => {
     if (!email) return false;
     return ADMIN_EMAILS.includes(email.toLowerCase());
+};
+
+export const isSupervisor = (email: string | undefined): boolean => {
+    if (!email) return false;
+    return SUPERVISOR_EMAILS.includes(email.toLowerCase());
+};
+
+export const hasAdminPanelAccess = (email: string | undefined): boolean => {
+    return isAdmin(email) || isSupervisor(email);
 };
 
 // Course categories for organization

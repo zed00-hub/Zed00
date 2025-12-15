@@ -4,6 +4,8 @@ import {
     loadCoursesFromFirestore,
     deleteCourseFromFirestore,
     isAdmin,
+    isSupervisor,
+    hasAdminPanelAccess,
     COURSE_CATEGORIES,
     CourseFile
 } from '../services/coursesService';
@@ -85,8 +87,8 @@ const AdminPanel: React.FC = () => {
     });
 
     useEffect(() => {
-        // Redirect if not admin
-        if (user && !isAdmin(user.email)) {
+        // Redirect if not admin or supervisor
+        if (user && !hasAdminPanelAccess(user.email)) {
             navigate('/');
         }
     }, [user, navigate]);
@@ -319,7 +321,10 @@ const AdminPanel: React.FC = () => {
         return `${m}د`;
     };
 
-    if (!user || !isAdmin(user.email)) {
+    // Check supervisor status
+    const isUserSupervisor = isSupervisor(user?.email);
+
+    if (!user || (!isAdmin(user.email) && !isSupervisor(user.email))) {
         return <div className="min-h-screen flex items-center justify-center text-gray-500">جاري التحقق من الصلاحيات...</div>;
     }
 
@@ -334,7 +339,9 @@ const AdminPanel: React.FC = () => {
                                 <LayoutDashboard className="w-8 h-8 text-amber-600 dark:text-amber-400" />
                             </div>
                             <div>
-                                <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200">لوحة القيادة</h2>
+                                <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200">
+                                    {isUserSupervisor ? 'لوحة المشرف' : 'لوحة القيادة'}
+                                </h2>
                                 <p className="text-sm text-gray-500">نظرة شاملة على أداء PARABOT</p>
                             </div>
                         </div>
@@ -347,10 +354,10 @@ const AdminPanel: React.FC = () => {
                         </button>
                     </div>
 
-                    <div className="flex gap-2 bg-gray-100 dark:bg-gray-800/50 p-1.5 rounded-xl">
+                    <div className="flex gap-2 bg-gray-100 dark:bg-gray-800/50 p-1.5 rounded-xl overflow-x-auto">
                         <button
                             onClick={() => setActiveTab('courses')}
-                            className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'courses'
+                            className={`flex-1 min-w-[120px] py-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'courses'
                                 ? 'bg-white dark:bg-dark-surface text-amber-600 shadow-sm'
                                 : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
                                 }`}
@@ -358,19 +365,23 @@ const AdminPanel: React.FC = () => {
                             <BookOpen size={20} />
                             إدارة المواد
                         </button>
-                        <button
-                            onClick={() => setActiveTab('analytics')}
-                            className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'analytics'
-                                ? 'bg-white dark:bg-dark-surface text-amber-600 shadow-sm'
-                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-                                }`}
-                        >
-                            <Users size={20} />
-                            تحليلات الطلاب
-                        </button>
+
+                        {!isUserSupervisor && (
+                            <button
+                                onClick={() => setActiveTab('analytics')}
+                                className={`flex-1 min-w-[120px] py-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'analytics'
+                                    ? 'bg-white dark:bg-dark-surface text-amber-600 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                                    }`}
+                            >
+                                <Users size={20} />
+                                تحليلات الطلاب
+                            </button>
+                        )}
+
                         <button
                             onClick={() => setActiveTab('knowledge')}
-                            className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'knowledge'
+                            className={`flex-1 min-w-[120px] py-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'knowledge'
                                 ? 'bg-white dark:bg-dark-surface text-amber-600 shadow-sm'
                                 : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
                                 }`}
@@ -378,16 +389,19 @@ const AdminPanel: React.FC = () => {
                             <Brain size={20} />
                             تغذية البوت
                         </button>
-                        <button
-                            onClick={() => setActiveTab('settings')}
-                            className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'settings'
-                                ? 'bg-white dark:bg-dark-surface text-amber-600 shadow-sm'
-                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-                                }`}
-                        >
-                            <Lightbulb size={20} />
-                            تخصيص البوت
-                        </button>
+
+                        {!isUserSupervisor && (
+                            <button
+                                onClick={() => setActiveTab('settings')}
+                                className={`flex-1 min-w-[120px] py-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'settings'
+                                    ? 'bg-white dark:bg-dark-surface text-amber-600 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                                    }`}
+                            >
+                                <Lightbulb size={20} />
+                                تخصيص البوت
+                            </button>
+                        )}
                     </div>
                 </div>
 
