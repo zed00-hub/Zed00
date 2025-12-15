@@ -174,7 +174,7 @@ ${s1Subjects}`;
   const langGuide = {
     ar: 'تحدث بالعربية الفصحى مع المحتوى العلمي بالفرنسية.',
     fr: 'Répondez principalement en français académique.',
-    mixed: 'امزج بين العربية للحوار والفرنسية للمحتوى العلمي.'
+    mixed: 'امزج بين العربية للحوار والفرنسية للمحتوى العلمي. استثناء: لمادة "Législation/Éthique", استخدم العربية بالكامل (بما في ذلك المصطلحات).'
   };
 
   const toneGuide = styleInstruction || (settings.formalTone
@@ -379,11 +379,17 @@ export const generateQuiz = async (
     }
 
     const isMultiple = config.quizType === 'multiple';
+    const isLegislation = config.subject && (
+      config.subject.toLowerCase().includes('législation') ||
+      config.subject.toLowerCase().includes('legislation') ||
+      config.subject.toLowerCase().includes('éthique')
+    );
+
     const systemInstruction = `
       Rôle: Générateur de QCM (QCM) Expert pour étudiants paramédicaux.
       Tâche: Générer ${config.questionCount} questions QCM de difficulté '${config.difficulty}'.
       Type de Quiz: ${isMultiple ? "CHOIX MULTIPLES (Plusieurs réponses correctes possibles, 'Tout ou Rien')" : "CHOIX UNIQUE (Une seule bonne réponse)"}.
-      Langue: Français (Scientifique).
+      Langue: ${isLegislation ? "ARABE (Pour la Législation/Éthique seulement)" : "Français (Scientifique)"}.
       
       FORMAT DE SORTIE (STRICT JSON):
       Tu dois répondre UNIQUEMENT avec un tableau JSON valide.
@@ -403,6 +409,7 @@ export const generateQuiz = async (
       2. 4 choix par question.
       3. ${isMultiple ? "Fournir 1 ou plusieurs bonnes réponses par question." : "Une SEULE bonne réponse par question."}
       4. Pas de texte avant ou après le JSON.
+      ${isLegislation ? "5. IMPORTANT: Le contexte est 'Législation/Éthique', donc les questions, les choix et l'explication DOIVENT être en ARABE." : ""}
     `;
 
     const prompt = `

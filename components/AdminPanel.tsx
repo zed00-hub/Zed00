@@ -195,18 +195,39 @@ const AdminPanel: React.FC = () => {
                 };
                 await saveCourseToFirestore(newCourse);
             } else {
-                const courseToUpdate = courses.find(c => c.id === selectedCourseId);
-                if (!courseToUpdate) throw new Error("المادة غير موجودة");
+                // In append mode, selectedCourseId is actually the CATEGORY ID
+                const categoryId = selectedCourseId;
+                const category = COURSE_CATEGORIES.find(c => c.id === categoryId);
+
+                // Try to find existing course for this category
+                // We PRIORITIZE exact category match used by the system
+                let courseToUpdate = courses.find(c => c.category === categoryId);
 
                 const separator = `\n\n---\n**${lessonTitle || 'درس جديد'}**\n---\n\n`;
-                const newContent = courseToUpdate.content + separator + courseContent.trim();
+                const contentToAdd = courseContent.trim();
 
-                const updatedCourse: CourseFile = {
-                    ...courseToUpdate,
-                    content: newContent,
-                    size: new Blob([newContent]).size
-                };
-                await saveCourseToFirestore(updatedCourse);
+                if (courseToUpdate) {
+                    // Append to existing
+                    const newContent = courseToUpdate.content + separator + contentToAdd;
+                    const updatedCourse: CourseFile = {
+                        ...courseToUpdate,
+                        content: newContent,
+                        size: new Blob([newContent]).size
+                    };
+                    await saveCourseToFirestore(updatedCourse);
+                } else {
+                    // Create new course for this category automatically
+                    const newCourse: CourseFile = {
+                        id: `course-${categoryId}-${Date.now()}`, // Unique ID
+                        name: category ? category.labelAr : 'مادة جديدة', // Use Arabic label as name
+                        type: 'text/plain',
+                        content: `# ${category ? category.labelAr : 'مادة'} - ${category ? category.label : ''}\n\n` + separator + contentToAdd,
+                        size: new Blob([contentToAdd]).size,
+                        category: categoryId,
+                        createdAt: Date.now()
+                    };
+                    await saveCourseToFirestore(newCourse);
+                }
             }
 
             setSaveStatus('success');
@@ -459,10 +480,11 @@ const AdminPanel: React.FC = () => {
                                                 onChange={(e) => setSelectedCourseId(e.target.value)}
                                                 className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 transition-all"
                                             >
-                                                <option value="">اختر مادة من القائمة...</option>
-                                                {courses.map((course) => (
-                                                    <option key={course.id} value={course.id}>{course.name}</option>
+                                                <option value="">اختر مادة للتدريس...</option>
+                                                {COURSE_CATEGORIES.filter(cat => cat.id !== 'other').map((cat) => (
+                                                    <option key={cat.id} value={cat.id}>{cat.labelAr} ({cat.label})</option>
                                                 ))}
+                                                <option value="other">أخرى / Autre</option>
                                             </select>
                                         </div>
                                         <div>
