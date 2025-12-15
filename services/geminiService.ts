@@ -282,7 +282,8 @@ export const generateResponseStream = async (
 
     // List of models to try in order. 
     // If primary fails (Quota), fallback to others to keep app running.
-    const MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
+    // Updated names to avoid 404 errors
+    const MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-1.5-flash-latest", "gemini-2.0-flash-exp", "gemini-1.5-pro-latest"];
 
     let lastError;
 
