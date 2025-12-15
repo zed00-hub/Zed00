@@ -256,8 +256,9 @@ export const generateResponseStream = async (
           },
         });
       } else if (file.content) {
-        // Full content for scientific accuracy
-        contextText += `\n[SOURCE: ${file.name}]\n${file.content}\n---\n`;
+        // Full content for scientific accuracy (Truncated to avoid token limits)
+        const safeContent = file.content.substring(0, 30000); // 30k chars = ~7-8k tokens max
+        contextText += `\n[SOURCE: ${file.name}]\n${safeContent}${file.content.length > 30000 ? '\n...(truncated)...' : ''}\n---\n`;
       }
     });
 
@@ -279,20 +280,43 @@ export const generateResponseStream = async (
       }
     ];
 
-    // Use streaming - NO token limit for full scientific responses
-    const response = await ai.models.generateContentStream({
-      model: modelId,
-      config: {
-        systemInstruction: {
-          role: 'system',
-          parts: [{ text: systemInstructionContent }]
+    // Use streaming - with retry logic for 429
+    const makeRequest = async () => {
+      return await ai.models.generateContentStream({
+        model: modelId,
+        config: {
+          systemInstruction: {
+            role: 'system',
+            parts: [{ text: systemInstructionContent }]
+          },
+          temperature: botConfig?.temperature ?? 0.5,
+          topP: 0.9,
+          maxOutputTokens: userSettings.responseLength === 'short' ? 500 : userSettings.responseLength === 'long' ? 2000 : 1000,
         },
-        temperature: botConfig?.temperature ?? 0.5,
-        topP: 0.9,
-        maxOutputTokens: userSettings.responseLength === 'short' ? 500 : userSettings.responseLength === 'long' ? 2000 : 1000,
-      },
-      contents: contents,
-    });
+        contents: contents,
+      });
+    };
+
+    // Retry wrapper
+    let response;
+    let attempts = 0;
+    while (attempts < 3) {
+      try {
+        response = await makeRequest();
+        break;
+      } catch (err: any) {
+        if (err?.status === 429 || err?.code === 429 || err?.error?.code === 429) {
+          attempts++;
+          if (attempts >= 3) throw err;
+          console.log(`Quota exceeded, retrying in ${attempts * 2}s...`);
+          await new Promise(resolve => setTimeout(resolve, attempts * 2000));
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    if (!response) throw new Error("Failed to get response");
 
     let fullText = "";
     for await (const chunk of response) {
