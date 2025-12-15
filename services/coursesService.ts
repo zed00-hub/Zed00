@@ -38,15 +38,34 @@ export const hasAdminPanelAccess = (email: string | undefined): boolean => {
 
 // Course categories for organization
 export const COURSE_CATEGORIES = [
-    { id: 'general_info', label: 'Informations Générales', labelAr: 'معلومات عامة' },
-    { id: 'specialties', label: 'Spécialités Paramédicales', labelAr: 'التخصصات شبه الطبية' },
-    { id: 'laws', label: 'Lois et Règlements', labelAr: 'القوانين والأنظمة' },
-    { id: 'anatomy', label: 'Anatomie-Physiologie', labelAr: 'التشريح والفيزيولوجيا' },
-    { id: 'terminology', label: 'Terminologie Médicale', labelAr: 'المصطلحات الطبية' },
-    { id: 'legislation', label: 'Législation / Textes Juridiques', labelAr: 'التشريع والنصوص القانونية' },
-    { id: 'psychology', label: 'Psychologie', labelAr: 'علم النفس' },
-    { id: 'public_health', label: 'Santé Publique', labelAr: 'الصحة العامة' },
-    { id: 'nutrition', label: 'Nutrition', labelAr: 'التغذية' },
+    // Main Subjects
+    { id: 'anatomie_general', label: 'Anatomie-Physiologie (Général)', labelAr: 'التشريح (عام)' },
+    { id: 'terminologie', label: 'Terminologie Médicale', labelAr: 'المصطلحات الطبية' },
+    { id: 'hygiene', label: 'Hygiène Hospitalière', labelAr: 'النظافة الاستشفائية' },
+    { id: 'sante_publique', label: 'Santé Publique', labelAr: 'الصحة العامة' },
+    { id: 'secourisme', label: 'Secourisme', labelAr: 'الإسعافات الأولية' },
+    { id: 'psychologie', label: 'Psychologie/Anthropologie', labelAr: 'علم النفس / الأنثروبولوجيا' },
+    { id: 'legislation', label: 'Législation/Éthique', labelAr: 'التشريع / الأخلاقيات' },
+    { id: 'fondements', label: 'Fondements Profession', labelAr: 'أسس المهنة' },
+    { id: 'expression', label: 'Expression Écrite/Orale', labelAr: 'التعبير الكتابي / الشفهي' },
+
+    // Anatomy Sections
+    { id: 'cyto_physio', label: 'Cytologie (Anatomie et physiologie)', labelAr: 'علم الخلية' },
+    { id: 'embryologie', label: 'Embryologie', labelAr: 'علم الأجنة' },
+    { id: 'genetique', label: 'Conseil génétique', labelAr: 'الاستشارة الوراثية' },
+    { id: 'tissus', label: 'Les principaux tissus', labelAr: 'الأنسجة الرئيسية' },
+    { id: 'musculaire', label: 'Système musculaire', labelAr: 'الجهاز العضلي' },
+    { id: 'osseux', label: 'Système osseux', labelAr: 'الجهاز العظمي' },
+    { id: 'articulaire', label: 'Système articulaire', labelAr: 'الجهاز المفصلي' },
+    { id: 'cellule_nerveuse', label: 'La cellule nerveuse', labelAr: 'الخلية العصبية' },
+    { id: 'snc', label: 'Système nerveux central', labelAr: 'الجهاز العصبي المركزي' },
+    { id: 'cerebral', label: 'Système nerveux cérébral', labelAr: 'الجهاز العصبي الدماغي' },
+    { id: 'respiratoire', label: 'Système respiratoire', labelAr: 'الجهاز التنفسي' },
+    { id: 'cardio', label: 'Système cardio-vasculaire', labelAr: 'الجهاز القلبي الوعائي' },
+    { id: 'endocrines', label: 'Les glandes endocrines', labelAr: 'الغدد الصماء' },
+    { id: 'digestif', label: 'Appareil digestif', labelAr: 'الجهاز الهضمي' },
+    { id: 'genito_urinaire', label: 'Appareil génito-urinaire', labelAr: 'الجهاز التناسلي البولي' },
+
     { id: 'other', label: 'Autre', labelAr: 'أخرى' },
 ];
 
