@@ -2,6 +2,9 @@ import { GoogleGenerativeAI, Part, Content } from "@google/generative-ai";
 import { FileContext, Message } from "../types";
 import { getKnowledgeForBot, getBotConfig, BotGlobalConfig } from "./botKnowledgeService";
 
+// Define the single model to use across the application
+const MODEL_NAME = "gemini-2.0-flash";
+
 // Helper to convert internal Message type to Gemini Content type
 const mapMessagesToContent = (messages: Message[]): Content[] => {
   return messages.map((msg) => ({
@@ -278,86 +281,45 @@ export const generateResponseStream = async (
       }
     ];
 
-    const MODELS_TO_TRY = ["gemini-1.5-flash", "gemini-1.5-pro"];
+    console.log(`Using model: ${MODEL_NAME}`);
 
-    let lastError;
-
-    // Outer loop: Try different MODELS
-    for (const modelToTry of MODELS_TO_TRY) {
-      try {
-        console.log(`Trying model: ${modelToTry}...`);
-
-        const model = genAI.getGenerativeModel({
-          model: modelToTry,
-          systemInstruction: systemInstructionContent,
-          generationConfig: {
-            temperature: botConfig?.temperature ?? 0.5,
-            topP: 0.9,
-            maxOutputTokens: userSettings.responseLength === 'short' ? 500 : userSettings.responseLength === 'long' ? 2000 : 1000,
-          }
-        });
-
-        // Inner function: Make request with current model
-        const makeRequest = async () => {
-          return await model.generateContentStream({
-            contents: contents,
-          });
-        };
-
-        // Inner loop: Retry same model for transient errors
-        let response;
-        let attempts = 0;
-        while (attempts < 2) {
-          try {
-            response = await makeRequest();
-            break; // Success!
-          } catch (err: any) {
-            const errMsg = err?.message || "";
-            // Check for Rate Limit (429)
-            if (err?.status === 429 || errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('exhausted')) {
-              console.warn(`Quota/Rate limit on ${modelToTry}.`);
-              throw err; // Break inner loop to try NEXT MODEL
-            } else {
-              attempts++;
-              if (attempts >= 2) throw err;
-              console.log(`${modelToTry} error, retrying in 1s...`);
-              await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-          }
-        }
-
-        if (!response) throw new Error("No response");
-
-        // Process stream
-        let fullText = "";
-        for await (const chunk of response.stream) {
-          const chunkText = chunk.text();
-          fullText += chunkText;
-          onChunk(chunkText);
-        }
-
-        // If we got here, success! Return immediately.
-        return fullText || "عذراً، لم أتمكن من إنشاء إجابة.";
-
-      } catch (error: any) {
-        console.warn(`Model ${modelToTry} failed:`, error.message);
-        lastError = error;
-        // Continue to next model in MODELS_TO_TRY
+    const model = genAI.getGenerativeModel({
+      model: MODEL_NAME,
+      systemInstruction: systemInstructionContent,
+      generationConfig: {
+        temperature: botConfig?.temperature ?? 0.5,
+        topP: 0.9,
+        maxOutputTokens: userSettings.responseLength === 'short' ? 500 : userSettings.responseLength === 'long' ? 2000 : 1000,
       }
+    });
+
+    const result = await model.generateContentStream({
+      contents: contents,
+    });
+
+    let fullText = "";
+    for await (const chunk of result.stream) {
+      const chunkText = chunk.text();
+      fullText += chunkText;
+      onChunk(chunkText);
     }
 
-    // If all models failed
-    throw lastError || new Error("All models failed.");
+    return fullText || "عذراً، لم أتمكن من إنشاء إجابة.";
+
   } catch (error: any) {
     console.error("Gemini API Error:", error);
 
     const errorMessage = error?.message || "";
     if (errorMessage.includes("429") || errorMessage.includes("quota") || errorMessage.includes("exhausted")) {
-      throw new Error("QUOTA_EXCEEDED: تم تجاوز الحد اليومي. حاول لاحقاً.");
+      throw new Error("QUOTA_EXCEEDED: تم تجاوز الحد اليومي أو السيرفر مشغول.");
     }
 
     if (errorMessage.includes("API key")) {
       throw new Error("API_KEY_INVALID: مفتاح API غير صالح.");
+    }
+
+    if (errorMessage.includes("not found")) {
+      throw new Error(`Model ${MODEL_NAME} not found. Check your API key access.`);
     }
 
     throw new Error("حدث خطأ في الاتصال.");
@@ -385,51 +347,47 @@ export const generateQuiz = async (
   config: QuizConfig,
   fileContexts: FileContext[] // Global files (courses) or specific uploaded file
 ): Promise<QuizQuestion[]> => {
-  const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-2.0-flash-exp"];
-  let lastError;
+  try {
+    const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
+    console.log(`Generating Quiz with model: ${MODEL_NAME}`);
+    const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
-  for (const modelId of modelsToTry) {
-    try {
-      console.log(`Generating Quiz with model: ${modelId}`);
-      const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
-      const model = genAI.getGenerativeModel({ model: modelId });
+    let sourceContext = "";
+    let filePart: Part | undefined;
 
-      let sourceContext = "";
-      let filePart: Part | undefined;
-
-      // determine source
-      if (config.sourceType === 'subject' && config.subject) {
-        const relevantFiles = fileContexts.filter(f =>
-          f.name.toLowerCase().includes(config.subject!.toLowerCase()) ||
-          (f.content && f.content.toLowerCase().includes(config.subject!.toLowerCase()))
-        );
-
-        if (relevantFiles.length > 0) {
-          sourceContext = relevantFiles.map(f => f.content).join("\n\n");
-        } else {
-          sourceContext = `Sujet général: ${config.subject}. (Aucun fichier spécifique trouvé, utilisez vos connaissances générales).`;
-        }
-      } else if (config.sourceType === 'file' && config.fileContext) {
-        if (config.fileContext.data) {
-          filePart = {
-            inlineData: {
-              mimeType: config.fileContext.type,
-              data: config.fileContext.data
-            }
-          };
-        } else if (config.fileContext.content) {
-          sourceContext = config.fileContext.content;
-        }
-      }
-
-      const isMultiple = config.quizType === 'multiple';
-      const isLegislation = config.subject && (
-        config.subject.toLowerCase().includes('législation') ||
-        config.subject.toLowerCase().includes('legislation') ||
-        config.subject.toLowerCase().includes('éthique')
+    // determine source
+    if (config.sourceType === 'subject' && config.subject) {
+      const relevantFiles = fileContexts.filter(f =>
+        f.name.toLowerCase().includes(config.subject!.toLowerCase()) ||
+        (f.content && f.content.toLowerCase().includes(config.subject!.toLowerCase()))
       );
 
-      const systemInstruction = `
+      if (relevantFiles.length > 0) {
+        sourceContext = relevantFiles.map(f => f.content).join("\n\n");
+      } else {
+        sourceContext = `Sujet général: ${config.subject}. (Aucun fichier spécifique trouvé, utilisez vos connaissances générales).`;
+      }
+    } else if (config.sourceType === 'file' && config.fileContext) {
+      if (config.fileContext.data) {
+        filePart = {
+          inlineData: {
+            mimeType: config.fileContext.type,
+            data: config.fileContext.data
+          }
+        };
+      } else if (config.fileContext.content) {
+        sourceContext = config.fileContext.content;
+      }
+    }
+
+    const isMultiple = config.quizType === 'multiple';
+    const isLegislation = config.subject && (
+      config.subject.toLowerCase().includes('législation') ||
+      config.subject.toLowerCase().includes('legislation') ||
+      config.subject.toLowerCase().includes('éthique')
+    );
+
+    const systemInstruction = `
       Rôle: Générateur de QCM (QCM) Expert pour étudiants paramédicaux.
       Tâche: Générer ${config.questionCount} questions QCM de difficulté '${config.difficulty}'.
       Type de Quiz: ${isMultiple ? "CHOIX MULTIPLES (Plusieurs réponses correctes possibles, 'Tout ou Rien')" : "CHOIX UNIQUE (Une seule bonne réponse)"}.
@@ -443,7 +401,7 @@ export const generateQuiz = async (
           "id": 1,
           "question": "Texte de la question...",
           "options": ["Choix A", "Choix B", "Choix C", "Choix D"],
-          "correctAnswers": ${isMultiple ? "[0, 2]" : "[0]"},
+          "correctAnswers": ${isMultiple ? "[0, 2]" : "[0]"}, // Tableau des index (0-3) des bonnes réponses.
           "explanation": "Explication courte."
         }
       ]
@@ -456,47 +414,40 @@ export const generateQuiz = async (
       ${isLegislation ? "5. IMPORTANT: Le contexte est 'Législation/Éthique', donc les questions, les choix et l'explication DOIVENT être en ARABE." : ""}
     `;
 
-      const prompt = `
+    const prompt = `
       Génère le quiz maintenant.
       Contexte:
-      ${sourceContext.substring(0, 30000)}
+      ${sourceContext.substring(0, 30000)} // Limit context size to avoid errors
     `;
 
-      const parts: Part[] = [{ text: prompt }];
-      if (filePart) parts.push(filePart);
+    const parts: Part[] = [{ text: prompt }];
+    if (filePart) parts.push(filePart);
 
-      const result = await model.generateContent({
-        contents: [{ role: "user", parts: parts }],
-        generationConfig: {
-          temperature: 0.3,
-          responseMimeType: "application/json",
-        },
-        systemInstruction: systemInstruction
-      });
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: parts }],
+      generationConfig: {
+        temperature: 0.3,
+        responseMimeType: "application/json",
+      },
+      systemInstruction: systemInstruction
+    });
 
-      const responseText = result.response.text();
-      if (!responseText) throw new Error("Réponse vide de l'IA");
+    const responseText = result.response.text();
+    if (!responseText) throw new Error("Réponse vide de l'IA");
 
-      const questions: any[] = JSON.parse(responseText);
+    const questions: any[] = JSON.parse(responseText);
 
-      return questions.map((q, index) => ({
-        id: index + 1,
-        question: q.question,
-        options: q.options,
-        correctAnswers: Array.isArray(q.correctAnswers) ? q.correctAnswers : [Number(q.correctAnswer || 0)],
-        explanation: q.explanation
-      }));
-
-    } catch (error: any) {
-      console.warn(`Model ${modelId} failed:`, error.message);
-      lastError = error;
-      // If quota error, continue to next model. If other error, maybe break? 
-      // For now, let's try all models if one fails.
-    }
+    return questions.map((q, index) => ({
+      id: index + 1,
+      question: q.question,
+      options: q.options,
+      correctAnswers: Array.isArray(q.correctAnswers) ? q.correctAnswers : [Number(q.correctAnswer || 0)],
+      explanation: q.explanation
+    }));
+  } catch (error: any) {
+    console.error("Quiz Generation Error:", error);
+    throw new Error(`فشل إنشاء الاختبار: ${error.message}`);
   }
-
-  console.error("Quiz Generation Failed after trying all models:", lastError);
-  throw new Error("فشل إنشاء الاختبار (الخوادم مشغولة). حاول مرة أخرى بعد دقيقة.");
 };
 
 // --- Mnemonic Generation Service ---
@@ -508,97 +459,110 @@ export const generateMnemonic = async (
   language: 'ar' | 'fr',
   context?: string
 ): Promise<MnemonicResponse> => {
-  const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-2.0-flash-exp"];
-  let lastError;
+  try {
+    const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
+    const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
-  for (const modelId of modelsToTry) {
-    try {
-      const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
-      const model = genAI.getGenerativeModel({ model: modelId });
-
-      const systemInstruction = `
-      Rôle: Expert en Mnémonique Médicale et Pédagogie.
-      Objectif: Créer une phrase facile à retenir.
+    const systemInstruction = `
+      Rôle: Expert en Mnémonique Médicale et Pédagogie (Créditeur de phrases mémo-techniques).
+      Objectif: Créer une phrase facile à retenir pour mémoriser une liste ou un concept médical difficile (Surtout les termes anatomiques/médicaux en FRANÇAIS).
       
       RÈGLES CRÉATIVES:
-      1. Phrase cohérente, amusante ou bizarre.
-      2. Programme d'études en FRANÇAIS.
-      3. Si 'FRANÇAIS': Mnémonique en Français.
-      4. Si 'ARABE': Mnémonique en Arabe pour termes FRANÇAIS.
+      1. La phrase/mnémonique doit être cohérente, amusante ou bizarre.
+      2. Le programme d'études est en FRANÇAIS.
+      3. Si la langue demandée est 'FRANÇAIS': La mnémonique doit être en Français pour des termes Français.
+      4. Si la langue demandée est 'ARABE': La mnémonique doit être en Arabe mais pour mémoriser les termes FRANÇAIS (association phonétique ou sémantique). L'objectif est de lier le concept arabe au terme technique français.
       
-      *Langue demandée: ${language === 'ar' ? 'ARABE' : 'FRANÇAIS'}.*
+      *Langue demandée pour la mnémonique: ${language === 'ar' ? 'ARABE (Lien vers termes Français)' : 'FRANÇAIS'}.*
+      
+      RÈGLES DE CONTENU (IMPORTANT):
+      - "mnemonic": La phrase en ${language === 'ar' ? 'Arabe' : 'Français'}.
+      - "breakdown": { char: "Lettre/Mot de la phrase", meaning: "Terme technique original STRICTEMENT EN FRANÇAIS" }.
+      - "explanation": TOUJOURS EN FRANÇAIS (Explication scientifique). Il peut y avoir quelques mots en arabe entre parenthèses pour clarifier, mais le texte principal doit être en Français.
+      - "funFact": TOUJOURS EN FRANÇAIS (Culture générale médicale).
       
       FORMAT DE SORTIE (STRICT JSON):
       {
-        "mnemonic": "La phrase",
-        "breakdown": [{ "char": "S", "meaning": "Scaphoid" }],
-        "explanation": "Explication en Français.",
-        "funFact": "Fait amusant en Français."
+        "mnemonic": "La phrase générée",
+        "breakdown": [
+          { "char": "S", "meaning": "Scaphoid" },
+          { "char": "L", "meaning": "Lunate" }
+        ],
+        "explanation": "Explication claire du concept en Français.",
+        "funFact": "Un fait amusant 'Le saviez-vous ?' en Français."
       }
     `;
 
-      const prompt = `Sujet: "${topic}". Contexte: "${context || ''}". Génère.`;
+    const prompt = `
+      Sujet à mémoriser: "${topic}"
+      Contexte supplémentaire: "${context || ''}"
+      
+      Génère une mnémonique maintenant.
+    `;
 
-      const result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.8,
-          responseMimeType: "application/json",
-        },
-        systemInstruction: systemInstruction
-      });
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.8,
+        responseMimeType: "application/json",
+      },
+      systemInstruction: systemInstruction
+    });
 
-      const responseText = result.response.text();
-      return JSON.parse(responseText) as MnemonicResponse;
+    const responseText = result.response.text();
+    if (!responseText) throw new Error("Réponse vide");
 
-    } catch (error) {
-      console.warn(`Model ${modelId} failed for Mnemonic`, error);
-      lastError = error;
-    }
+    return JSON.parse(responseText) as MnemonicResponse;
+
+  } catch (error) {
+    console.error("Mnemonic Generation Error:", error);
+    throw new Error("Échec de la génération de la mnémonique.");
   }
-  throw new Error("فشل إنشاء الميموني.");
 };
 
 // --- Image Analysis for Admin Panel ---
 
 export const analyzeImage = async (imageFile: File): Promise<string> => {
-  const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash-exp"];
+  try {
+    const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
+    const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
-  for (const modelId of modelsToTry) {
-    try {
-      const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
-      const model = genAI.getGenerativeModel({ model: modelId });
+    // Convert file to base64
+    const base64Data = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        // Remove data URL prefix (e.g., "data:image/jpeg;base64,")
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(imageFile);
+    });
 
-      const base64Data = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const result = reader.result as string;
-          const base64 = result.split(',')[1];
-          resolve(base64);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(imageFile);
-      });
+    const result = await model.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              inlineData: {
+                mimeType: imageFile.type,
+                data: base64Data
+              }
+            },
+            { text: "Analyse cette image en détail pour la base de connaissances." }
+          ]
+        }
+      ],
+      systemInstruction: "Tu es un assistant expert chargé d'analyser des images médicales ou éducatives pour une base de connaissances. Décris l'image en détail, en français, en te concentrant sur les informations utiles pour un étudiant paramédical."
+    });
 
-      const result = await model.generateContent({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { inlineData: { mimeType: imageFile.type, data: base64Data } },
-              { text: "Analyse cette image en détail pour la base de connaissances." }
-            ]
-          }
-        ],
-        systemInstruction: "Tu es un assistant expert chargé d'analyser des images médicales."
-      });
-
-      return result.response.text() || "Pas de description.";
-    } catch (error) {
-      console.warn(`Model ${modelId} failed for Image`, error);
-    }
+    return result.response.text() || "Pas de description.";
+  } catch (error) {
+    console.error("Image Analysis Error:", error);
+    throw new Error("Fermez l'analyse de l'image. / فشل تحليل الصورة.");
   }
-  return "فشل تحليل الصورة.";
 };
 
 // --- Checklist Generation Service (Chekiha Tool) ---
@@ -609,62 +573,91 @@ export const generateChecklist = async (
   lessonContent: string,
   lessonTitle?: string
 ): Promise<ChecklistResponse> => {
-  const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-2.0-flash-exp"];
+  try {
+    const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
+    const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
-  for (const modelId of modelsToTry) {
-    try {
-      const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
-      const model = genAI.getGenerativeModel({ model: modelId });
-
-      const systemInstruction = `
-      Rôle: Expert pédagogique.
-      Objectif: Créer une check-list d'étude.
-      LANGUE: Français.
+    const systemInstruction = `
+      Rôle: Expert pédagogique spécialisé dans la création de check-lists d'étude pour étudiants paramédicaux.
+      Objectif: Transformer un cours/leçon en une liste de tâches claire et actionnable pour aider l'étudiant à organiser sa révision.
+      
+      RÈGLES:
+      1. Analyser le contenu fourni et identifier les concepts clés, chapitres, ou sujets principaux.
+      2. Créer des tâches spécifiques et réalisables (pas trop générales).
+      3. Organiser les tâches de manière logique (du simple au complexe).
+      4. Ajouter des sous-tâches si nécessaire pour les concepts complexes.
+      5. Estimer le temps total nécessaire pour compléter toutes les tâches.
+      6. Fournir des conseils pratiques pour la révision.
+      
+      LANGUE: Répondre en Français avec termes médicaux appropriés.
       
       FORMAT DE SORTIE (STRICT JSON):
       {
-        "title": "Titre",
-        "summary": "Résumé",
-        "items": [{ "id": "1", "title": "Tâche", "isCompleted": false }],
-        "estimatedTime": "2h",
-        "tips": ["Conseil"]
+        "title": "Titre du cours",
+        "summary": "Résumé bref du contenu (1-2 phrases)",
+        "items": [
+          {
+            "id": "1",
+            "title": "Tâche principale",
+            "description": "Description optionnelle plus détaillée",
+            "isCompleted": false,
+            "subItems": [
+              {
+                "id": "1.1",
+                "title": "Sous-tâche",
+                "isCompleted": false
+              }
+            ]
+          }
+        ],
+        "estimatedTime": "2-3 heures",
+        "tips": ["Conseil 1", "Conseil 2"]
       }
     `;
 
-      const prompt = `Titre: "${lessonTitle || 'Cours'}". Contenu: ${lessonContent.substring(0, 25000)}. Génère check-list.`;
+    const prompt = `
+      Titre du cours: "${lessonTitle || 'Cours médical'}"
+      
+      Contenu à analyser:
+      ${lessonContent.substring(0, 25000)}
+      
+      Génère une check-list d'étude complète maintenant.
+    `;
 
-      const result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.4,
-          responseMimeType: "application/json",
-        },
-        systemInstruction: systemInstruction
-      });
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.4,
+        responseMimeType: "application/json",
+      },
+      systemInstruction: systemInstruction
+    });
 
-      const responseText = result.response.text();
-      const parsed = JSON.parse(responseText);
+    const responseText = result.response.text();
+    if (!responseText) throw new Error("Réponse vide");
 
-      const processItems = (items: any[]): ChecklistItem[] => {
-        return items.map((item, idx) => ({
-          id: item.id || `${idx + 1}`,
-          title: item.title,
-          description: item.description,
-          isCompleted: false,
-          subItems: item.subItems ? processItems(item.subItems) : undefined
-        }));
-      };
+    const parsed = JSON.parse(responseText);
 
-      return {
-        title: parsed.title || lessonTitle || 'Check-list d\'étude',
-        summary: parsed.summary || '',
-        items: processItems(parsed.items || []),
-        estimatedTime: parsed.estimatedTime,
-        tips: parsed.tips
-      };
-    } catch (error) {
-      console.warn(`Model ${modelId} failed for Checklist`, error);
-    }
+    const processItems = (items: any[]): ChecklistItem[] => {
+      return items.map((item, idx) => ({
+        id: item.id || `${idx + 1}`,
+        title: item.title,
+        description: item.description,
+        isCompleted: false,
+        subItems: item.subItems ? processItems(item.subItems) : undefined
+      }));
+    };
+
+    return {
+      title: parsed.title || lessonTitle || 'Check-list d\'étude',
+      summary: parsed.summary || '',
+      items: processItems(parsed.items || []),
+      estimatedTime: parsed.estimatedTime,
+      tips: parsed.tips
+    };
+
+  } catch (error) {
+    console.error("Checklist Generation Error:", error);
+    throw new Error("Échec de la génération de la check-list. / فشل إنشاء قائمة المهام.");
   }
-  throw new Error("فشل إنشاء القائمة (الخوادم مشغولة).");
 };
