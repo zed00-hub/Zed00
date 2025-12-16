@@ -23,7 +23,8 @@ import AdminPanel from './components/AdminPanel';
 import { SettingsProvider, useSettings } from './contexts/SettingsContext';
 import { loadCoursesFromFirestore, isAdmin } from './services/coursesService';
 import { trackTimeSpent, trackNewConversation, trackNewQuiz } from './services/analyticsService';
-import { Crown } from 'lucide-react';
+import { Crown, Bell } from 'lucide-react';
+import { getUnreadAdminMessages, markMessageAsRead, AdminMessage } from './services/notificationService';
 
 const AppContent: React.FC = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -177,6 +178,31 @@ const AppContent: React.FC = () => {
 
   // Ref for aborting AI response
   const abortControllerRef = React.useRef<AbortController | null>(null);
+
+  // Admin Messages State
+  const [adminMessages, setAdminMessages] = useState<AdminMessage[]>([]);
+  const [showAdminMessageModal, setShowAdminMessageModal] = useState(false);
+
+  useEffect(() => {
+    if (user?.id) {
+      getUnreadAdminMessages(user.id).then(msgs => {
+        if (msgs.length > 0) {
+          setAdminMessages(msgs);
+          setShowAdminMessageModal(true);
+        }
+      });
+    }
+  }, [user?.id]);
+
+  const handleCloseAdminMessage = async () => {
+    if (user?.id) {
+      for (const msg of adminMessages) {
+        await markMessageAsRead(user.id, msg.id);
+      }
+    }
+    setShowAdminMessageModal(false);
+    setAdminMessages([]);
+  };
 
   // Function to stop AI generation
   const stopGeneration = useCallback(() => {
@@ -1091,7 +1117,40 @@ ${targetMessage.content}
         </div>
       </div>
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+
       <ReloadPrompt />
+
+      {/* Admin Message Modal */}
+      {showAdminMessageModal && adminMessages.length > 0 && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-dark-surface rounded-2xl p-8 w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200 border-2 border-amber-500 relative">
+            <div className="absolute -top-6 -left-6 bg-amber-500 text-white p-4 rounded-full shadow-lg">
+              <Bell size={32} className="animate-bounce" />
+            </div>
+            <h3 className="text-2xl font-black text-gray-800 dark:text-gray-100 mb-6 mt-2">
+              رسالة إدارية هامة 📢
+            </h3>
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+              {adminMessages.map(msg => (
+                <div key={msg.id} className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-xl border border-amber-200 dark:border-amber-800/30">
+                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed text-lg font-medium">
+                    {msg.content}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-2 text-left" dir="ltr">
+                    {new Date(msg.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={handleCloseAdminMessage}
+              className="w-full mt-8 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-amber-500/20 active:scale-[0.98]"
+            >
+              علم، شكراً ❤️
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

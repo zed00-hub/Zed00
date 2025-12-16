@@ -35,6 +35,8 @@ import { extractTextFromPDF } from '../utils/pdfUtils';
 import { extractTextFromDocx } from '../utils/docxUtils';
 import { useNavigate } from 'react-router-dom';
 import { analyzeImage } from '../services/geminiService';
+import { sendAdminMessage } from '../services/notificationService';
+import { MessageSquarePlus, Send } from 'lucide-react';
 
 const AdminPanel: React.FC = () => {
     const { user } = useAuth();
@@ -66,7 +68,12 @@ const AdminPanel: React.FC = () => {
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const [filterDateType, setFilterDateType] = useState<'all' | 'today' | 'custom'>('all');
     const [customDate, setCustomDate] = useState<string>(new Date().toISOString().split('T')[0]);
-    const [periodStats, setPeriodStats] = useState<Record<string, { conversations: number, quizzes: number }>>({}); // Stats for filtered period
+    const [periodStats, setPeriodStats] = useState<Record<string, { conversations: number, quizzes: number, checklists: number }>>({}); // Stats for filtered period
+
+    // Message Modal State
+    const [messageModal, setMessageModal] = useState<{ isOpen: boolean; userId: string; userName: string }>({ isOpen: false, userId: '', userName: '' });
+    const [messageText, setMessageText] = useState('');
+    const [sendingMessage, setSendingMessage] = useState(false);
 
     // Knowledge State
     const [knowledgeEntries, setKnowledgeEntries] = useState<KnowledgeEntry[]>([]);
@@ -162,6 +169,22 @@ const AdminPanel: React.FC = () => {
             fetchPeriodStats();
         }
     }, [filterDateType, customDate, activeTab]);
+
+    const handleSendMessageToUser = async () => {
+        if (!messageText.trim()) return;
+        setSendingMessage(true);
+        try {
+            await sendAdminMessage(messageModal.userId, messageText.trim());
+            alert('تم إرسال الرسالة بنجاح');
+            setMessageModal({ isOpen: false, userId: '', userName: '' });
+            setMessageText('');
+        } catch (error) {
+            alert('فشل إرسال الرسالة');
+            console.error(error);
+        } finally {
+            setSendingMessage(false);
+        }
+    };
 
     // --- Course Functions ---
     const resetForm = () => {
@@ -743,7 +766,8 @@ const AdminPanel: React.FC = () => {
                                     <div className="col-span-2 text-center">المستوى</div>
                                     <div className="col-span-2 text-center">الوقت</div>
                                     <div className="col-span-1 text-center hidden md:block">نشاط</div>
-                                    <div className="col-span-2 text-center">آخر ظهور</div>
+                                    <div className="col-span-1 text-center">آخر ظهور</div>
+                                    <div className="col-span-1 text-center">إجراء</div>
                                 </div>
 
                                 <div className="divide-y dark:divide-gray-700">
@@ -810,17 +834,30 @@ const AdminPanel: React.FC = () => {
                                                     </div>
                                                     <div className="col-span-1 text-center hidden md:block">
                                                         <div className="flex flex-col text-xs text-gray-500">
-                                                            <span className={periodData ? "text-amber-600 font-bold" : ""}>💬 {displayConv}</span>
-                                                            <span className={periodData ? "text-amber-600 font-bold" : ""}>📝 {displayQuiz}</span>
+                                                            <span className={periodData ? "text-amber-600 font-bold" : ""} title="محادثات">💬 {displayConv}</span>
+                                                            <span className={periodData ? "text-amber-600 font-bold" : ""} title="اختبارات">📝 {displayQuiz}</span>
+                                                            <span className={periodData ? "text-amber-600 font-bold" : ""} title="قوائم">✅ {periodData ? periodData.checklists : (stat.checklistsCount || 0)}</span>
                                                         </div>
                                                     </div>
-                                                    <div className="col-span-2 text-center text-xs text-gray-500 flex flex-col items-center justify-center">
+                                                    <div className="col-span-1 text-center text-xs text-gray-500 flex flex-col items-center justify-center">
                                                         {lastActiveDate ? (
                                                             <>
                                                                 <span className="font-bold text-gray-700 dark:text-gray-300">{lastActiveDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
                                                                 <span className="text-[10px]">{lastActiveDate.toLocaleDateString('en-GB')}</span>
                                                             </>
                                                         ) : '-'}
+                                                    </div>
+                                                    <div className="col-span-1 text-center flex justify-center">
+                                                        <button
+                                                            onClick={() => {
+                                                                setMessageModal({ isOpen: true, userId: stat.id, userName: stat.name });
+                                                                setMessageText('');
+                                                            }}
+                                                            className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                                            title="إرسال رسالة"
+                                                        >
+                                                            <MessageSquarePlus size={20} />
+                                                        </button>
                                                     </div>
                                                 </div>
                                             );
@@ -1194,6 +1231,41 @@ const AdminPanel: React.FC = () => {
                         </div>
                     ) : null}
                 </div>
+
+                {/* Message Modal */}
+                {messageModal.isOpen && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white dark:bg-dark-surface rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200">
+                            <h3 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-200">
+                                إرسال رسالة للطالب: <span className="text-amber-500">{messageModal.userName}</span>
+                            </h3>
+                            <textarea
+                                value={messageText}
+                                onChange={(e) => setMessageText(e.target.value)}
+                                rows={4}
+                                placeholder="اكتب رسالتك هنا..."
+                                className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 mb-4"
+                            />
+                            <div className="flex gap-2 justify-end">
+                                <button
+                                    onClick={() => setMessageModal({ isOpen: false, userId: '', userName: '' })}
+                                    className="px-4 py-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                                >
+                                    إلغاء
+                                </button>
+                                <button
+                                    onClick={handleSendMessageToUser}
+                                    disabled={!messageText.trim() || sendingMessage}
+                                    className="px-6 py-2 bg-amber-500 text-white rounded-lg font-bold hover:bg-amber-600 transition-colors flex items-center gap-2 disabled:opacity-50"
+                                >
+                                    {sendingMessage ? <Loader2 className="animate-spin w-4 h-4" /> : <Send size={16} />}
+                                    إرسال
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
 
                 {/* Footer */}
                 <div className="mt-8 p-4 border-t border-gray-200 dark:border-gray-800 text-center">

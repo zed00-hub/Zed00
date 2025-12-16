@@ -155,7 +155,7 @@ export const getAllUsersStats = async (): Promise<UserStats[]> => {
  * Get stats for a specific date range using Collection Group Queries
  * Requires Firestore Indices on 'sessions' and 'quizzes' collection groups for 'timestamp' and 'createdAt' fields
  */
-export const getStatsForDateRange = async (startDate: Date, endDate: Date): Promise<Record<string, { conversations: number, quizzes: number }>> => {
+export const getStatsForDateRange = async (startDate: Date, endDate: Date): Promise<Record<string, { conversations: number, quizzes: number, checklists: number }>> => {
     try {
         // Convert dates to timestamps (milliseconds) as that's how we store them
         const startMs = startDate.getTime();
@@ -182,12 +182,20 @@ export const getStatsForDateRange = async (startDate: Date, endDate: Date): Prom
             where('createdAt', '<=', endMs)
         );
 
-        const [sessionsSnap, quizzesSnap] = await Promise.all([
+        // 3. Query Checklists (collection group 'checklists')
+        const checklistsQuery = query(
+            collectionGroup(db, 'checklists'),
+            where('createdAt', '>=', startMs),
+            where('createdAt', '<=', endMs)
+        );
+
+        const [sessionsSnap, quizzesSnap, checklistsSnap] = await Promise.all([
             getDocs(sessionsQuery),
-            getDocs(quizzesQuery)
+            getDocs(quizzesQuery),
+            getDocs(checklistsQuery)
         ]);
 
-        const statsMap: Record<string, { conversations: number, quizzes: number }> = {};
+        const statsMap: Record<string, { conversations: number, quizzes: number, checklists: number }> = {};
 
         // Process Sessions
         sessionsSnap.forEach(doc => {
@@ -195,7 +203,7 @@ export const getStatsForDateRange = async (startDate: Date, endDate: Date): Prom
             // ref.parent.parent.id gives userId
             const userId = doc.ref.parent.parent?.id;
             if (userId) {
-                if (!statsMap[userId]) statsMap[userId] = { conversations: 0, quizzes: 0 };
+                if (!statsMap[userId]) statsMap[userId] = { conversations: 0, quizzes: 0, checklists: 0 };
                 statsMap[userId].conversations++;
             }
         });
@@ -204,12 +212,21 @@ export const getStatsForDateRange = async (startDate: Date, endDate: Date): Prom
         quizzesSnap.forEach(doc => {
             const userId = doc.ref.parent.parent?.id;
             if (userId) {
-                if (!statsMap[userId]) statsMap[userId] = { conversations: 0, quizzes: 0 };
+                if (!statsMap[userId]) statsMap[userId] = { conversations: 0, quizzes: 0, checklists: 0 };
                 statsMap[userId].quizzes++;
             }
         });
 
-        console.log(`Found ${sessionsSnap.size} sessions and ${quizzesSnap.size} quizzes in range.`);
+        // Process Checklists
+        checklistsSnap.forEach(doc => {
+            const userId = doc.ref.parent.parent?.id;
+            if (userId) {
+                if (!statsMap[userId]) statsMap[userId] = { conversations: 0, quizzes: 0, checklists: 0 };
+                statsMap[userId].checklists++;
+            }
+        });
+
+        console.log(`Found ${sessionsSnap.size} sessions, ${quizzesSnap.size} quizzes, and ${checklistsSnap.size} checklists in range.`);
         return statsMap;
 
     } catch (error) {
