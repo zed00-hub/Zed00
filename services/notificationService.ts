@@ -39,7 +39,7 @@ export const sendAdminMessage = async (userId: string, content: string, studentN
             sender: 'admin',
             replies: [],
             studentId: userId,
-            studentName: studentName
+            studentName: studentName || null
         };
 
         await setDoc(newDocRef, message);

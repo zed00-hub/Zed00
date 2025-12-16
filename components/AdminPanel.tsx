@@ -180,7 +180,7 @@ const AdminPanel: React.FC = () => {
         if (!messageText.trim()) return;
         setSendingMessage(true);
         try {
-            await sendAdminMessage(messageModal.userId, messageText.trim());
+            await sendAdminMessage(messageModal.userId, messageText.trim(), messageModal.userName);
             alert('تم إرسال الرسالة بنجاح');
             setMessageModal({ isOpen: false, userId: '', userName: '' });
             setMessageText('');
@@ -1348,14 +1348,14 @@ const AdminPanel: React.FC = () => {
                                                         <div
                                                             key={reply.id}
                                                             className={`p-3 rounded-lg ${reply.sender === 'student'
-                                                                    ? 'bg-blue-50 dark:bg-blue-900/20 mr-4'
-                                                                    : 'bg-amber-50 dark:bg-amber-900/20 ml-4'
+                                                                ? 'bg-blue-50 dark:bg-blue-900/20 mr-4'
+                                                                : 'bg-amber-50 dark:bg-amber-900/20 ml-4'
                                                                 }`}
                                                         >
                                                             <div className="flex items-center gap-2 mb-1">
                                                                 <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${reply.sender === 'student'
-                                                                        ? 'bg-blue-500 text-white'
-                                                                        : 'bg-amber-500 text-white'
+                                                                    ? 'bg-blue-500 text-white'
+                                                                    : 'bg-amber-500 text-white'
                                                                     }`}>
                                                                     {reply.sender === 'student' ? (reply.senderName || 'الطالب') : 'أنت'}
                                                                 </span>
