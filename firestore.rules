@@ -2,31 +2,29 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper: Check if user is the main Admin (Ziad)
-    // Has full access: Analytics, Settings, User Data, Courses, Knowledge
+    // 1. الدالة الخاصة بالمدير العام (Ziad)
     function isAdmin() {
       return request.auth != null && request.auth.token.email.lower() == 'ziadgaid.ergo@gmail.com';
     }
 
-    // Helper: Check if user is a Supervisor (Abdderrahim) OR Admin
-    // Has partial access: Courses, Knowledge ONLY
+    // 2. الدالة الخاصة بالمشرفين
     function isSupervisor() {
       return request.auth != null && (
         request.auth.token.email.lower() == 'ziadgaid.ergo@gmail.com' || 
         request.auth.token.email.lower() == 'abdderrahim7676@gmail.com'
       );
     }
+    
+    // +++ قاعدة مهمة جداً (Fix): السماح للأدمن بقراءة كل الإشعارات من خلال collectionGroup +++
+    match /{path=**}/notifications/{notificationId} {
+      allow read: if isAdmin();
+    }
 
-    // 1. Users Collection (User Data & Analytics)
+    // --- بيانات المستخدمين والتحليلات ---
     match /users/{userId} {
-      // Owner can read/write their own data
       allow create, update, get: if request.auth != null && request.auth.uid == userId;
-      
-      // ONLY Admin can list/read all users (required for Analytics dashboard)
-      // Supervisor cannot see this
       allow list, read: if isAdmin();
 
-      // Sub-collections
       match /sessions/{sessionId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
@@ -36,31 +34,27 @@ service cloud.firestore {
       match /checklists/{checklistId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
+      
+      // قواعد الإشعارات العادية (للمستخدم نفسه وللإرسال)
       match /notifications/{notificationId} {
-        // Admin and Supervisors can send messages (create)
-        allow create: if isSupervisor(); 
-        // User can read, delete, and update. Admin can READ all (for inbox view).
-        allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
-        allow update, delete: if request.auth != null && request.auth.uid == userId;
+        allow create: if isSupervisor();
+        allow read, update, delete: if request.auth != null && request.auth.uid == userId;
       }
     }
 
-    // 2. Shared Courses (Materials)
-    // Public read, Supervisor/Admin write
+    // --- إدارة المواد (Shared Courses) ---
     match /shared_courses/{courseId} {
       allow read: if request.auth != null;
       allow write: if isSupervisor();
     }
     
-    // 3. Bot Knowledge (Training Data)
-    // Public read (bot needs it), Supervisor/Admin write
+    // --- تغذية البوت (Bot Knowledge) ---
     match /bot_knowledge/{docId} {
       allow read: if request.auth != null;
       allow write: if isSupervisor();
     }
     
-    // 4. Global Settings (Bot Config)
-    // Only Admin can write settings
+    // --- إعدادات البوت (Settings) ---
     match /settings/{docId} {
       allow read: if request.auth != null;
       allow write: if isAdmin();

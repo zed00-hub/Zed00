@@ -826,8 +826,12 @@ const AdminPanel: React.FC = () => {
                                 <div className="divide-y dark:divide-gray-700">
                                     {userStats
                                         .filter(stat =>
-                                            stat.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                            stat.email.toLowerCase().includes(searchTerm.toLowerCase())
+                                            !isAdmin(stat.email) &&
+                                            !isSupervisor(stat.email) &&
+                                            (
+                                                stat.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                                stat.email.toLowerCase().includes(searchTerm.toLowerCase())
+                                            )
                                         )
                                         .sort((a, b) => {
                                             // Determine values based on whether filtering is active
