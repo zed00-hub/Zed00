@@ -83,15 +83,18 @@ const ChatArea: React.FC<ChatAreaProps> = ({
             {isDarkMode ? <SunIcon /> : <MoonIcon />}
           </button>
 
-          {adminMessagesCount > 0 && (
-            <button
-              onClick={onOpenAdminMessages}
-              className="p-2.5 rounded-xl text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all relative group"
-            >
-              <Bell size={20} className="animate-pulse" />
+          <button
+            onClick={adminMessagesCount > 0 ? onOpenAdminMessages : undefined}
+            className={`p-2.5 rounded-xl transition-all relative group ${adminMessagesCount > 0
+                ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 cursor-pointer'
+                : 'text-gray-300 dark:text-gray-600 cursor-default'
+              }`}
+          >
+            <Bell size={20} className={adminMessagesCount > 0 ? "animate-pulse" : ""} />
+            {adminMessagesCount > 0 && (
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-dark-surface"></span>
-            </button>
-          )}
+            )}
+          </button>
 
           <button
             onClick={onToggleSidebar}

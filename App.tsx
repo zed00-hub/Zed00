@@ -895,16 +895,19 @@ ${targetMessage.content}
 
             {/* Desktop Theme Toggle & Notifications */}
             <div className="flex items-center gap-1">
-              {adminMessages.length > 0 && (
-                <button
-                  onClick={() => setShowAdminMessageModal(true)}
-                  className="p-2 rounded-xl text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all relative group"
-                  title="إشعارات جديدة"
-                >
-                  <Bell size={20} className="animate-pulse" />
+              <button
+                onClick={() => adminMessages.length > 0 && setShowAdminMessageModal(true)}
+                className={`p-2 rounded-xl transition-all relative group ${adminMessages.length > 0
+                    ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 cursor-pointer'
+                    : 'text-gray-300 dark:text-gray-600 cursor-default'
+                  }`}
+                title={adminMessages.length > 0 ? "إشعارات جديدة" : "لا توجد إشعارات"}
+              >
+                <Bell size={20} className={adminMessages.length > 0 ? "animate-pulse" : ""} />
+                {adminMessages.length > 0 && (
                   <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-dark-surface"></span>
-                </button>
-              )}
+                )}
+              </button>
               <button
                 onClick={toggleTheme}
                 className="p-2.5 rounded-xl text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700/80 transition-all hover:scale-110 active:scale-95 shadow-sm"
@@ -1080,11 +1083,13 @@ ${targetMessage.content}
                     onClick={() => setIsSidebarOpen(true)}
                     className="md:hidden absolute top-4 right-4 p-2 rounded-lg bg-white/80 dark:bg-dark-surface/80 shadow-sm z-50 text-gray-500 flex items-center gap-2"
                   >
-                    {adminMessages.length > 0 && (
+                    {adminMessages.length > 0 ? (
                       <div className="relative">
                         <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-dark-surface animate-pulse"></span>
                         <Bell size={18} className="text-amber-500" />
                       </div>
+                    ) : (
+                      <Bell size={18} className="text-gray-300" />
                     )}
                     <ZGLogo />
                   </button>
@@ -1103,11 +1108,13 @@ ${targetMessage.content}
                     onClick={() => setIsSidebarOpen(true)}
                     className="md:hidden absolute top-4 right-4 p-2 rounded-lg bg-white/80 dark:bg-dark-surface/80 shadow-sm z-50 text-gray-500 flex items-center gap-2"
                   >
-                    {adminMessages.length > 0 && (
+                    {adminMessages.length > 0 ? (
                       <div className="relative">
                         <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-dark-surface animate-pulse"></span>
                         <Bell size={18} className="text-amber-500" />
                       </div>
+                    ) : (
+                      <Bell size={18} className="text-gray-300" />
                     )}
                     <ZGLogo />
                   </button>
@@ -1132,11 +1139,13 @@ ${targetMessage.content}
                     onClick={() => setIsSidebarOpen(true)}
                     className="md:hidden absolute top-4 right-4 p-2 rounded-lg bg-white/80 dark:bg-dark-surface/80 shadow-sm z-50 text-gray-500 flex items-center gap-2"
                   >
-                    {adminMessages.length > 0 && (
+                    {adminMessages.length > 0 ? (
                       <div className="relative">
                         <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-dark-surface animate-pulse"></span>
                         <Bell size={18} className="text-amber-500" />
                       </div>
+                    ) : (
+                      <Bell size={18} className="text-gray-300" />
                     )}
                     <ZGLogo />
                   </button>
