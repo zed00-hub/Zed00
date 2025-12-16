@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { Message } from '../types';
 import { SendIcon, LoadingIcon, AttachIcon, FileIcon, ZGLogo, SunIcon, MoonIcon, XIcon } from './Icons';
 import MessageBubble from './MessageBubble';
+import { Bell } from 'lucide-react';
 
 interface ChatAreaProps {
   messages: Message[];
@@ -19,6 +20,8 @@ interface ChatAreaProps {
   onEditMessage?: (messageId: string, newContent: string) => void;
   onNavigateVersion?: (messageId: string, direction: 'prev' | 'next') => void;
   onContinueResponse?: (messageId: string) => void;
+  adminMessagesCount?: number;
+  onOpenAdminMessages?: () => void;
 }
 
 const ChatArea: React.FC<ChatAreaProps> = ({
@@ -36,7 +39,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   toggleTheme,
   onEditMessage,
   onNavigateVersion,
-  onContinueResponse
+  onContinueResponse,
+  adminMessagesCount = 0,
+  onOpenAdminMessages
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -77,6 +82,17 @@ const ChatArea: React.FC<ChatAreaProps> = ({
           >
             {isDarkMode ? <SunIcon /> : <MoonIcon />}
           </button>
+
+          {adminMessagesCount > 0 && (
+            <button
+              onClick={onOpenAdminMessages}
+              className="p-2.5 rounded-xl text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all relative group"
+            >
+              <Bell size={20} className="animate-pulse" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-dark-surface"></span>
+            </button>
+          )}
+
           <button
             onClick={onToggleSidebar}
             className="p-2.5 text-medical-600 hover:bg-medical-50 dark:text-medical-400 dark:hover:bg-gray-700/80 rounded-xl relative transition-all hover:scale-110 active:scale-95"

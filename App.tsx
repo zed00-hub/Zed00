@@ -185,11 +185,10 @@ const AppContent: React.FC = () => {
 
   useEffect(() => {
     if (user?.id) {
+      // Poll for messages periodically or just on load
       getUnreadAdminMessages(user.id).then(msgs => {
-        if (msgs.length > 0) {
-          setAdminMessages(msgs);
-          setShowAdminMessageModal(true);
-        }
+        setAdminMessages(msgs);
+        // Removed auto-popup: setShowAdminMessageModal(true);
       });
     }
   }, [user?.id]);
@@ -894,14 +893,26 @@ ${targetMessage.content}
               <h1 className="text-xl font-bold text-gray-800 dark:text-dark-text">Paramedical AI</h1>
             </div>
 
-            {/* Desktop Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="p-2.5 rounded-xl text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700/80 transition-all hover:scale-110 active:scale-95 shadow-sm"
-              title="Toggle Theme"
-            >
-              {isDarkMode ? <SunIcon /> : <MoonIcon />}
-            </button>
+            {/* Desktop Theme Toggle & Notifications */}
+            <div className="flex items-center gap-1">
+              {adminMessages.length > 0 && (
+                <button
+                  onClick={() => setShowAdminMessageModal(true)}
+                  className="p-2 rounded-xl text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all relative group"
+                  title="إشعارات جديدة"
+                >
+                  <Bell size={20} className="animate-pulse" />
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-dark-surface"></span>
+                </button>
+              )}
+              <button
+                onClick={toggleTheme}
+                className="p-2.5 rounded-xl text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700/80 transition-all hover:scale-110 active:scale-95 shadow-sm"
+                title="Toggle Theme"
+              >
+                {isDarkMode ? <SunIcon /> : <MoonIcon />}
+              </button>
+            </div>
           </div>
           <div className="flex-1 overflow-hidden relative">
             <FileSidebar
@@ -1048,6 +1059,8 @@ ${targetMessage.content}
                   onEditMessage={handleEditMessage}
                   onNavigateVersion={handleNavigateVersion}
                   onContinueResponse={handleContinueResponse}
+                  adminMessagesCount={adminMessages.length}
+                  onOpenAdminMessages={() => setShowAdminMessageModal(true)}
                 />
               }
             />
@@ -1065,8 +1078,14 @@ ${targetMessage.content}
                   {/* Mobile Sidebar Toggle for Quiz Mode */}
                   <button
                     onClick={() => setIsSidebarOpen(true)}
-                    className="md:hidden absolute top-4 right-4 p-2 rounded-lg bg-white/80 dark:bg-dark-surface/80 shadow-sm z-50 text-gray-500"
+                    className="md:hidden absolute top-4 right-4 p-2 rounded-lg bg-white/80 dark:bg-dark-surface/80 shadow-sm z-50 text-gray-500 flex items-center gap-2"
                   >
+                    {adminMessages.length > 0 && (
+                      <div className="relative">
+                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-dark-surface animate-pulse"></span>
+                        <Bell size={18} className="text-amber-500" />
+                      </div>
+                    )}
                     <ZGLogo />
                   </button>
                 </div>
@@ -1082,8 +1101,14 @@ ${targetMessage.content}
                   {/* Mobile Sidebar Toggle for Mnemonics Mode */}
                   <button
                     onClick={() => setIsSidebarOpen(true)}
-                    className="md:hidden absolute top-4 right-4 p-2 rounded-lg bg-white/80 dark:bg-dark-surface/80 shadow-sm z-50 text-gray-500"
+                    className="md:hidden absolute top-4 right-4 p-2 rounded-lg bg-white/80 dark:bg-dark-surface/80 shadow-sm z-50 text-gray-500 flex items-center gap-2"
                   >
+                    {adminMessages.length > 0 && (
+                      <div className="relative">
+                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-dark-surface animate-pulse"></span>
+                        <Bell size={18} className="text-amber-500" />
+                      </div>
+                    )}
                     <ZGLogo />
                   </button>
                 </div>
@@ -1105,8 +1130,14 @@ ${targetMessage.content}
                   {/* Mobile Sidebar Toggle for Checklist Mode */}
                   <button
                     onClick={() => setIsSidebarOpen(true)}
-                    className="md:hidden absolute top-4 right-4 p-2 rounded-lg bg-white/80 dark:bg-dark-surface/80 shadow-sm z-50 text-gray-500"
+                    className="md:hidden absolute top-4 right-4 p-2 rounded-lg bg-white/80 dark:bg-dark-surface/80 shadow-sm z-50 text-gray-500 flex items-center gap-2"
                   >
+                    {adminMessages.length > 0 && (
+                      <div className="relative">
+                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-dark-surface animate-pulse"></span>
+                        <Bell size={18} className="text-amber-500" />
+                      </div>
+                    )}
                     <ZGLogo />
                   </button>
                 </div>
@@ -1124,16 +1155,22 @@ ${targetMessage.content}
       {showAdminMessageModal && adminMessages.length > 0 && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-dark-surface rounded-2xl p-8 w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200 border-2 border-amber-500 relative">
-            <div className="absolute -top-6 -left-6 bg-amber-500 text-white p-4 rounded-full shadow-lg">
-              <Bell size={32} className="animate-bounce" />
+            <button
+              onClick={() => setShowAdminMessageModal(false)}
+              className="absolute top-4 left-4 p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+            >
+              ✖
+            </button>
+            <div className="absolute -top-6 -right-6 bg-amber-500 text-white p-4 rounded-full shadow-lg">
+              <Bell size={32} className="animate-pulse" />
             </div>
-            <h3 className="text-2xl font-black text-gray-800 dark:text-gray-100 mb-6 mt-2">
-              رسالة إدارية هامة 📢
+            <h3 className="text-2xl font-black text-gray-800 dark:text-gray-100 mb-6 mt-2 text-right">
+              إشعارات جديدة ({adminMessages.length})
             </h3>
             <div className="space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
               {adminMessages.map(msg => (
                 <div key={msg.id} className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-xl border border-amber-200 dark:border-amber-800/30">
-                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed text-lg font-medium">
+                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed text-lg font-medium text-right">
                     {msg.content}
                   </p>
                   <p className="text-xs text-gray-400 mt-2 text-left" dir="ltr">
@@ -1146,7 +1183,7 @@ ${targetMessage.content}
               onClick={handleCloseAdminMessage}
               className="w-full mt-8 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-amber-500/20 active:scale-[0.98]"
             >
-              علم، شكراً ❤️
+              علم، تم القراءة
             </button>
           </div>
         </div>
