@@ -35,15 +35,15 @@ import { extractTextFromPDF } from '../utils/pdfUtils';
 import { extractTextFromDocx } from '../utils/docxUtils';
 import { useNavigate } from 'react-router-dom';
 import { analyzeImage } from '../services/geminiService';
-import { sendAdminMessage } from '../services/notificationService';
-import { MessageSquarePlus, Send } from 'lucide-react';
+import { sendAdminMessage, getAllMessagesForAdmin, AdminMessage, replyToMessage } from '../services/notificationService';
+import { MessageSquarePlus, Send, Mail } from 'lucide-react';
 
 const AdminPanel: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
 
     // UI State
-    const [activeTab, setActiveTab] = useState<'courses' | 'analytics' | 'knowledge' | 'settings'>('courses');
+    const [activeTab, setActiveTab] = useState<'courses' | 'analytics' | 'knowledge' | 'settings' | 'messages'>('courses');
     const [isLoading, setIsLoading] = useState(true);
 
     // Courses State
@@ -74,6 +74,12 @@ const AdminPanel: React.FC = () => {
     const [messageModal, setMessageModal] = useState<{ isOpen: boolean; userId: string; userName: string }>({ isOpen: false, userId: '', userName: '' });
     const [messageText, setMessageText] = useState('');
     const [sendingMessage, setSendingMessage] = useState(false);
+
+    // Messages Tab State (for viewing replies)
+    const [allAdminMessages, setAllAdminMessages] = useState<AdminMessage[]>([]);
+    const [messagesLoading, setMessagesLoading] = useState(false);
+    const [adminReplyText, setAdminReplyText] = useState('');
+    const [replyingToMessageId, setReplyingToMessageId] = useState<string | null>(null);
 
     // Knowledge State
     const [knowledgeEntries, setKnowledgeEntries] = useState<KnowledgeEntry[]>([]);
@@ -183,6 +189,40 @@ const AdminPanel: React.FC = () => {
             console.error(error);
         } finally {
             setSendingMessage(false);
+        }
+    };
+
+    // Load messages when messages tab is active
+    useEffect(() => {
+        const loadMessages = async () => {
+            if (activeTab === 'messages' && isAdmin(user?.email)) {
+                setMessagesLoading(true);
+                try {
+                    const messages = await getAllMessagesForAdmin();
+                    setAllAdminMessages(messages);
+                } catch (error) {
+                    console.error('Error loading messages:', error);
+                } finally {
+                    setMessagesLoading(false);
+                }
+            }
+        };
+        loadMessages();
+    }, [activeTab, user?.email]);
+
+    // Handle admin reply to student
+    const handleAdminReply = async (studentId: string, messageId: string) => {
+        if (!adminReplyText.trim()) return;
+        try {
+            await replyToMessage(studentId, messageId, adminReplyText.trim(), 'الإدارة');
+            // Refresh messages
+            const messages = await getAllMessagesForAdmin();
+            setAllAdminMessages(messages);
+            setAdminReplyText('');
+            setReplyingToMessageId(null);
+        } catch (error) {
+            console.error('Error sending admin reply:', error);
+            alert('فشل إرسال الرد');
         }
     };
 
@@ -444,6 +484,19 @@ const AdminPanel: React.FC = () => {
                             >
                                 <Lightbulb size={20} />
                                 تخصيص البوت
+                            </button>
+                        )}
+
+                        {!isUserSupervisor && (
+                            <button
+                                onClick={() => setActiveTab('messages')}
+                                className={`flex-1 min-w-[120px] py-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'messages'
+                                    ? 'bg-white dark:bg-dark-surface text-blue-600 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                                    }`}
+                            >
+                                <Mail size={20} />
+                                الرسائل
                             </button>
                         )}
                     </div>
@@ -1228,6 +1281,133 @@ const AdminPanel: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    ) : activeTab === 'messages' ? (
+                        // --- MESSAGES TAB ---
+                        <div className="space-y-6 p-4">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                                    <Mail className="text-blue-500" />
+                                    رسائل الطلاب
+                                </h2>
+                                <button
+                                    onClick={async () => {
+                                        setMessagesLoading(true);
+                                        const messages = await getAllMessagesForAdmin();
+                                        setAllAdminMessages(messages);
+                                        setMessagesLoading(false);
+                                    }}
+                                    className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-bold hover:bg-blue-600 transition-colors"
+                                >
+                                    تحديث
+                                </button>
+                            </div>
+
+                            {messagesLoading ? (
+                                <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+                                    <Loader2 className="w-10 h-10 mb-4 animate-spin text-blue-500" />
+                                    <p>جاري تحميل الرسائل...</p>
+                                </div>
+                            ) : allAdminMessages.length === 0 ? (
+                                <div className="text-center py-16 text-gray-500">
+                                    <Mail size={48} className="mx-auto mb-4 opacity-30" />
+                                    <p className="text-lg font-medium">لا توجد رسائل مع ردود</p>
+                                    <p className="text-sm">عندما يرد طالب على رسالة، ستظهر هنا</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {allAdminMessages.map(msg => (
+                                        <div key={msg.id} className="bg-white dark:bg-dark-surface rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+                                            {/* Student Info */}
+                                            <div className="flex items-center justify-between mb-3 pb-3 border-b border-gray-100 dark:border-gray-700">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                                                        <Users size={16} className="text-blue-600" />
+                                                    </div>
+                                                    <span className="font-bold text-gray-800 dark:text-gray-200">
+                                                        {msg.studentName || 'طالب'}
+                                                    </span>
+                                                </div>
+                                                <span className="text-xs text-gray-400" dir="ltr">
+                                                    {new Date(msg.createdAt).toLocaleString('ar-DZ')}
+                                                </span>
+                                            </div>
+
+                                            {/* Original Admin Message */}
+                                            <div className="bg-amber-50 dark:bg-amber-900/10 p-3 rounded-lg mb-3">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <span className="text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full font-bold">رسالتك</span>
+                                                </div>
+                                                <p className="text-gray-700 dark:text-gray-300 text-sm">{msg.content}</p>
+                                            </div>
+
+                                            {/* Replies */}
+                                            {msg.replies && msg.replies.length > 0 && (
+                                                <div className="space-y-2 mb-3">
+                                                    {msg.replies.map(reply => (
+                                                        <div
+                                                            key={reply.id}
+                                                            className={`p-3 rounded-lg ${reply.sender === 'student'
+                                                                    ? 'bg-blue-50 dark:bg-blue-900/20 mr-4'
+                                                                    : 'bg-amber-50 dark:bg-amber-900/20 ml-4'
+                                                                }`}
+                                                        >
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${reply.sender === 'student'
+                                                                        ? 'bg-blue-500 text-white'
+                                                                        : 'bg-amber-500 text-white'
+                                                                    }`}>
+                                                                    {reply.sender === 'student' ? (reply.senderName || 'الطالب') : 'أنت'}
+                                                                </span>
+                                                                <span className="text-xs text-gray-400" dir="ltr">
+                                                                    {new Date(reply.createdAt).toLocaleString('ar-DZ')}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-gray-700 dark:text-gray-300 text-sm">{reply.content}</p>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {/* Reply Input */}
+                                            {replyingToMessageId === msg.id ? (
+                                                <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                                                    <textarea
+                                                        value={adminReplyText}
+                                                        onChange={(e) => setAdminReplyText(e.target.value)}
+                                                        placeholder="اكتب ردك للطالب..."
+                                                        className="w-full p-3 border rounded-lg dark:bg-dark-bg dark:border-gray-700 text-gray-800 dark:text-gray-200 text-right resize-none text-sm"
+                                                        rows={2}
+                                                    />
+                                                    <div className="flex gap-2 mt-2 justify-end">
+                                                        <button
+                                                            onClick={() => { setReplyingToMessageId(null); setAdminReplyText(''); }}
+                                                            className="px-3 py-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm"
+                                                        >
+                                                            إلغاء
+                                                        </button>
+                                                        <button
+                                                            onClick={() => msg.studentId && handleAdminReply(msg.studentId, msg.id)}
+                                                            disabled={!adminReplyText.trim()}
+                                                            className="px-4 py-1.5 bg-amber-500 hover:bg-amber-600 disabled:bg-gray-300 text-white rounded-lg text-sm font-bold"
+                                                        >
+                                                            إرسال الرد
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={() => setReplyingToMessageId(msg.id)}
+                                                    className="mt-2 text-amber-500 hover:text-amber-600 text-sm font-medium flex items-center gap-1"
+                                                >
+                                                    <Send size={14} />
+                                                    رد على الطالب
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     ) : null}
                 </div>
