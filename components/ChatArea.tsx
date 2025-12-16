@@ -21,6 +21,7 @@ interface ChatAreaProps {
   onNavigateVersion?: (messageId: string, direction: 'prev' | 'next') => void;
   onContinueResponse?: (messageId: string) => void;
   adminMessagesCount?: number;
+  unreadCount?: number;
   onOpenAdminMessages?: () => void;
 }
 
@@ -41,6 +42,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   onNavigateVersion,
   onContinueResponse,
   adminMessagesCount = 0,
+  unreadCount = 0,
   onOpenAdminMessages
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -86,13 +88,15 @@ const ChatArea: React.FC<ChatAreaProps> = ({
           <button
             onClick={adminMessagesCount > 0 ? onOpenAdminMessages : undefined}
             className={`p-2.5 rounded-xl transition-all relative group ${adminMessagesCount > 0
-                ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 cursor-pointer'
-                : 'text-gray-300 dark:text-gray-600 cursor-default'
+              ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 cursor-pointer'
+              : 'text-gray-300 dark:text-gray-600 cursor-default'
               }`}
           >
-            <Bell size={20} className={adminMessagesCount > 0 ? "animate-pulse" : ""} />
-            {adminMessagesCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-dark-surface"></span>
+            <Bell size={20} className={unreadCount > 0 ? "animate-pulse" : ""} />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 rounded-full border-2 border-white dark:border-dark-surface text-[10px] text-white font-bold flex items-center justify-center">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
             )}
           </button>
 

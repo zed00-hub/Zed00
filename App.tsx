@@ -24,7 +24,7 @@ import { SettingsProvider, useSettings } from './contexts/SettingsContext';
 import { loadCoursesFromFirestore, isAdmin } from './services/coursesService';
 import { trackTimeSpent, trackNewConversation, trackNewQuiz } from './services/analyticsService';
 import { Crown, Bell } from 'lucide-react';
-import { getUnreadAdminMessages, markMessageAsRead, AdminMessage } from './services/notificationService';
+import { getAllAdminMessages, markMessageAsRead, replyToMessage, AdminMessage } from './services/notificationService';
 
 const AppContent: React.FC = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -182,13 +182,19 @@ const AppContent: React.FC = () => {
   // Admin Messages State
   const [adminMessages, setAdminMessages] = useState<AdminMessage[]>([]);
   const [showAdminMessageModal, setShowAdminMessageModal] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [replyText, setReplyText] = useState('');
+  const [replyingToId, setReplyingToId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.id) {
-      // Poll for messages periodically or just on load
-      getUnreadAdminMessages(user.id).then(msgs => {
-        if (msgs.length > 0) {
-          setAdminMessages(msgs);
+      // Fetch all messages and count unread
+      getAllAdminMessages(user.id).then(msgs => {
+        setAdminMessages(msgs);
+        const unread = msgs.filter(m => !m.read).length;
+        setUnreadCount(unread);
+        // Only auto-popup if there are unread messages
+        if (unread > 0) {
           setShowAdminMessageModal(true);
         }
       });
@@ -196,13 +202,30 @@ const AppContent: React.FC = () => {
   }, [user?.id]);
 
   const handleCloseAdminMessage = async () => {
+    // Mark unread messages as read when closing
     if (user?.id) {
-      for (const msg of adminMessages) {
+      for (const msg of adminMessages.filter(m => !m.read)) {
         await markMessageAsRead(user.id, msg.id);
       }
+      // Update local state
+      setAdminMessages(prev => prev.map(m => ({ ...m, read: true })));
+      setUnreadCount(0);
     }
     setShowAdminMessageModal(false);
-    setAdminMessages([]);
+  };
+
+  const handleReplyToMessage = async (messageId: string) => {
+    if (!user?.id || !replyText.trim()) return;
+    try {
+      await replyToMessage(user.id, messageId, replyText.trim(), user.name || user.email);
+      // Refresh messages
+      const msgs = await getAllAdminMessages(user.id);
+      setAdminMessages(msgs);
+      setReplyText('');
+      setReplyingToId(null);
+    } catch (error) {
+      console.error('Error sending reply:', error);
+    }
   };
 
   // Function to stop AI generation
@@ -903,11 +926,13 @@ ${targetMessage.content}
                   ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 cursor-pointer'
                   : 'text-gray-300 dark:text-gray-600 cursor-default'
                   }`}
-                title={adminMessages.length > 0 ? "إشعارات جديدة" : "لا توجد إشعارات"}
+                title={adminMessages.length > 0 ? `${unreadCount} رسائل جديدة` : "لا توجد رسائل"}
               >
-                <Bell size={20} className={adminMessages.length > 0 ? "animate-pulse" : ""} />
-                {adminMessages.length > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-dark-surface"></span>
+                <Bell size={20} className={unreadCount > 0 ? "animate-pulse" : ""} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 rounded-full border-2 border-white dark:border-dark-surface text-[10px] text-white font-bold flex items-center justify-center">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
                 )}
               </button>
               <button
@@ -1065,6 +1090,7 @@ ${targetMessage.content}
                   onNavigateVersion={handleNavigateVersion}
                   onContinueResponse={handleContinueResponse}
                   adminMessagesCount={adminMessages.length}
+                  unreadCount={unreadCount}
                   onOpenAdminMessages={() => setShowAdminMessageModal(true)}
                 />
               }
@@ -1165,36 +1191,109 @@ ${targetMessage.content}
       {/* Admin Message Modal */}
       {showAdminMessageModal && adminMessages.length > 0 && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-dark-surface rounded-2xl p-8 w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200 border-2 border-amber-500 relative">
+          <div className="bg-white dark:bg-dark-surface rounded-2xl p-6 w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200 border-2 border-amber-500 relative max-h-[90vh] flex flex-col">
             <button
               onClick={() => setShowAdminMessageModal(false)}
-              className="absolute top-4 left-4 p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+              className="absolute top-4 left-4 p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors z-10"
             >
               ✖
             </button>
             <div className="absolute -top-6 -right-6 bg-amber-500 text-white p-4 rounded-full shadow-lg">
-              <Bell size={32} className="animate-pulse" />
+              <Bell size={32} className={unreadCount > 0 ? "animate-pulse" : ""} />
             </div>
-            <h3 className="text-2xl font-black text-gray-800 dark:text-gray-100 mb-6 mt-2 text-right">
-              إشعارات جديدة ({adminMessages.length})
+            <h3 className="text-2xl font-black text-gray-800 dark:text-gray-100 mb-4 mt-2 text-right">
+              الرسائل ({adminMessages.length}) {unreadCount > 0 && <span className="text-amber-500">• {unreadCount} جديدة</span>}
             </h3>
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+
+            <div className="space-y-4 overflow-y-auto flex-1 custom-scrollbar pr-2">
               {adminMessages.map(msg => (
-                <div key={msg.id} className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-xl border border-amber-200 dark:border-amber-800/30">
-                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed text-lg font-medium text-right">
+                <div
+                  key={msg.id}
+                  className={`p-4 rounded-xl border transition-all ${msg.read
+                    ? 'bg-gray-50 dark:bg-gray-800/30 border-gray-200 dark:border-gray-700'
+                    : 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/30'
+                    }`}
+                >
+                  {/* Admin Message */}
+                  <div className="flex items-start gap-2 mb-2">
+                    <span className="text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full font-bold">الإدارة</span>
+                    {!msg.read && <span className="text-xs bg-red-500 text-white px-2 py-0.5 rounded-full">جديد</span>}
+                  </div>
+                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed font-medium text-right">
                     {msg.content}
                   </p>
                   <p className="text-xs text-gray-400 mt-2 text-left" dir="ltr">
-                    {new Date(msg.createdAt).toLocaleDateString()}
+                    {new Date(msg.createdAt).toLocaleString('ar-DZ')}
                   </p>
+
+                  {/* Replies */}
+                  {msg.replies && msg.replies.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 space-y-2">
+                      {msg.replies.map(reply => (
+                        <div key={reply.id} className={`p-3 rounded-lg ${reply.sender === 'student'
+                          ? 'bg-blue-50 dark:bg-blue-900/20 mr-4'
+                          : 'bg-amber-50 dark:bg-amber-900/20 ml-4'
+                          }`}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${reply.sender === 'student'
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-amber-500 text-white'
+                              }`}>
+                              {reply.sender === 'student' ? 'أنت' : 'الإدارة'}
+                            </span>
+                            <span className="text-xs text-gray-400" dir="ltr">
+                              {new Date(reply.createdAt).toLocaleString('ar-DZ')}
+                            </span>
+                          </div>
+                          <p className="text-gray-700 dark:text-gray-300 text-sm text-right">{reply.content}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Reply Input */}
+                  {replyingToId === msg.id ? (
+                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                      <textarea
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        placeholder="اكتب ردك هنا..."
+                        className="w-full p-3 border rounded-lg dark:bg-dark-bg dark:border-gray-700 text-gray-800 dark:text-gray-200 text-right resize-none"
+                        rows={2}
+                      />
+                      <div className="flex gap-2 mt-2 justify-end">
+                        <button
+                          onClick={() => { setReplyingToId(null); setReplyText(''); }}
+                          className="px-3 py-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm"
+                        >
+                          إلغاء
+                        </button>
+                        <button
+                          onClick={() => handleReplyToMessage(msg.id)}
+                          disabled={!replyText.trim()}
+                          className="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-lg text-sm font-bold"
+                        >
+                          إرسال الرد
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setReplyingToId(msg.id)}
+                      className="mt-3 text-blue-500 hover:text-blue-600 text-sm font-medium"
+                    >
+                      ↩️ رد على هذه الرسالة
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
+
             <button
               onClick={handleCloseAdminMessage}
-              className="w-full mt-8 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-amber-500/20 active:scale-[0.98]"
+              className="w-full mt-4 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-amber-500/20 active:scale-[0.98]"
             >
-              علم، تم القراءة
+              {unreadCount > 0 ? 'علم، تمت القراءة ✓' : 'إغلاق'}
             </button>
           </div>
         </div>
