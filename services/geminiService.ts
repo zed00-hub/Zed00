@@ -1,11 +1,11 @@
-import { GoogleGenAI, Content, Part } from "@google/genai";
+import { GoogleGenerativeAI, Part, Content } from "@google/generative-ai";
 import { FileContext, Message } from "../types";
 import { getKnowledgeForBot, getBotConfig, BotGlobalConfig } from "./botKnowledgeService";
 
 // Helper to convert internal Message type to Gemini Content type
 const mapMessagesToContent = (messages: Message[]): Content[] => {
   return messages.map((msg) => ({
-    role: msg.role,
+    role: msg.role === 'admin' ? 'model' : msg.role, // Map 'admin' role to 'model' for Gemini
     parts: [{ text: msg.content }],
   }));
 };
@@ -224,10 +224,8 @@ export const generateResponseStream = async (
   settings?: BotSettings
 ): Promise<string> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || "" });
-    const modelId = "gemini-1.5-flash"; // User specific model
+    const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
 
-    // Fetch Admin Knowledge Base
     // Fetch Admin Knowledge Base and Config
     const [adminKnowledge, botConfig] = await Promise.all([
       getKnowledgeForBot(),
@@ -280,10 +278,7 @@ export const generateResponseStream = async (
       }
     ];
 
-    // List of models to try in order. 
-    // If primary fails (Quota), fallback to others to keep app running.
-    // Updated names to avoid 404 errors
-    const MODELS_TO_TRY = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"];
+    const MODELS_TO_TRY = ["gemini-1.5-flash", "gemini-1.5-pro"];
 
     let lastError;
 
@@ -292,24 +287,24 @@ export const generateResponseStream = async (
       try {
         console.log(`Trying model: ${modelToTry}...`);
 
+        const model = genAI.getGenerativeModel({
+          model: modelToTry,
+          systemInstruction: systemInstructionContent,
+          generationConfig: {
+            temperature: botConfig?.temperature ?? 0.5,
+            topP: 0.9,
+            maxOutputTokens: userSettings.responseLength === 'short' ? 500 : userSettings.responseLength === 'long' ? 2000 : 1000,
+          }
+        });
+
         // Inner function: Make request with current model
         const makeRequest = async () => {
-          return await ai.models.generateContentStream({
-            model: modelToTry,
-            config: {
-              systemInstruction: {
-                role: 'system',
-                parts: [{ text: systemInstructionContent }]
-              },
-              temperature: botConfig?.temperature ?? 0.5,
-              topP: 0.9,
-              maxOutputTokens: userSettings.responseLength === 'short' ? 500 : userSettings.responseLength === 'long' ? 2000 : 1000,
-            },
+          return await model.generateContentStream({
             contents: contents,
           });
         };
 
-        // Inner loop: Retry same model for transient errors (up to 2 times)
+        // Inner loop: Retry same model for transient errors
         let response;
         let attempts = 0;
         while (attempts < 2) {
@@ -317,12 +312,12 @@ export const generateResponseStream = async (
             response = await makeRequest();
             break; // Success!
           } catch (err: any) {
+            const errMsg = err?.message || "";
             // Check for Rate Limit (429)
-            if (err?.status === 429 || err?.code === 429 || err?.error?.code === 429 || (err?.message && err.message.includes('quota'))) {
+            if (err?.status === 429 || errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('exhausted')) {
               console.warn(`Quota/Rate limit on ${modelToTry}.`);
               throw err; // Break inner loop to try NEXT MODEL
             } else {
-              // Other errors (network, timeout) -> Retry same model
               attempts++;
               if (attempts >= 2) throw err;
               console.log(`${modelToTry} error, retrying in 1s...`);
@@ -335,8 +330,8 @@ export const generateResponseStream = async (
 
         // Process stream
         let fullText = "";
-        for await (const chunk of response) {
-          const chunkText = chunk.text || "";
+        for await (const chunk of response.stream) {
+          const chunkText = chunk.text();
           fullText += chunkText;
           onChunk(chunkText);
         }
@@ -356,15 +351,12 @@ export const generateResponseStream = async (
   } catch (error: any) {
     console.error("Gemini API Error:", error);
 
-    const errorCode = error?.error?.code || error?.status || error?.statusCode || error?.code;
-    const errorStatus = error?.error?.status || error?.status;
-    const errorMessage = error?.error?.message || error?.message || "";
-
-    if (errorCode === 429 || errorStatus === "RESOURCE_EXHAUSTED" || errorMessage.includes("quota")) {
+    const errorMessage = error?.message || "";
+    if (errorMessage.includes("429") || errorMessage.includes("quota") || errorMessage.includes("exhausted")) {
       throw new Error("QUOTA_EXCEEDED: تم تجاوز الحد اليومي. حاول لاحقاً.");
     }
 
-    if (errorCode === 401 || errorMessage.includes("API key")) {
+    if (errorMessage.includes("API key")) {
       throw new Error("API_KEY_INVALID: مفتاح API غير صالح.");
     }
 
@@ -394,16 +386,14 @@ export const generateQuiz = async (
   fileContexts: FileContext[] // Global files (courses) or specific uploaded file
 ): Promise<QuizQuestion[]> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || "" });
-    // Use flash model for speed and cost efficiency
-    const modelId = "gemini-1.5-flash";
+    const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     let sourceContext = "";
     let filePart: Part | undefined;
 
     // determine source
     if (config.sourceType === 'subject' && config.subject) {
-      // Find relevant files for this subject from the global knowledge base
       const relevantFiles = fileContexts.filter(f =>
         f.name.toLowerCase().includes(config.subject!.toLowerCase()) ||
         (f.content && f.content.toLowerCase().includes(config.subject!.toLowerCase()))
@@ -412,11 +402,9 @@ export const generateQuiz = async (
       if (relevantFiles.length > 0) {
         sourceContext = relevantFiles.map(f => f.content).join("\n\n");
       } else {
-        // Fallback: ask AI to generate based on general knowledge if no specific file found
         sourceContext = `Sujet général: ${config.subject}. (Aucun fichier spécifique trouvé, utilisez vos connaissances générales).`;
       }
     } else if (config.sourceType === 'file' && config.fileContext) {
-      // User uploaded a specific file for the quiz
       if (config.fileContext.data) {
         filePart = {
           inlineData: {
@@ -472,23 +460,20 @@ export const generateQuiz = async (
     const parts: Part[] = [{ text: prompt }];
     if (filePart) parts.push(filePart);
 
-    const result = await ai.models.generateContent({
-      model: modelId,
-      config: {
-        systemInstruction: systemInstruction,
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: parts }],
+      generationConfig: {
         temperature: 0.3,
-        responseMimeType: "application/json", // Force JSON mode
+        responseMimeType: "application/json",
       },
-      contents: [{ role: 'user', parts: parts }]
+      systemInstruction: systemInstruction
     });
 
-    const responseText = result.text;
+    const responseText = result.response.text();
     if (!responseText) throw new Error("Réponse vide de l'IA");
 
-    // Parse JSON
     const questions: any[] = JSON.parse(responseText);
 
-    // Validate formatting (ensure id and indices are numbers)
     return questions.map((q, index) => ({
       id: index + 1,
       question: q.question,
@@ -501,6 +486,7 @@ export const generateQuiz = async (
     throw new Error("Échec de la génération du quiz. / فشل إنشاء الاختبار.");
   }
 };
+
 // --- Mnemonic Generation Service ---
 
 import { MnemonicResponse } from "../types";
@@ -511,8 +497,8 @@ export const generateMnemonic = async (
   context?: string
 ): Promise<MnemonicResponse> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || "" });
-    const modelId = "gemini-1.5-flash";
+    const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const systemInstruction = `
       Rôle: Expert en Mnémonique Médicale et Pédagogie (Créditeur de phrases mémo-techniques).
@@ -551,17 +537,16 @@ export const generateMnemonic = async (
       Génère une mnémonique maintenant.
     `;
 
-    const result = await ai.models.generateContent({
-      model: modelId,
-      config: {
-        systemInstruction: systemInstruction,
-        temperature: 0.8, // Creative
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.8,
         responseMimeType: "application/json",
       },
-      contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      systemInstruction: systemInstruction
     });
 
-    const responseText = result.text;
+    const responseText = result.response.text();
     if (!responseText) throw new Error("Réponse vide");
 
     return JSON.parse(responseText) as MnemonicResponse;
@@ -576,8 +561,8 @@ export const generateMnemonic = async (
 
 export const analyzeImage = async (imageFile: File): Promise<string> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || "" });
-    const modelId = "gemini-1.5-flash"; // Use generic model with vision capabilities
+    const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     // Convert file to base64
     const base64Data = await new Promise<string>((resolve, reject) => {
@@ -592,17 +577,10 @@ export const analyzeImage = async (imageFile: File): Promise<string> => {
       reader.readAsDataURL(imageFile);
     });
 
-    const result = await ai.models.generateContent({
-      model: modelId,
-      config: {
-        systemInstruction: {
-          role: 'system',
-          parts: [{ text: "Tu es un assistant expert chargé d'analyser des images médicales ou éducatives pour une base de connaissances. Décris l'image en détail, en français, en te concentrant sur les informations utiles pour un étudiant paramédical." }]
-        }
-      },
+    const result = await model.generateContent({
       contents: [
         {
-          role: 'user',
+          role: "user",
           parts: [
             {
               inlineData: {
@@ -613,10 +591,11 @@ export const analyzeImage = async (imageFile: File): Promise<string> => {
             { text: "Analyse cette image en détail pour la base de connaissances." }
           ]
         }
-      ]
+      ],
+      systemInstruction: "Tu es un assistant expert chargé d'analyser des images médicales ou éducatives pour une base de connaissances. Décris l'image en détail, en français, en te concentrant sur les informations utiles pour un étudiant paramédical."
     });
 
-    return result.text || "Pas de description.";
+    return result.response.text() || "Pas de description.";
   } catch (error) {
     console.error("Image Analysis Error:", error);
     throw new Error("Fermez l'analyse de l'image. / فشل تحليل الصورة.");
@@ -632,8 +611,8 @@ export const generateChecklist = async (
   lessonTitle?: string
 ): Promise<ChecklistResponse> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || "" });
-    const modelId = "gemini-1.5-flash";
+    const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const systemInstruction = `
       Rôle: Expert pédagogique spécialisé dans la création de check-lists d'étude pour étudiants paramédicaux.
@@ -682,22 +661,20 @@ export const generateChecklist = async (
       Génère une check-list d'étude complète maintenant.
     `;
 
-    const result = await ai.models.generateContent({
-      model: modelId,
-      config: {
-        systemInstruction: systemInstruction,
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
         temperature: 0.4,
         responseMimeType: "application/json",
       },
-      contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      systemInstruction: systemInstruction
     });
 
-    const responseText = result.text;
+    const responseText = result.response.text();
     if (!responseText) throw new Error("Réponse vide");
 
     const parsed = JSON.parse(responseText);
 
-    // Ensure all items have isCompleted: false
     const processItems = (items: any[]): ChecklistItem[] => {
       return items.map((item, idx) => ({
         id: item.id || `${idx + 1}`,
