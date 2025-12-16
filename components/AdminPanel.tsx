@@ -1234,7 +1234,7 @@ const AdminPanel: React.FC = () => {
 
                 {/* Message Modal */}
                 {messageModal.isOpen && (
-                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 pointer-events-auto">
                         <div className="bg-white dark:bg-dark-surface rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200">
                             <h3 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-200">
                                 إرسال رسالة للطالب: <span className="text-amber-500">{messageModal.userName}</span>
@@ -1244,7 +1244,7 @@ const AdminPanel: React.FC = () => {
                                 onChange={(e) => setMessageText(e.target.value)}
                                 rows={4}
                                 placeholder="اكتب رسالتك هنا..."
-                                className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 mb-4"
+                                className="w-full px-4 py-3 border rounded-xl dark:bg-dark-bg dark:border-gray-700 outline-none focus:ring-2 focus:ring-amber-500 mb-4 text-gray-900 dark:text-gray-100"
                             />
                             <div className="flex gap-2 justify-end">
                                 <button
