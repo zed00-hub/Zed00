@@ -225,7 +225,7 @@ export const generateResponseStream = async (
 ): Promise<string> => {
   try {
     const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || "" });
-    const modelId = "gemini-2.5-flash"; // User specific model
+    const modelId = "gemini-1.5-flash"; // User specific model
 
     // Fetch Admin Knowledge Base
     // Fetch Admin Knowledge Base and Config
@@ -283,7 +283,7 @@ export const generateResponseStream = async (
     // List of models to try in order. 
     // If primary fails (Quota), fallback to others to keep app running.
     // Updated names to avoid 404 errors
-    const MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-1.5-flash-latest", "gemini-2.0-flash-exp", "gemini-1.5-pro-latest"];
+    const MODELS_TO_TRY = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"];
 
     let lastError;
 
@@ -396,7 +396,7 @@ export const generateQuiz = async (
   try {
     const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || "" });
     // Use flash model for speed and cost efficiency
-    const modelId = "gemini-2.5-flash";
+    const modelId = "gemini-1.5-flash";
 
     let sourceContext = "";
     let filePart: Part | undefined;
@@ -512,7 +512,7 @@ export const generateMnemonic = async (
 ): Promise<MnemonicResponse> => {
   try {
     const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || "" });
-    const modelId = "gemini-2.5-flash";
+    const modelId = "gemini-1.5-flash";
 
     const systemInstruction = `
       Rôle: Expert en Mnémonique Médicale et Pédagogie (Créditeur de phrases mémo-techniques).
@@ -577,7 +577,7 @@ export const generateMnemonic = async (
 export const analyzeImage = async (imageFile: File): Promise<string> => {
   try {
     const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || "" });
-    const modelId = "gemini-2.5-flash"; // Use generic model with vision capabilities
+    const modelId = "gemini-1.5-flash"; // Use generic model with vision capabilities
 
     // Convert file to base64
     const base64Data = await new Promise<string>((resolve, reject) => {
@@ -633,7 +633,7 @@ export const generateChecklist = async (
 ): Promise<ChecklistResponse> => {
   try {
     const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || "" });
-    const modelId = "gemini-2.5-flash";
+    const modelId = "gemini-1.5-flash";
 
     const systemInstruction = `
       Rôle: Expert pédagogique spécialisé dans la création de check-lists d'étude pour étudiants paramédicaux.
