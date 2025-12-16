@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { FileContext, ChatSession, QuizSession, ChecklistSession } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { FileIcon, TrashIcon, CloseIcon, BookOpen, SearchIcon, PlusIcon, ChatIcon, LayersIcon, EditIcon, CheckIcon, XIcon, LogOutIcon } from './Icons';
-import { Sparkles, Settings, Crown, Sun, Moon, ClipboardList, MessageSquare } from 'lucide-react';
+import { Sparkles, Settings, Crown, Sun, Moon, ClipboardList, MessageSquare, Bell } from 'lucide-react';
 import { formatFileSize } from '../utils/fileHelpers';
 import { isSupervisor, isAdmin } from '../services/coursesService';
 
@@ -48,6 +48,11 @@ interface SidebarProps {
   onOpenSettings: () => void;
   onOpenAdmin: () => void;
   isAdmin: boolean;
+
+  // Notifications
+  adminMessagesCount?: number;
+  unreadCount?: number;
+  onOpenAdminMessages?: () => void;
 }
 
 const FileSidebar: React.FC<SidebarProps> = ({
@@ -83,7 +88,10 @@ const FileSidebar: React.FC<SidebarProps> = ({
   onToggleTheme,
   onOpenSettings,
   onOpenAdmin,
-  isAdmin: isUserAdmin
+  isAdmin: isUserAdmin,
+  adminMessagesCount = 0,
+  unreadCount = 0,
+  onOpenAdminMessages
 }) => {
   const { user, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
@@ -608,6 +616,22 @@ const FileSidebar: React.FC<SidebarProps> = ({
                   title={isDarkMode ? 'الوضع النهاري' : 'الوضع الليلي'}
                 >
                   {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+                </button>
+
+                {/* Notifications Bell */}
+                <button
+                  onClick={adminMessagesCount > 0 ? onOpenAdminMessages : undefined}
+                  className={`p-1.5 relative rounded-lg transition-all ${adminMessagesCount > 0
+                    ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30'
+                    : 'text-gray-300 dark:text-gray-600'}`}
+                  title={unreadCount > 0 ? `${unreadCount} رسائل جديدة` : 'لا توجد رسائل'}
+                >
+                  <Bell size={18} className={unreadCount > 0 ? "animate-pulse" : ""} />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] bg-red-500 rounded-full border-2 border-white dark:border-dark-surface text-[8px] text-white font-bold flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
                 </button>
 
                 <button

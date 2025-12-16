@@ -980,6 +980,9 @@ ${targetMessage.content}
               onOpenAdmin={() => navigate('/admin')}
               isAdmin={isAdmin(user?.email)}
               onRenameChecklist={renameChecklist}
+              adminMessagesCount={adminMessages.length}
+              unreadCount={unreadCount}
+              onOpenAdminMessages={() => setShowAdminMessageModal(true)}
             />
           </div>
         </div>
@@ -1017,6 +1020,9 @@ ${targetMessage.content}
             onOpenAdmin={() => navigate('/admin')}
             isAdmin={isAdmin(user?.email)}
             onRenameChecklist={renameChecklist}
+            adminMessagesCount={adminMessages.length}
+            unreadCount={unreadCount}
+            onOpenAdminMessages={() => setShowAdminMessageModal(true)}
           />
         </div>
 
