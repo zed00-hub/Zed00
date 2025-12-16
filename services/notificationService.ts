@@ -1,6 +1,6 @@
 
 import { db } from './firebase';
-import { collection, doc, getDocs, setDoc, updateDoc, query, where, orderBy, addDoc, Timestamp } from 'firebase/firestore';
+import { collection, doc, getDocs, setDoc, updateDoc, query, where, orderBy, addDoc, Timestamp, collectionGroup } from 'firebase/firestore';
 
 export interface MessageReply {
     id: string;
@@ -146,41 +146,27 @@ export const replyToMessage = async (userId: string, messageId: string, content:
  */
 export const getAllMessagesForAdmin = async (): Promise<AdminMessage[]> => {
     try {
-        // This requires a collection group query on 'notifications'
-        // First, let's get all users who have notifications
-        // This is a simplified approach - in production you'd use collectionGroup
-        const usersRef = collection(db, 'users');
-        const usersSnap = await getDocs(usersRef);
+        const messagesQuery = query(
+            collectionGroup(db, 'notifications'),
+            where('type', '==', 'admin_message'),
+            orderBy('createdAt', 'desc')
+        );
 
+        const snap = await getDocs(messagesQuery);
         const allMessages: AdminMessage[] = [];
 
-        for (const userDoc of usersSnap.docs) {
-            const notificationsRef = collection(db, 'users', userDoc.id, 'notifications');
-            const q = query(
-                notificationsRef,
-                where('type', '==', 'admin_message'),
-                orderBy('createdAt', 'desc')
-            );
-
-            try {
-                const notifSnap = await getDocs(q);
-                for (const notifDoc of notifSnap.docs) {
-                    const msg = notifDoc.data() as AdminMessage;
-                    // Only include messages that have replies
-                    if (msg.replies && msg.replies.length > 0) {
-                        allMessages.push({
-                            ...msg,
-                            studentId: userDoc.id,
-                            studentName: (userDoc.data() as any).displayName || userDoc.id
-                        });
-                    }
+        snap.docs.forEach(doc => {
+            const msg = doc.data() as AdminMessage;
+            // Only include messages that have replies
+            if (msg.replies && msg.replies.length > 0) {
+                // Ensure studentId is available (it's part of the message object now)
+                if (msg.studentId) {
+                    allMessages.push(msg);
                 }
-            } catch (e) {
-                // Skip users with permission issues
             }
-        }
+        });
 
-        // Sort by latest reply or message creation
+        // Sort by latest reply timestamp
         allMessages.sort((a, b) => {
             const aLatest = a.replies?.length ? a.replies[a.replies.length - 1].createdAt : a.createdAt;
             const bLatest = b.replies?.length ? b.replies[b.replies.length - 1].createdAt : b.createdAt;
