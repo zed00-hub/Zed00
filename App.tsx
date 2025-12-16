@@ -187,8 +187,10 @@ const AppContent: React.FC = () => {
     if (user?.id) {
       // Poll for messages periodically or just on load
       getUnreadAdminMessages(user.id).then(msgs => {
-        setAdminMessages(msgs);
-        // Removed auto-popup: setShowAdminMessageModal(true);
+        if (msgs.length > 0) {
+          setAdminMessages(msgs);
+          setShowAdminMessageModal(true);
+        }
       });
     }
   }, [user?.id]);
@@ -898,8 +900,8 @@ ${targetMessage.content}
               <button
                 onClick={() => adminMessages.length > 0 && setShowAdminMessageModal(true)}
                 className={`p-2 rounded-xl transition-all relative group ${adminMessages.length > 0
-                    ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 cursor-pointer'
-                    : 'text-gray-300 dark:text-gray-600 cursor-default'
+                  ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 cursor-pointer'
+                  : 'text-gray-300 dark:text-gray-600 cursor-default'
                   }`}
                 title={adminMessages.length > 0 ? "إشعارات جديدة" : "لا توجد إشعارات"}
               >
