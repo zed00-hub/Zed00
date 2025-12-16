@@ -22,6 +22,7 @@ import {
 import {
     getAllUsersStats,
     getStatsForDateRange,
+    getUserDetailedActivity,
     UserStats,
     getUserLevel
 } from '../services/analyticsService';
@@ -80,6 +81,12 @@ const AdminPanel: React.FC = () => {
     const [messagesLoading, setMessagesLoading] = useState(false);
     const [adminReplyText, setAdminReplyText] = useState('');
     const [replyingToMessageId, setReplyingToMessageId] = useState<string | null>(null);
+
+    // Student Details Modal State
+    const [selectedStudent, setSelectedStudent] = useState<UserStats | null>(null);
+    const [studentDetails, setStudentDetails] = useState<{ sessions: any[], quizzes: any[], checklists: any[] } | null>(null);
+    const [loadingDetails, setLoadingDetails] = useState(false);
+    const [activeDetailTab, setActiveDetailTab] = useState<'conversations' | 'quizzes' | 'checklists'>('conversations');
 
     // Knowledge State
     const [knowledgeEntries, setKnowledgeEntries] = useState<KnowledgeEntry[]>([]);
@@ -327,6 +334,20 @@ const AdminPanel: React.FC = () => {
         setShowAddForm(true);
         setShowContentPreview(course.content.length < 1000);
     };
+
+    useEffect(() => {
+        if (selectedStudent) {
+            setLoadingDetails(true);
+            getUserDetailedActivity(selectedStudent.id)
+                .then(data => {
+                    setStudentDetails(data);
+                })
+                .catch(err => console.error(err))
+                .finally(() => setLoadingDetails(false));
+        } else {
+            setStudentDetails(null);
+        }
+    }, [selectedStudent]);
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -870,7 +891,11 @@ const AdminPanel: React.FC = () => {
                                             const displayQuiz = periodData ? periodData.quizzes : (stat.quizzesCount || 0);
 
                                             return (
-                                                <div key={stat.id} className="grid grid-cols-12 gap-2 p-4 items-center hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                                                <div
+                                                    key={stat.id}
+                                                    onClick={() => setSelectedStudent(stat)}
+                                                    className="grid grid-cols-12 gap-2 p-4 items-center hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer border-b border-transparent hover:border-amber-100 dark:hover:border-gray-700"
+                                                >
                                                     <div className="col-span-1 text-center font-bold text-amber-500">
                                                         {index < 3 ? <Medal size={24} className={`mx-auto ${index === 0 ? 'text-yellow-500' : index === 1 ? 'text-gray-400' : 'text-orange-500'}`} /> : index + 1}
                                                     </div>
@@ -1445,6 +1470,166 @@ const AdminPanel: React.FC = () => {
                                     {sendingMessage ? <Loader2 className="animate-spin w-4 h-4" /> : <Send size={16} />}
                                     إرسال
                                 </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Student Details Modal */}
+                {selectedStudent && (
+                    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 pointer-events-auto backdrop-blur-sm">
+                        <div className="bg-white dark:bg-dark-surface rounded-2xl w-full max-w-4xl h-[85vh] shadow-2xl animate-in fade-in zoom-in duration-200 flex flex-col overflow-hidden">
+
+                            {/* Header */}
+                            <div className="p-6 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
+                                <div className="flex items-center gap-4">
+                                    <img
+                                        src={selectedStudent.avatar || `https://ui-avatars.com/api/?name=${selectedStudent.name}&background=random`}
+                                        alt={selectedStudent.name}
+                                        className="w-16 h-16 rounded-full border-4 border-white dark:border-gray-700 shadow-md"
+                                    />
+                                    <div>
+                                        <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{selectedStudent.name}</h3>
+                                        <p className="text-sm text-gray-500">{selectedStudent.email}</p>
+                                        <div className="flex gap-2 mt-2">
+                                            <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${getUserLevel(selectedStudent.totalTimeSpent || 0).color}`}>
+                                                {getUserLevel(selectedStudent.totalTimeSpent || 0).label}
+                                            </span>
+                                            <span className="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full text-gray-600 dark:text-gray-300">
+                                                🕒 {(selectedStudent.totalTimeSpent || 0)} دقيقة
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setSelectedStudent(null)}
+                                    className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
+                                >
+                                    <X className="w-6 h-6 text-gray-500" />
+                                </button>
+                            </div>
+
+                            {/* Tabs */}
+                            <div className="flex border-b dark:border-gray-700 px-6 pt-2">
+                                <button
+                                    onClick={() => setActiveDetailTab('conversations')}
+                                    className={`px-4 py-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeDetailTab === 'conversations' ? 'border-amber-500 text-amber-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                                >
+                                    <MessageCircle size={18} />
+                                    المحادثات ({studentDetails?.sessions?.length || 0})
+                                </button>
+                                <button
+                                    onClick={() => setActiveDetailTab('quizzes')}
+                                    className={`px-4 py-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeDetailTab === 'quizzes' ? 'border-amber-500 text-amber-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                                >
+                                    <Brain size={18} />
+                                    الاختبارات ({studentDetails?.quizzes?.length || 0})
+                                </button>
+                                <button
+                                    onClick={() => setActiveDetailTab('checklists')}
+                                    className={`px-4 py-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeDetailTab === 'checklists' ? 'border-amber-500 text-amber-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                                >
+                                    <Check size={18} />
+                                    قوائم المهام ({studentDetails?.checklists?.length || 0})
+                                </button>
+                            </div>
+
+                            {/* Content */}
+                            <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50 dark:bg-dark-bg/50">
+                                {loadingDetails ? (
+                                    <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                                        <Loader2 className="w-10 h-10 animate-spin mb-4 text-amber-500" />
+                                        <p>جاري تحميل سجلات الطالب...</p>
+                                    </div>
+                                ) : !studentDetails ? (
+                                    <div className="text-center text-gray-500 py-10">لا توجد بيانات للعرض</div>
+                                ) : (
+                                    <>
+                                        {/* Conversations Tab */}
+                                        {activeDetailTab === 'conversations' && (
+                                            <div className="space-y-4">
+                                                {studentDetails.sessions.length === 0 ? (
+                                                    <div className="text-center py-10 text-gray-400">لا توجد محادثات سابقة</div>
+                                                ) : (
+                                                    studentDetails.sessions.map((session: any) => (
+                                                        <div key={session.id} className="bg-white dark:bg-dark-surface p-4 rounded-xl border dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow">
+                                                            <div className="flex justify-between items-start mb-2">
+                                                                <h4 className="font-bold text-gray-800 dark:text-gray-200 line-clamp-1">
+                                                                    {session.title || "محادثة بدون عنوان"}
+                                                                </h4>
+                                                                <span className="text-xs text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-lg">
+                                                                    {session.timestamp ? new Date(session.timestamp).toLocaleDateString('ar-EG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'N/A'}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
+                                                                {session.lastMessage || session.preview || "لا توجد معاينة"}
+                                                            </p>
+                                                            <div className="mt-3 flex justify-end">
+                                                                <span className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded-md">
+                                                                    {session.messagesCount || 0} رسالة
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Quizzes Tab */}
+                                        {activeDetailTab === 'quizzes' && (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {studentDetails.quizzes.length === 0 ? (
+                                                    <div className="col-span-full text-center py-10 text-gray-400">لا توجد اختبارات سابقة</div>
+                                                ) : (
+                                                    studentDetails.quizzes.map((quiz: any) => (
+                                                        <div key={quiz.id} className="bg-white dark:bg-dark-surface p-4 rounded-xl border dark:border-gray-700 shadow-sm">
+                                                            <div className="flex items-center justify-between mb-3">
+                                                                <span className={`text-xs px-2 py-1 rounded-lg font-bold ${(quiz.score / quiz.totalQuestions) >= 0.8 ? 'bg-green-100 text-green-700' :
+                                                                        (quiz.score / quiz.totalQuestions) >= 0.5 ? 'bg-yellow-100 text-yellow-700' :
+                                                                            'bg-red-100 text-red-700'
+                                                                    }`}>
+                                                                    {Math.round((quiz.score / quiz.totalQuestions) * 100)}%
+                                                                </span>
+                                                                <span className="text-xs text-gray-500">
+                                                                    {quiz.timestamp ? new Date(quiz.timestamp.seconds * 1000).toLocaleDateString('ar-EG') : 'N/A'}
+                                                                </span>
+                                                            </div>
+                                                            <h4 className="font-bold text-gray-800 dark:text-gray-200 mb-1">{quiz.topic || "موضوع غير محدد"}</h4>
+                                                            <div className="text-xs text-gray-500 flex items-center gap-2 mt-2">
+                                                                <span>🎯 {quiz.score}/{quiz.totalQuestions} صحيح</span>
+                                                                <span>⚡ {quiz.difficulty || "متوسط"}</span>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Checklists Tab */}
+                                        {activeDetailTab === 'checklists' && (
+                                            <div className="space-y-4">
+                                                {studentDetails.checklists.length === 0 ? (
+                                                    <div className="text-center py-10 text-gray-400">لا توجد قوائم مهام</div>
+                                                ) : (
+                                                    studentDetails.checklists.map((list: any) => (
+                                                        <div key={list.id} className="bg-white dark:bg-dark-surface p-4 rounded-xl border dark:border-gray-700 shadow-sm">
+                                                            <div className="flex justify-between items-start">
+                                                                <h4 className="font-bold text-gray-800 dark:text-gray-200">{list.title}</h4>
+                                                                {list.isCompleted && <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full">مكتملة</span>}
+                                                            </div>
+                                                            <p className="text-sm text-gray-500 mt-1 line-clamp-2">{list.summary}</p>
+                                                            <div className="mt-3 flex items-center gap-4 text-xs text-gray-400">
+                                                                <span>📅 {list.timestamp ? new Date(list.timestamp.seconds * 1000).toLocaleDateString() : 'N/A'}</span>
+                                                                <span>⏱️ {list.estimatedTime}</span>
+                                                                <span>📝 {list.items?.length || 0} مهام</span>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        )}
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>

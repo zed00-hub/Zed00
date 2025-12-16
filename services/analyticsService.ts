@@ -236,3 +236,52 @@ export const getStatsForDateRange = async (startDate: Date, endDate: Date): Prom
         return {};
     }
 };
+
+/**
+ * Fetch detailed activity for a specific user
+ */
+export const getUserDetailedActivity = async (userId: string) => {
+    try {
+        const userRef = doc(db, 'users', userId);
+
+        // 1. Fetch Conversations (Sessions)
+        const sessionsRef = collection(userRef, 'sessions');
+        const sessionsQuery = query(sessionsRef, orderBy('timestamp', 'desc'));
+        const sessionsSnap = await getDocs(sessionsQuery);
+        const sessions = sessionsSnap.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            timestamp: doc.data().timestamp // Keep raw timestamp
+        }));
+
+        // 2. Fetch Quizzes
+        const quizzesRef = collection(userRef, 'quizzes');
+        const quizzesQuery = query(quizzesRef, orderBy('createdAt', 'desc'));
+        const quizzesSnap = await getDocs(quizzesQuery);
+        const quizzes = quizzesSnap.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            timestamp: doc.data().createdAt // Normalized timestamp field name
+        }));
+
+        // 3. Fetch Checklists
+        const checklistsRef = collection(userRef, 'checklists');
+        // Checklists might not have createdAt in older versions, so handle gracefully
+        const checklistsSnap = await getDocs(checklistsRef);
+        const checklists = checklistsSnap.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            timestamp: doc.data().createdAt || 0
+        })).sort((a, b) => b.timestamp - a.timestamp);
+
+        return {
+            sessions,
+            quizzes,
+            checklists
+        };
+
+    } catch (error) {
+        console.error(`Error fetching details for user ${userId}:`, error);
+        throw error;
+    }
+};
