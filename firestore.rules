@@ -15,8 +15,18 @@ service cloud.firestore {
       );
     }
     
-    // +++ قاعدة مهمة جداً (Fix): السماح للأدمن بقراءة كل الإشعارات من خلال collectionGroup +++
+    // +++ السماح للأدمن بقراءة كل الإشعارات والجلسات والاختبارات من خلال collectionGroup +++
     match /{path=**}/notifications/{notificationId} {
+      allow read: if isAdmin();
+    }
+    // إضافة قواعد التحليلات الشاملة (Collection Group)
+    match /{path=**}/sessions/{sessionId} {
+      allow read: if isAdmin();
+    }
+    match /{path=**}/quizzes/{quizId} {
+      allow read: if isAdmin();
+    }
+    match /{path=**}/checklists/{checklistId} {
       allow read: if isAdmin();
     }
 
@@ -27,15 +37,18 @@ service cloud.firestore {
 
       match /sessions/{sessionId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if isAdmin(); // تكرار للتأكيد في الوصول المباشر
       }
       match /quizzes/{quizId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if isAdmin(); // تكرار للتأكيد
       }
       match /checklists/{checklistId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if isAdmin(); // تكرار للتأكيد
       }
       
-      // قواعد الإشعارات العادية (للمستخدم نفسه وللإرسال)
+      // قواعد الإشعارات العادية
       match /notifications/{notificationId} {
         allow create: if isSupervisor();
         allow read, update, delete: if request.auth != null && request.auth.uid == userId;
