@@ -59,15 +59,21 @@ const NotebookContainer: React.FC<NotebookContainerProps> = ({
             }
             try {
                 const data = transformMarkdownToNode(activeSession.markdown);
-                if (data && data.content) {
-                    mmRef.current = Markmap.create(svgRef.current, undefined, data as any);
+                if (data && (data.content || data.children?.length > 0)) {
+                    mmRef.current = Markmap.create(svgRef.current, {
+                        autoFit: true,
+                        duration: 500,
+                    }, data as any);
 
-                    // Delay fit to ensure SVG has rendered and has dimensions
+                    // Double check fit after a short delay
                     setTimeout(() => {
                         if (mmRef.current && svgRef.current) {
-                            mmRef.current.fit();
+                            const bbox = svgRef.current.getBBox();
+                            if (bbox.width > 0 && bbox.height > 0) {
+                                mmRef.current.fit();
+                            }
                         }
-                    }, 300);
+                    }, 500);
                 }
             } catch (err) {
                 console.error("Markmap rendering error:", err);

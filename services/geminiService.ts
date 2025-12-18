@@ -721,7 +721,8 @@ export const generateMindMap = async (
     });
 
     const text = result.response.text();
-    return text.replace(/^```markdown\n?/, '').replace(/```$/, '').trim();
+    // More robust cleaning for any code block wrapper
+    return text.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim();
   } catch (error) {
     console.error("MindMap Generation Error:", error);
     throw new Error("Failed to generate Mind Map.");

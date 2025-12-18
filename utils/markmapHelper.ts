@@ -3,22 +3,33 @@
 export interface MarkmapNode {
     content: string;
     children: MarkmapNode[];
-    // Extra fields that Markmap might handle
     p?: any;
 }
 
 export function transformMarkdownToNode(markdown: string): MarkmapNode {
-    const lines = markdown.split('\n').filter(l => l.trim().length > 0);
+    if (!markdown) return { content: "Empty Map", children: [] };
 
-    const root: MarkmapNode = { content: 'root', children: [] };
+    // Cleanup markdown
+    const cleanMarkdown = markdown
+        .replace(/^```markdown\n?/, '')
+        .replace(/```$/, '')
+        .trim();
+
+    const lines = cleanMarkdown.split('\n').filter(l => l.trim().length > 0);
+
+    if (lines.length === 0) {
+        return { content: "Empty Map", children: [] };
+    }
+
+    const root: MarkmapNode = { content: 'Mind Map', children: [] };
     const stack: { node: MarkmapNode, level: number }[] = [{ node: root, level: 0 }];
 
     for (const line of lines) {
         const trimmed = line.trim();
-        let level = 0;
-        let content = '';
+        let level = 1;
+        let content = trimmed;
 
-        // Detect heading level
+        // Detect headings
         if (trimmed.startsWith('#')) {
             const match = trimmed.match(/^(#+)\s+(.*)/);
             if (match) {
@@ -26,19 +37,22 @@ export function transformMarkdownToNode(markdown: string): MarkmapNode {
                 content = match[2];
             }
         }
-        // Detect list item
+        // Detect bullet points
         else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-            level = stack[stack.length - 1].level + 1;
+            // Find level of last heading and go +1
+            const lastHeading = [...stack].reverse().find(s => s.level > 0 && s.level < 10);
+            level = (lastHeading ? lastHeading.level : 1) + 1;
             content = trimmed.substring(2);
-        } else {
-            // General text - treat as 1 level deeper than last node
-            level = stack[stack.length - 1].level + 1;
-            content = trimmed;
+        }
+        else {
+            // General text
+            const lastNode = stack[stack.length - 1];
+            level = lastNode.level + 1;
         }
 
         const newNode: MarkmapNode = { content, children: [] };
 
-        // Pop stack until we find the parent (level < current level)
+        // Pop until we find a parent with level < current level
         while (stack.length > 1 && stack[stack.length - 1].level >= level) {
             stack.pop();
         }
@@ -48,15 +62,10 @@ export function transformMarkdownToNode(markdown: string): MarkmapNode {
         stack.push({ node: newNode, level });
     }
 
-    // Clean up artificial root
+    // If we only have one top-level child of the artificial root, use that
     if (root.children.length === 1) {
         return root.children[0];
     }
 
-    if (root.children.length > 1) {
-        root.content = "Mind Map";
-        return root;
-    }
-
-    return { content: "Empty Map", children: [] };
+    return root;
 }
