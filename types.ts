@@ -106,3 +106,19 @@ export interface MnemonicResponse {
     explanation: string;
     funFact: string;
 }
+
+export interface MindMapSession {
+    id: string;
+    title: string;
+    markdown: string;
+    timestamp: number;
+    topic?: string;
+    userId: string;
+    sourceContent?: string;
+}
+
+export interface MarkmapNode {
+    content: string;
+    children: MarkmapNode[];
+    p?: any;
+}
