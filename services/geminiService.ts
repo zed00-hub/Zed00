@@ -664,3 +664,65 @@ export const generateChecklist = async (
     throw new Error("Échec de la génération de la check-list. / فشل إنشاء قائمة المهام.");
   }
 };
+
+// --- Mind Map Generation Service ---
+
+export const generateMindMap = async (
+  content: string,
+  topic?: string
+): Promise<string> => {
+  try {
+    const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
+    const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+
+    const systemInstruction = `
+      You are an expert educational assistant creating Mind Maps for paramedical students.
+      Your goal is to convert the provided text/lesson into a clear, hierarchical Markdown structure suitable for visualization as a mind map.
+      
+      RULES:
+      1. Use standard Markdown headings (#, ##, ###) to define the hierarchy.
+      2. The root node (H1) should be the main topic.
+      3. Use bullet points (-) for leaf nodes or details.
+      4. Keep nodes concise (short phrases).
+      5. Organize information logically (Introduction -> Key Concepts -> details).
+      6. Use Emojis to make it visual and engaging.
+      7. The language should match the input text (French/Arabic), but preferably French for medical terms.
+      
+      OUTPUT FORMAT:
+      Just the Markdown content. No introduction or extra text.
+      
+      Example:
+      # Human Heart ❤️
+      ## Chambers
+      - Left Atrium
+      - Right Atrium
+      - Left Ventricle
+      - Right Ventricle
+      ## Valves
+      - Tricuspid
+      - Mitral
+    `;
+
+    const prompt = `
+      Topic: "${topic || 'General Topic'}"
+      
+      Content to analyze:
+      ${content.substring(0, 30000)}
+      
+      Generate the Markdown Mind Map now.
+    `;
+
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.5,
+      },
+      systemInstruction: systemInstruction
+    });
+
+    return result.response.text();
+  } catch (error) {
+    console.error("MindMap Generation Error:", error);
+    throw new Error("Failed to generate Mind Map.");
+  }
+};

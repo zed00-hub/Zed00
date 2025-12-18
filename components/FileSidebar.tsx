@@ -3,9 +3,10 @@ import React, { useState } from 'react';
 import { FileContext, ChatSession, QuizSession, ChecklistSession } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { FileIcon, TrashIcon, CloseIcon, BookOpen, SearchIcon, PlusIcon, ChatIcon, LayersIcon, EditIcon, CheckIcon, XIcon, LogOutIcon } from './Icons';
-import { Sparkles, Settings, Crown, Sun, Moon, ClipboardList, MessageSquare, Bell } from 'lucide-react';
+import { Sparkles, Settings, Crown, Sun, Moon, ClipboardList, MessageSquare, Bell, Network } from 'lucide-react';
 import { formatFileSize } from '../utils/fileHelpers';
 import { isSupervisor, isAdmin } from '../services/coursesService';
+import { MindMapSession } from '../services/notebookService';
 
 interface SidebarProps {
   files: FileContext[];
@@ -38,9 +39,16 @@ interface SidebarProps {
   onDeleteChecklist: (id: string) => void;
   onRenameChecklist: (id: string, newTitle: string) => void;
 
+  // Notebook
+  notebookSessions?: MindMapSession[];
+  currentNotebookId?: string | null;
+  onNotebookSelect?: (id: string) => void;
+  onNewNotebook?: () => void;
+  onDeleteNotebook?: (id: string) => void;
+
   // App Mode
-  appMode: 'chat' | 'quiz' | 'mnemonics' | 'checklist';
-  onModeChange: (mode: 'chat' | 'quiz' | 'mnemonics' | 'checklist') => void;
+  appMode: 'chat' | 'quiz' | 'mnemonics' | 'checklist' | 'notebook';
+  onModeChange: (mode: 'chat' | 'quiz' | 'mnemonics' | 'checklist' | 'notebook') => void;
 
   // Theme & Settings
   isDarkMode: boolean;
@@ -91,7 +99,14 @@ const FileSidebar: React.FC<SidebarProps> = ({
   isAdmin: isUserAdmin,
   adminMessagesCount = 0,
   unreadCount = 0,
-  onOpenAdminMessages
+  onOpenAdminMessages,
+
+  // Notebook Props (optional with defaults)
+  notebookSessions = [],
+  currentNotebookId,
+  onNotebookSelect,
+  onNewNotebook,
+  onDeleteNotebook
 }) => {
   const { user, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
@@ -145,6 +160,8 @@ const FileSidebar: React.FC<SidebarProps> = ({
       onDeleteQuiz(id);
     } else if (appMode === 'checklist') {
       onDeleteChecklist(id);
+    } else if (appMode === 'notebook' && onDeleteNotebook) {
+      onDeleteNotebook(id);
     }
     setDeleteConfirmationId(null);
   };
@@ -173,6 +190,7 @@ const FileSidebar: React.FC<SidebarProps> = ({
   const sortedChatSessions = sortItems(chatSessions);
   const sortedQuizSessions = sortItems(quizSessions);
   const sortedChecklistSessions = sortItems(checklistSessions);
+  const sortedNotebookSessions = sortItems(notebookSessions);
 
   return (
     <>
@@ -282,6 +300,25 @@ const FileSidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
 
+        {/* Notebook Tool */}
+        <div className="px-5 pt-3 pb-0">
+          <button
+            onClick={() => {
+              onModeChange('notebook');
+              if (window.innerWidth < 768) onClose();
+            }}
+            className={`w-full flex items-center justify-center gap-3 py-3 rounded-2xl transition-all shadow-sm active:scale-95 border-2 ${appMode === 'notebook'
+              ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-500 text-purple-600 dark:text-purple-400'
+              : 'bg-white dark:bg-dark-surface border-gray-200 dark:border-gray-700 text-gray-500 hover:border-purple-300 dark:hover:border-purple-700'
+              }`}
+          >
+            <div className="p-1.5 bg-gradient-to-br from-purple-100 to-fuchsia-100 dark:from-purple-900/40 dark:to-fuchsia-900/40 rounded-lg shadow-sm">
+              <Network size={18} className="text-purple-600 dark:text-purple-400" />
+            </div>
+            <span className="text-sm font-bold">المخططات الذهنية (Notebook)</span>
+          </button>
+        </div>
+
         {/* Create New Checklist Button (Only in Checklist Mode) */}
         {appMode === 'checklist' && (
           <div className="px-5 pt-3 pb-0 animate-fadeIn">
@@ -294,6 +331,22 @@ const FileSidebar: React.FC<SidebarProps> = ({
             >
               <div className="bg-white/20 p-1 rounded-full"><PlusIcon /></div>
               <span className="font-bold">قائمة مهام جديدة</span>
+            </button>
+          </div>
+        )}
+
+        {/* Create New Notebook Button (Only in Notebook Mode) */}
+        {appMode === 'notebook' && onNewNotebook && (
+          <div className="px-5 pt-3 pb-0 animate-fadeIn">
+            <button
+              onClick={() => {
+                onNewNotebook();
+                if (window.innerWidth < 768) onClose();
+              }}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-all shadow-md active:scale-95"
+            >
+              <div className="bg-white/20 p-1 rounded-full"><PlusIcon /></div>
+              <span className="font-bold">مخطط جديد</span>
             </button>
           </div>
         )}
@@ -329,6 +382,13 @@ const FileSidebar: React.FC<SidebarProps> = ({
               onClick={() => setActiveTab('chats')}
             >
               سجل المراجعة
+            </button>
+          ) : appMode === 'notebook' ? (
+            <button
+              className={`flex-1 pb-3 pt-3 text-sm font-medium border-b-2 transition-colors border-purple-500 text-purple-600 dark:text-purple-400`}
+              onClick={() => setActiveTab('chats')}
+            >
+              المخططات
             </button>
           ) : (
             <div className="h-4"></div>
@@ -493,6 +553,45 @@ const FileSidebar: React.FC<SidebarProps> = ({
                     >
                       <TrashIcon />
                     </button>
+                  </div>
+                </div>
+              ))}
+
+              {/* Notebook Sessions List */}
+              {appMode === 'notebook' && sortedNotebookSessions.map((session) => (
+                <div
+                  key={session.id}
+                  className={`group relative p-3 rounded-xl cursor-pointer transition-all border ${session.id === currentNotebookId
+                    ? 'bg-purple-50 dark:bg-purple-900/10 border-purple-200 shadow-sm'
+                    : 'bg-transparent border-transparent hover:bg-gray-100 dark:hover:bg-dark-surface/50 text-gray-600 dark:text-gray-400'
+                    }`}
+                  onClick={() => {
+                    if (onNotebookSelect) onNotebookSelect(session.id);
+                    if (window.innerWidth < 768) onClose();
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Network size={18} className={session.id === currentNotebookId ? 'text-purple-500' : 'opacity-50'} />
+                      <div className="min-w-0">
+                        <h3 className={`font-medium text-sm truncate ${session.id === currentNotebookId ? 'text-gray-900 dark:text-white' : ''}`}>
+                          {session.title}
+                        </h3>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {new Date(session.timestamp).toLocaleDateString('ar-EG')}
+                        </p>
+                      </div>
+                    </div>
+                    {onDeleteNotebook && (
+                      <button
+                        onClick={(e) => {
+                          confirmDelete(session.id, e);
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <TrashIcon />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
