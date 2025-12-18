@@ -9,7 +9,15 @@ import {
     orderBy
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { MindMapSession } from '../types';
+
+export interface MindMapSession {
+    id: string;
+    title: string;
+    markdown: string;
+    timestamp: number;
+    topic?: string;
+    userId: string;
+}
 
 export const saveMindMapToFirestore = async (userId: string, session: MindMapSession) => {
     try {
