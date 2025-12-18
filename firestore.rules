@@ -2,10 +2,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    // 1. الدالة الخاصة بالمدير العام (Ziad)
     function isAdmin() {
       return request.auth != null && request.auth.token.email.lower() == 'ziadgaid.ergo@gmail.com';
     }
 
+    // 2. الدالة الخاصة بالمشرفين
     function isSupervisor() {
       return request.auth != null && (
         request.auth.token.email.lower() == 'ziadgaid.ergo@gmail.com' || 
@@ -13,44 +15,59 @@ service cloud.firestore {
       );
     }
     
-    match /{path=**}/notifications/{notificationId} { allow read: if isAdmin(); }
-    match /{path=**}/sessions/{sessionId} { allow read: if isAdmin(); }
-    match /{path=**}/quizzes/{quizId} { allow read: if isAdmin(); }
-    match /{path=**}/checklists/{checklistId} { allow read: if isAdmin(); }
+    // +++ السماح للأدمن بقراءة كل الإشعارات والجلسات والاختبارات من خلال collectionGroup +++
+    match /{path=**}/notifications/{notificationId} {
+      allow read: if isAdmin();
+    }
+    // إضافة قواعد التحليلات الشاملة (Collection Group)
+    match /{path=**}/sessions/{sessionId} {
+      allow read: if isAdmin();
+    }
+    match /{path=**}/quizzes/{quizId} {
+      allow read: if isAdmin();
+    }
+    match /{path=**}/checklists/{checklistId} {
+      allow read: if isAdmin();
+    }
 
+    // --- بيانات المستخدمين والتحليلات ---
     match /users/{userId} {
       allow create, update, get: if request.auth != null && request.auth.uid == userId;
       allow list, read: if isAdmin();
 
       match /sessions/{sessionId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
-        allow read: if isAdmin();
+        allow read: if isAdmin(); // تكرار للتأكيد في الوصول المباشر
       }
       match /quizzes/{quizId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
-        allow read: if isAdmin();
+        allow read: if isAdmin(); // تكرار للتأكيد
       }
       match /checklists/{checklistId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
-        allow read: if isAdmin();
+        allow read: if isAdmin(); // تكرار للتأكيد
       }
       
+      // قواعد الإشعارات العادية
       match /notifications/{notificationId} {
         allow create: if isSupervisor();
         allow read, update, delete: if request.auth != null && request.auth.uid == userId;
       }
     }
 
+    // --- إدارة المواد (Shared Courses) ---
     match /shared_courses/{courseId} {
       allow read: if request.auth != null;
       allow write: if isSupervisor();
     }
     
+    // --- تغذية البوت (Bot Knowledge) ---
     match /bot_knowledge/{docId} {
       allow read: if request.auth != null;
       allow write: if isSupervisor();
     }
     
+    // --- إعدادات البوت (Settings) ---
     match /settings/{docId} {
       allow read: if request.auth != null;
       allow write: if isAdmin();

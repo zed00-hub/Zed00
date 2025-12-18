@@ -7,7 +7,7 @@ import LoginPage from './components/LoginPage';
 import { FileContext, Message, ChatSession, QuizSession, MessageVersion, ChecklistSession } from './types';
 import { generateResponseStream, BotSettings } from './services/geminiService';
 import { ZGLogo, SunIcon, MoonIcon, LoadingIcon } from './components/Icons';
-import { BookOpen, MessageSquare, Sparkles, Settings, ClipboardList, ListChecks, Network } from 'lucide-react';
+import { BookOpen, MessageSquare, Sparkles, Settings, ClipboardList, ListChecks } from 'lucide-react';
 import QuizContainer from './components/Quiz/QuizContainer';
 import MnemonicsContainer from './components/Mnemonics/MnemonicsContainer';
 import ChecklistContainer from './components/Checklist/ChecklistContainer';
@@ -25,21 +25,18 @@ import { loadCoursesFromFirestore, isAdmin } from './services/coursesService';
 import { trackTimeSpent, trackNewConversation, trackNewQuiz } from './services/analyticsService';
 import { Crown, Bell } from 'lucide-react';
 import { getAllAdminMessages, markMessageAsRead, replyToMessage, AdminMessage } from './services/notificationService';
-import NotebookContainer from './components/Notebook/NotebookContainer';
-import { MindMapSession, loadMindMapsFromFirestore, saveMindMapToFirestore, deleteMindMapFromFirestore } from './services/notebookService';
 
 const AppContent: React.FC = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const appMode = location.pathname.includes('quiz') ? 'quiz' : (location.pathname.includes('mnemonics') ? 'mnemonics' : (location.pathname.includes('checklist') ? 'checklist' : (location.pathname.includes('notebook') ? 'notebook' : 'chat')));
+  const appMode = location.pathname.includes('quiz') ? 'quiz' : (location.pathname.includes('mnemonics') ? 'mnemonics' : (location.pathname.includes('checklist') ? 'checklist' : 'chat'));
 
-  const handleModeChange = (mode: 'chat' | 'quiz' | 'mnemonics' | 'checklist' | 'notebook') => {
+  const handleModeChange = (mode: 'chat' | 'quiz' | 'mnemonics' | 'checklist') => {
     if (mode === 'chat') navigate('/conversation');
     else if (mode === 'quiz') navigate('/quiz');
     else if (mode === 'checklist') navigate('/checklist');
-    else if (mode === 'notebook') navigate('/notebook');
     else navigate('/mnemonics');
   };
 
@@ -87,10 +84,6 @@ const AppContent: React.FC = () => {
   const [currentChecklistId, setCurrentChecklistId] = useState<string | null>(null);
   const [checklistKey, setChecklistKey] = useState(0);
 
-  // Initialize Notebook Sessions
-  const [notebookSessions, setNotebookSessions] = useState<MindMapSession[]>([]);
-  const [currentNotebookId, setCurrentNotebookId] = useState<string | null>(null);
-
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   // Load user data (Sessions and Quizzes) from Firestore
@@ -101,11 +94,10 @@ const AppContent: React.FC = () => {
         setIsDataLoaded(false);
 
         try {
-          const [fetchedSessions, fetchedQuizzes, fetchedChecklists, fetchedNotebooks] = await Promise.all([
+          const [fetchedSessions, fetchedQuizzes, fetchedChecklists] = await Promise.all([
             loadSessionsFromFirestore(user.id),
             loadQuizzesFromFirestore(user.id),
-            loadChecklistsFromFirestore(user.id),
-            loadMindMapsFromFirestore(user.id)
+            loadChecklistsFromFirestore(user.id)
           ]);
 
           // Handle Chats
@@ -143,14 +135,6 @@ const AppContent: React.FC = () => {
             setCurrentChecklistId(null);
           }
 
-          // Handle Notebooks
-          setNotebookSessions(fetchedNotebooks);
-          if (fetchedNotebooks.length > 0) {
-            setCurrentNotebookId(fetchedNotebooks[0].id);
-          } else {
-            setCurrentNotebookId(null);
-          }
-
         } catch (error) {
           console.error("App: Error loading data:", error);
           // Fallback for chat
@@ -178,8 +162,6 @@ const AppContent: React.FC = () => {
         setCurrentQuizId(null);
         setChecklistSessions([]);
         setCurrentChecklistId(null);
-        setNotebookSessions([]);
-        setCurrentNotebookId(null);
         setIsDataLoaded(true);
       }
     };
@@ -480,38 +462,6 @@ const AppContent: React.FC = () => {
     if (updatedSession && user?.id) {
       await saveChecklistToFirestore(user.id, updatedSession);
     }
-  };
-
-  // --- Notebook Management ---
-  const createNewNotebook = () => {
-    setCurrentNotebookId(null);
-  };
-
-  const deleteNotebook = async (id: string) => {
-    if (!user?.id) return;
-    try {
-      await deleteMindMapFromFirestore(user.id, id);
-      setNotebookSessions(prev => prev.filter(s => s.id !== id));
-      if (currentNotebookId === id) setCurrentNotebookId(null);
-    } catch (error) {
-      console.error('Error deleting notebook:', error);
-    }
-  };
-
-  const updateNotebookSession = (session: MindMapSession | null) => {
-    if (!session) {
-      setCurrentNotebookId(null);
-      return;
-    }
-    setNotebookSessions(prev => {
-      const exists = prev.find(s => s.id === session.id);
-      if (exists) {
-        return prev.map(s => s.id === session.id ? session : s);
-      } else {
-        return [session, ...prev];
-      }
-    });
-    setCurrentNotebookId(session.id);
   };
 
   // --------------------------
@@ -1033,12 +983,6 @@ ${targetMessage.content}
               adminMessagesCount={adminMessages.length}
               unreadCount={unreadCount}
               onOpenAdminMessages={() => setShowAdminMessageModal(true)}
-              // Notebook Props
-              notebookSessions={notebookSessions}
-              currentNotebookId={currentNotebookId}
-              onNotebookSelect={setCurrentNotebookId}
-              onNewNotebook={createNewNotebook}
-              onDeleteNotebook={deleteNotebook}
             />
           </div>
         </div>
@@ -1079,11 +1023,6 @@ ${targetMessage.content}
             adminMessagesCount={adminMessages.length}
             unreadCount={unreadCount}
             onOpenAdminMessages={() => setShowAdminMessageModal(true)}
-            notebookSessions={notebookSessions}
-            currentNotebookId={currentNotebookId}
-            onNotebookSelect={setCurrentNotebookId}
-            onNewNotebook={createNewNotebook}
-            onDeleteNotebook={deleteNotebook}
           />
         </div>
 
@@ -1132,16 +1071,6 @@ ${targetMessage.content}
               >
                 <ClipboardList className="w-4 h-4" />
                 <span>Chekiha</span>
-              </button>
-              <button
-                onClick={() => handleModeChange('notebook')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${appMode === 'notebook'
-                  ? 'bg-white dark:bg-dark-bg text-purple-600 shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
-                  }`}
-              >
-                <Network className="w-4 h-4" />
-                <span>المخطط الذهني</span>
               </button>
             </div>
           </div>
@@ -1240,36 +1169,6 @@ ${targetMessage.content}
                     />
                   </div>
                   {/* Mobile Sidebar Toggle for Checklist Mode */}
-                  <button
-                    onClick={() => setIsSidebarOpen(true)}
-                    className="md:hidden absolute top-4 right-4 p-2 rounded-lg bg-white/80 dark:bg-dark-surface/80 shadow-sm z-50 text-gray-500 flex items-center gap-2"
-                  >
-                    {adminMessages.length > 0 ? (
-                      <div className="relative">
-                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-dark-surface animate-pulse"></span>
-                        <Bell size={18} className="text-amber-500" />
-                      </div>
-                    ) : (
-                      <Bell size={18} className="text-gray-300" />
-                    )}
-                    <ZGLogo />
-                  </button>
-                </div>
-              }
-            />
-            <Route
-              path="/notebook"
-              element={
-                <div className="flex-1 overflow-hidden relative">
-                  <div className="absolute inset-0">
-                    <NotebookContainer
-                      files={files}
-                      activeSession={currentNotebookId ? notebookSessions.find(s => s.id === currentNotebookId) : null}
-                      onSessionUpdate={updateNotebookSession}
-                      userId={user?.id}
-                    />
-                  </div>
-                  {/* Mobile Sidebar Toggle for Notebook Mode */}
                   <button
                     onClick={() => setIsSidebarOpen(true)}
                     className="md:hidden absolute top-4 right-4 p-2 rounded-lg bg-white/80 dark:bg-dark-surface/80 shadow-sm z-50 text-gray-500 flex items-center gap-2"
