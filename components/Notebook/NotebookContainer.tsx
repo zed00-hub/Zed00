@@ -53,14 +53,22 @@ const NotebookContainer: React.FC<NotebookContainerProps> = ({
     }, []);
 
     useEffect(() => {
-        if (activeSession && svgRef.current) {
+        if (activeSession && activeSession.markdown && svgRef.current) {
             if (mmRef.current) {
                 mmRef.current.destroy();
             }
             try {
                 const data = transformMarkdownToNode(activeSession.markdown);
-                mmRef.current = Markmap.create(svgRef.current, undefined, data as any);
-                mmRef.current.fit();
+                if (data && data.content) {
+                    mmRef.current = Markmap.create(svgRef.current, undefined, data as any);
+
+                    // Delay fit to ensure SVG has rendered and has dimensions
+                    setTimeout(() => {
+                        if (mmRef.current && svgRef.current) {
+                            mmRef.current.fit();
+                        }
+                    }, 300);
+                }
             } catch (err) {
                 console.error("Markmap rendering error:", err);
             }

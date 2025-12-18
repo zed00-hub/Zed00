@@ -28,33 +28,12 @@ export function transformMarkdownToNode(markdown: string): MarkmapNode {
         }
         // Detect list item
         else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-            // List items are considered +1 level from the last heading context
-            // But for simplicity, let's look at indentation or just treat as child of current top
-            const headingMatch = stack.findLast(s => s.node.content !== 'root'); // Find last real node
-            const lastLevel = stack[stack.length - 1].level;
-
-            // If previous was heading # (level 1), list item is level 2
-            // If previous was list item (but we don't track its level explicitly as heading), 
-            // we need a robust way.
-            // Let's rely on standard markdown structure from Gemini: Headings define structure.
-
-            // Heuristic: If we are inside an item, a bullet is a child?
-            // For this specific purpose, we assume Gemini outputs:
-            // # Title
-            // ## Section
-            // - Item
-
-            // Calculate level based on '#' count, but for '-' it's hard.
-            // Let's assume '-' is always child of the last headings.
-
-            level = 999; // Arbitrary high level to be child of whatever is there? 
-            // No, that breaks stack logic.
-
-            // Let's assume list item is 1 level deeper than the current stack top
             level = stack[stack.length - 1].level + 1;
             content = trimmed.substring(2);
         } else {
-            continue;
+            // General text - treat as 1 level deeper than last node
+            level = stack[stack.length - 1].level + 1;
+            content = trimmed;
         }
 
         const newNode: MarkmapNode = { content, children: [] };
@@ -65,19 +44,16 @@ export function transformMarkdownToNode(markdown: string): MarkmapNode {
         }
 
         const parent = stack[stack.length - 1].node;
-        if (!parent.children) parent.children = [];
         parent.children.push(newNode);
-
         stack.push({ node: newNode, level });
     }
 
-    // Remove the artificial 'root' if possible, or return it
-    if (root.children && root.children.length === 1) {
+    // Clean up artificial root
+    if (root.children.length === 1) {
         return root.children[0];
     }
 
-    // If multiple top-level nodes, keep the artificial root but rename it
-    if (root.children && root.children.length > 0) {
+    if (root.children.length > 1) {
         root.content = "Mind Map";
         return root;
     }
