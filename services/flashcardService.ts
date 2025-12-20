@@ -16,6 +16,8 @@ export interface FlashcardConfig {
         name: string;
         type: string;
         size: number;
+        data?: string;   // Base64 data
+        content?: string; // Text content
     };
     count: number;
     customization?: string;

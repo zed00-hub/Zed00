@@ -691,17 +691,31 @@ export const generateFlashcards = async (
         sourceContext = `Sujet général: ${config.subject}.`;
       }
     } else if (config.sourceType === 'file' && config.fileContext) {
-      const file = fileContexts.find(f => f.id === config.fileContext?.id);
-      if (file) {
-        if (file.data) {
-          filePart = {
-            inlineData: {
-              mimeType: file.type,
-              data: file.data
-            }
-          };
-        } else if (file.content) {
-          sourceContext = file.content;
+      // Use the provided fileContext directly if it has data/content
+      const file = config.fileContext;
+      if (file.data) {
+        filePart = {
+          inlineData: {
+            mimeType: file.type || "application/pdf",
+            data: file.data
+          }
+        };
+      } else if (file.content) {
+        sourceContext = file.content;
+      } else {
+        // Fallback to searching in global fileContexts if needed
+        const found = fileContexts.find(f => f.id === file.id);
+        if (found) {
+          if (found.data) {
+            filePart = {
+              inlineData: {
+                mimeType: found.type || "application/pdf",
+                data: found.data
+              }
+            };
+          } else if (found.content) {
+            sourceContext = found.content;
+          }
         }
       }
     }
