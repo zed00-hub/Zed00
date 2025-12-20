@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { FileContext, ChatSession, QuizSession, ChecklistSession } from '../types';
 import { FlashcardSession } from '../services/flashcardService';
 import { useAuth } from '../contexts/AuthContext';
-import { FileIcon, TrashIcon, CloseIcon, BookOpen, SearchIcon, PlusIcon, ChatIcon, LayersIcon, EditIcon, CheckIcon, XIcon, LogOutIcon } from './Icons';
+import { ZGLogo, FileIcon, TrashIcon, CloseIcon, BookOpen, SearchIcon, PlusIcon, ChatIcon, LayersIcon, EditIcon, CheckIcon, XIcon, LogOutIcon } from './Icons';
 import { Sparkles, Settings, Crown, Sun, Moon, ClipboardList, MessageSquare, Bell } from 'lucide-react';
 import { formatFileSize } from '../utils/fileHelpers';
 import { isSupervisor, isAdmin } from '../services/coursesService';
@@ -211,17 +211,28 @@ const FileSidebar: React.FC<SidebarProps> = ({
         md:translate-x-0 md:static md:shadow-lg border-l border-gray-200/50 dark:border-dark-border/50
         ${isOpen ? 'translate-x-0' : 'translate-x-full'}
       `}>
-        {/* Header */}
-        <div className="p-5 border-b border-gray-200/50 dark:border-dark-border/50 flex justify-between items-center shrink-0 bg-gradient-to-r from-gray-50/50 to-white dark:from-dark-bg/50 dark:to-dark-surface/50">
+        {/* Header - Mobile Only toggle, Desktop: Hidden or Compact */}
+        <div className="md:hidden p-5 border-b border-gray-200/50 dark:border-dark-border/50 flex justify-between items-center shrink-0 bg-gradient-to-r from-gray-50/50 to-white dark:from-dark-bg/50 dark:to-dark-surface/50">
           <h2 className="text-xl font-bold flex items-center gap-3 text-gray-800 dark:text-gray-200">
             <div className="p-2 bg-medical-100 dark:bg-medical-900/30 rounded-xl">
               <LayersIcon />
             </div>
             القائمة
           </h2>
-          <button onClick={onClose} className="md:hidden p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all hover:scale-110 active:scale-95">
+          <button onClick={onClose} className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all hover:scale-110 active:scale-95">
             <CloseIcon />
           </button>
+        </div>
+
+        {/* Desktop Header - Small Logo area if needed, but App.tsx has one. 
+            Let's keep it simple and just use the App.tsx one for now, or add a small one here. */}
+        <div className="hidden md:flex p-5 border-b border-gray-200/50 dark:border-dark-border/50 justify-between items-center shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-medical-100 dark:bg-medical-900/30 rounded-lg">
+              <ZGLogo />
+            </div>
+            <span className="font-bold text-gray-800 dark:text-gray-200">Paramedical AI</span>
+          </div>
         </div>
 
         <div className="px-5 pt-4 shrink-0 grid grid-cols-2 gap-3">
@@ -684,85 +695,79 @@ const FileSidebar: React.FC<SidebarProps> = ({
           }
         </div >
 
-        {/* User Profile Section - Compact Single Row */}
-        <div className="p-3 border-t border-gray-200/50 dark:border-dark-border/50 bg-gradient-to-r from-gray-50/80 to-white dark:from-dark-bg/50 dark:to-dark-surface/50 backdrop-blur-sm shrink-0">
+        {/* User Profile Section - Prominent */}
+        <div className="p-4 border-t border-gray-200/50 dark:border-dark-border/50 bg-white/50 dark:bg-dark-surface/50 backdrop-blur-md shrink-0">
           {user && (
-            <div className="flex items-center justify-between gap-2">
-              {/* User Info (Right) */}
-              <div className="flex items-center gap-2 min-w-0 flex-1">
+            <div className="space-y-4">
+              {/* User Info & Tags */}
+              <div className="flex items-center gap-3">
                 <div className="relative shrink-0">
                   <img
                     src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}&background=0ea5e9&color=fff`}
                     alt="User"
-                    className="w-9 h-9 rounded-xl border-2 border-white dark:border-gray-700 shadow-sm"
+                    className="w-10 h-10 rounded-xl border-2 border-white dark:border-gray-700 shadow-md"
                   />
-                  <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white dark:border-gray-700"></div>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-700"></div>
                 </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate max-w-[80px] sm:max-w-[100px]">{user.name}</p>
-                    {isAdmin(user.email) && (
-                      <span className="px-1 py-0.5 bg-amber-100/80 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[9px] font-bold rounded border border-amber-200 dark:border-amber-800 shrink-0">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
+                    <p className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">{user.name}</p>
+                    {isUserAdmin && (
+                      <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 text-[9px] font-black rounded border border-amber-200 dark:border-amber-800 uppercase tracking-tighter">
                         ADMIN
                       </span>
                     )}
-                    {isSupervisor(user.email) && (
-                      <span className="px-1 py-0.5 bg-blue-100/80 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-[9px] font-bold rounded border border-blue-200 dark:border-blue-800 shrink-0">
-                        MUSHRIF
-                      </span>
-                    )}
                   </div>
-                  <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate max-w-[120px]">{user.email}</p>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{user.email}</p>
                 </div>
               </div>
 
-              {/* Action Buttons (Left) */}
-              <div className="flex items-center gap-1 shrink-0">
+              {/* Action Buttons Row */}
+              <div className="flex items-center justify-between gap-1 bg-gray-50/50 dark:bg-dark-bg/50 p-1 rounded-xl border border-gray-100 dark:border-gray-800">
                 <button
                   onClick={onToggleTheme}
-                  className="p-1.5 text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg transition-all"
+                  className="flex-1 flex justify-center p-2 text-gray-500 hover:text-amber-500 hover:bg-white dark:hover:bg-gray-800 rounded-lg transition-all shadow-sm hover:shadow"
                   title={isDarkMode ? 'الوضع النهاري' : 'الوضع الليلي'}
                 >
                   {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
                 </button>
 
-                {/* Notifications Bell */}
-                <button
-                  onClick={adminMessagesCount > 0 ? onOpenAdminMessages : undefined}
-                  className={`p-1.5 relative rounded-lg transition-all ${adminMessagesCount > 0
-                    ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30'
-                    : 'text-gray-300 dark:text-gray-600'}`}
-                  title={unreadCount > 0 ? `${unreadCount} رسائل جديدة` : 'لا توجد رسائل'}
-                >
-                  <Bell size={18} className={unreadCount > 0 ? "animate-pulse" : ""} />
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] bg-red-500 rounded-full border-2 border-white dark:border-dark-surface text-[8px] text-white font-bold flex items-center justify-center">
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </span>
-                  )}
-                </button>
-
                 <button
                   onClick={onOpenSettings}
-                  className="p-1.5 text-gray-400 hover:text-medical-600 hover:bg-medical-50 dark:hover:bg-medical-900/30 rounded-lg transition-all"
+                  className="flex-1 flex justify-center p-2 text-gray-500 hover:text-medical-600 hover:bg-white dark:hover:bg-gray-800 rounded-lg transition-all shadow-sm hover:shadow"
                   title="الإعدادات"
                 >
                   <Settings size={18} />
                 </button>
 
+                {/* Notifications Bell */}
+                <button
+                  onClick={adminMessagesCount > 0 ? onOpenAdminMessages : undefined}
+                  className={`flex-1 flex justify-center p-2 relative rounded-lg transition-all ${adminMessagesCount > 0
+                    ? 'text-amber-500 hover:bg-white dark:hover:bg-gray-800 shadow-sm'
+                    : 'text-gray-300 dark:text-gray-600'}`}
+                  title={unreadCount > 0 ? `${unreadCount} رسائل جديدة` : 'لا توجد رسائل'}
+                >
+                  <Bell size={18} className={unreadCount > 0 ? "animate-pulse" : ""} />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 min-w-[12px] h-[12px] bg-red-500 rounded-full border border-white dark:border-dark-surface text-[7px] text-white font-bold flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+
                 {(isUserAdmin || isSupervisor(user.email)) && (
                   <button
                     onClick={onOpenAdmin}
-                    className="p-1.5 text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg transition-all"
+                    className="flex-1 flex justify-center p-2 text-amber-500 hover:text-amber-600 hover:bg-white dark:hover:bg-gray-800 rounded-lg transition-all shadow-sm hover:shadow"
                     title="لوحة الإدارة"
                   >
                     <Crown size={18} />
                   </button>
                 )}
-
                 <button
                   onClick={logout}
-                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all"
+                  className="flex-1 flex justify-center p-2 text-gray-400 hover:text-red-500 hover:bg-white dark:hover:bg-gray-800 rounded-lg transition-all shadow-sm hover:shadow"
                   title="تسجيل الخروج"
                 >
                   <LogOutIcon />
@@ -771,7 +776,7 @@ const FileSidebar: React.FC<SidebarProps> = ({
             </div>
           )}
         </div>
-      </aside >
+      </aside>
     </>
   );
 };

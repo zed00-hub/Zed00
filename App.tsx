@@ -976,137 +976,55 @@ ${targetMessage.content}
   return (
     <div className={`${isDarkMode ? 'dark' : ''} fixed inset-0 w-full overflow-hidden`}>
       <div className="flex h-full bg-gradient-to-br from-gray-50 via-slate-50 to-gray-100 dark:from-dark-bg dark:via-slate-900 dark:to-slate-800 text-right overflow-hidden font-sans transition-colors duration-300">
-        {/* Sidebar (Desktop: always visible, Mobile: toggleable) */}
-        <div className="hidden md:flex md:flex-col w-80 bg-white/95 dark:bg-dark-surface/95 backdrop-blur-md border-l border-gray-200/50 dark:border-dark-border/50 z-10 transition-colors duration-300 shadow-xl">
-          <div className="h-18 flex items-center justify-between px-6 py-4 border-b border-gray-200/50 dark:border-dark-border/50 shrink-0 bg-gradient-to-r from-gray-50/50 to-white dark:from-dark-bg/50 dark:to-dark-surface/50">
-            <div className="flex items-center gap-3">
-              <div className="p-1.5 bg-gradient-to-br from-medical-100 to-medical-200 dark:from-medical-900/40 dark:to-medical-800/40 rounded-xl shadow-sm">
-                <ZGLogo />
-              </div>
-              <h1 className="text-xl font-bold text-gray-800 dark:text-dark-text">Paramedical AI</h1>
-            </div>
-
-            {/* Desktop Theme Toggle & Notifications */}
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => adminMessages.length > 0 && setShowAdminMessageModal(true)}
-                className={`p-2 rounded-xl transition-all relative group ${adminMessages.length > 0
-                  ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 cursor-pointer'
-                  : 'text-gray-300 dark:text-gray-600 cursor-default'
-                  }`}
-                title={adminMessages.length > 0 ? `${unreadCount} رسائل جديدة` : "لا توجد رسائل"}
-              >
-                <Bell size={20} className={unreadCount > 0 ? "animate-pulse" : ""} />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 rounded-full border-2 border-white dark:border-dark-surface text-[10px] text-white font-bold flex items-center justify-center">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={toggleTheme}
-                className="p-2.5 rounded-xl text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700/80 transition-all hover:scale-110 active:scale-95 shadow-sm"
-                title="Toggle Theme"
-              >
-                {isDarkMode ? <SunIcon /> : <MoonIcon />}
-              </button>
-            </div>
-          </div>
-          <div className="flex-1 overflow-hidden relative">
-            <FileSidebar
-              files={files}
-              setFiles={setFiles}
-              isOpen={true} // Always open on desktop
-              onClose={() => { }}
-              // Chat Props
-              chatSessions={sessions}
-              currentSessionId={currentSessionId}
-              onSessionSelect={setCurrentSessionId}
-              onNewChat={createNewSession}
-              onDeleteSession={deleteSession}
-              onRenameSession={renameSession}
-              // Quiz Props
-              quizSessions={quizSessions}
-              currentQuizId={currentQuizId}
-              onQuizSelect={setCurrentQuizId}
-              onNewQuiz={createNewQuiz}
-              onDeleteQuiz={deleteQuiz}
-              onRenameQuiz={renameQuiz}
-              // Checklist Props
-              checklistSessions={checklistSessions}
-              currentChecklistId={currentChecklistId}
-              onChecklistSelect={setCurrentChecklistId}
-              onNewChecklist={createNewChecklist}
-              onDeleteChecklist={deleteChecklist}
-              // App Mode
-              appMode={appMode}
-              onModeChange={handleModeChange}
-              // Theme & Settings
-              isDarkMode={isDarkMode}
-              onToggleTheme={toggleTheme}
-              onOpenSettings={() => setIsSettingsOpen(true)}
-              onOpenAdmin={() => navigate('/admin')}
-              isAdmin={isAdmin(user?.email)}
-              onRenameChecklist={renameChecklist}
-              // Flashcard Props
-              flashcardSessions={flashcardSessions}
-              currentFlashcardId={currentFlashcardId}
-              onFlashcardSelect={setCurrentFlashcardId}
-              onNewFlashcard={() => setCurrentFlashcardId(null)}
-              onDeleteFlashcard={deleteFlashcard}
-              onRenameFlashcard={renameFlashcard}
-              adminMessagesCount={adminMessages.length}
-              unreadCount={unreadCount}
-              onOpenAdminMessages={() => setShowAdminMessageModal(true)}
-            />
-          </div>
-        </div>
-
-        {/* Mobile Sidebar Logic */}
-        <div className="md:hidden">
-          <FileSidebar
-            isOpen={isSidebarOpen}
-            onClose={() => setIsSidebarOpen(false)}
-            files={files}
-            onFileSelect={() => { }}
-            chatSessions={sessions}
-            currentSessionId={currentSessionId}
-            onSessionSelect={setCurrentSessionId}
-            onNewChat={createNewSession}
-            onDeleteSession={deleteSession}
-            onRenameSession={renameSession}
-            isDarkMode={isDarkMode}
-            onToggleTheme={toggleTheme}
-            onOpenSettings={() => setIsSettingsOpen(true)}
-            quizSessions={quizSessions}
-            currentQuizId={currentQuizId}
-            onQuizSelect={setCurrentQuizId}
-            onNewQuiz={createNewQuiz}
-            onDeleteQuiz={deleteQuiz}
-            onRenameQuiz={renameQuiz}
-            appMode={appMode}
-            onModeChange={handleModeChange}
-            // Checklist Props
-            checklistSessions={checklistSessions}
-            currentChecklistId={currentChecklistId}
-            onChecklistSelect={setCurrentChecklistId}
-            onNewChecklist={createNewChecklist}
-            onDeleteChecklist={deleteChecklist}
-            onOpenAdmin={() => navigate('/admin')}
-            isAdmin={isAdmin(user?.email)}
-            onRenameChecklist={renameChecklist}
-            // Flashcard Props
-            flashcardSessions={flashcardSessions}
-            currentFlashcardId={currentFlashcardId}
-            onFlashcardSelect={setCurrentFlashcardId}
-            onNewFlashcard={() => setCurrentFlashcardId(null)}
-            onDeleteFlashcard={deleteFlashcard}
-            onRenameFlashcard={renameFlashcard}
-            adminMessagesCount={adminMessages.length}
-            unreadCount={unreadCount}
-            onOpenAdminMessages={() => setShowAdminMessageModal(true)}
-          />
-        </div>
+        {/* Sidebar (Handles both Mobile and Desktop internally) */}
+        <FileSidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+          files={files}
+          setFiles={setFiles}
+          // Chat Props
+          chatSessions={sessions}
+          currentSessionId={currentSessionId}
+          onSessionSelect={setCurrentSessionId}
+          onNewChat={createNewSession}
+          onDeleteSession={deleteSession}
+          onRenameSession={renameSession}
+          // Quiz Props
+          quizSessions={quizSessions}
+          currentQuizId={currentQuizId}
+          onQuizSelect={setCurrentQuizId}
+          onNewQuiz={createNewQuiz}
+          onDeleteQuiz={deleteQuiz}
+          onRenameQuiz={renameQuiz}
+          // Checklist Props
+          checklistSessions={checklistSessions}
+          currentChecklistId={currentChecklistId}
+          onChecklistSelect={setCurrentChecklistId}
+          onNewChecklist={createNewChecklist}
+          onDeleteChecklist={deleteChecklist}
+          onRenameChecklist={renameChecklist}
+          // Flashcard Props
+          flashcardSessions={flashcardSessions}
+          currentFlashcardId={currentFlashcardId}
+          onFlashcardSelect={setCurrentFlashcardId}
+          onNewFlashcard={() => {
+            setCurrentFlashcardId(null);
+            handleModeChange('flashcard');
+          }}
+          onDeleteFlashcard={deleteFlashcard}
+          onRenameFlashcard={renameFlashcard}
+          // App Mode & State
+          appMode={appMode}
+          onModeChange={handleModeChange}
+          isDarkMode={isDarkMode}
+          onToggleTheme={toggleTheme}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenAdmin={() => navigate('/admin')}
+          isAdmin={isAdmin(user?.email)}
+          adminMessagesCount={adminMessages.length}
+          unreadCount={unreadCount}
+          onOpenAdminMessages={() => setShowAdminMessageModal(true)}
+        />
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col min-w-0 bg-gradient-to-br from-slate-50/50 via-white to-gray-50/50 dark:from-dark-bg dark:via-slate-900 dark:to-slate-800 transition-colors duration-300">
