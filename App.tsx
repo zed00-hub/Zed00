@@ -11,12 +11,14 @@ import { BookOpen, MessageSquare, Sparkles, Settings, ClipboardList, ListChecks 
 import QuizContainer from './components/Quiz/QuizContainer';
 import MnemonicsContainer from './components/Mnemonics/MnemonicsContainer';
 import ChecklistContainer from './components/Checklist/ChecklistContainer';
+import FlashcardContainer from './components/Flashcard/FlashcardContainer';
 import { fileToBase64 } from './utils/fileHelpers';
 import { INITIAL_COURSES } from './data/courses';
 import { useAuth } from './contexts/AuthContext';
 import { saveSessionToFirestore, loadSessionsFromFirestore, deleteSessionFromFirestore } from './services/chatService';
 import { saveQuizToFirestore, loadQuizzesFromFirestore, deleteQuizFromFirestore } from './services/quizService';
 import { saveChecklistToFirestore, loadChecklistsFromFirestore, deleteChecklistFromFirestore } from './services/checklistService';
+import { saveFlashcardToFirestore, loadFlashcardsFromFirestore, deleteFlashcardFromFirestore, FlashcardSession } from './services/flashcardService';
 import ReloadPrompt from './components/ReloadPrompt';
 import SettingsModal from './components/SettingsModal';
 import AdminPanel from './components/AdminPanel';
@@ -31,12 +33,13 @@ const AppContent: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const appMode = location.pathname.includes('quiz') ? 'quiz' : (location.pathname.includes('mnemonics') ? 'mnemonics' : (location.pathname.includes('checklist') ? 'checklist' : 'chat'));
+  const appMode = location.pathname.includes('quiz') ? 'quiz' : (location.pathname.includes('mnemonics') ? 'mnemonics' : (location.pathname.includes('checklist') ? 'checklist' : (location.pathname.includes('flashcard') ? 'flashcard' : 'chat')));
 
-  const handleModeChange = (mode: 'chat' | 'quiz' | 'mnemonics' | 'checklist') => {
+  const handleModeChange = (mode: 'chat' | 'quiz' | 'mnemonics' | 'checklist' | 'flashcard') => {
     if (mode === 'chat') navigate('/conversation');
     else if (mode === 'quiz') navigate('/quiz');
     else if (mode === 'checklist') navigate('/checklist');
+    else if (mode === 'flashcard') navigate('/flashcard');
     else navigate('/mnemonics');
   };
 
@@ -84,6 +87,10 @@ const AppContent: React.FC = () => {
   const [currentChecklistId, setCurrentChecklistId] = useState<string | null>(null);
   const [checklistKey, setChecklistKey] = useState(0);
 
+  // Initialize Flashcard Sessions
+  const [flashcardSessions, setFlashcardSessions] = useState<FlashcardSession[]>([]);
+  const [currentFlashcardId, setCurrentFlashcardId] = useState<string | null>(null);
+
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   // Load user data (Sessions and Quizzes) from Firestore
@@ -94,10 +101,11 @@ const AppContent: React.FC = () => {
         setIsDataLoaded(false);
 
         try {
-          const [fetchedSessions, fetchedQuizzes, fetchedChecklists] = await Promise.all([
+          const [fetchedSessions, fetchedQuizzes, fetchedChecklists, fetchedFlashcards] = await Promise.all([
             loadSessionsFromFirestore(user.id),
             loadQuizzesFromFirestore(user.id),
-            loadChecklistsFromFirestore(user.id)
+            loadChecklistsFromFirestore(user.id),
+            loadFlashcardsFromFirestore(user.id)
           ]);
 
           // Handle Chats
@@ -135,6 +143,14 @@ const AppContent: React.FC = () => {
             setCurrentChecklistId(null);
           }
 
+          // Handle Flashcards
+          setFlashcardSessions(fetchedFlashcards);
+          if (fetchedFlashcards.length > 0) {
+            setCurrentFlashcardId(fetchedFlashcards[0].id);
+          } else {
+            setCurrentFlashcardId(null);
+          }
+
         } catch (error) {
           console.error("App: Error loading data:", error);
           // Fallback for chat
@@ -162,6 +178,8 @@ const AppContent: React.FC = () => {
         setCurrentQuizId(null);
         setChecklistSessions([]);
         setCurrentChecklistId(null);
+        setFlashcardSessions([]);
+        setCurrentFlashcardId(null);
         setIsDataLoaded(true);
       }
     };
@@ -461,6 +479,56 @@ const AppContent: React.FC = () => {
 
     if (updatedSession && user?.id) {
       await saveChecklistToFirestore(user.id, updatedSession);
+    }
+  };
+
+  // --- Flashcard Session Management ---
+  const updateFlashcardSession = (session: FlashcardSession | null) => {
+    if (!session) {
+      setCurrentFlashcardId(null);
+      return;
+    }
+
+    setFlashcardSessions(prev => {
+      const exists = prev.find(s => s.id === session.id);
+      if (exists) {
+        return prev.map(s => s.id === session.id ? session : s);
+      } else {
+        return [session, ...prev];
+      }
+    });
+
+    if (!currentFlashcardId || currentFlashcardId !== session.id) {
+      setCurrentFlashcardId(session.id);
+    }
+
+    if (user?.id) {
+      saveFlashcardToFirestore(user.id, session);
+    }
+  };
+
+  const deleteFlashcard = async (id: string) => {
+    if (!user?.id) return;
+    try {
+      await deleteFlashcardFromFirestore(user.id, id);
+      setFlashcardSessions(prev => prev.filter(s => s.id !== id));
+      if (currentFlashcardId === id) setCurrentFlashcardId(null);
+    } catch (error) {
+      console.error('Error deleting flashcard session:', error);
+    }
+  };
+
+  const renameFlashcard = async (id: string, newTitle: string) => {
+    let updatedSession: FlashcardSession | undefined;
+    setFlashcardSessions(prev => prev.map(s => {
+      if (s.id === id) {
+        updatedSession = { ...s, title: newTitle };
+        return updatedSession;
+      }
+      return s;
+    }));
+    if (updatedSession && user?.id) {
+      saveFlashcardToFirestore(user.id, updatedSession);
     }
   };
 
@@ -980,6 +1048,13 @@ ${targetMessage.content}
               onOpenAdmin={() => navigate('/admin')}
               isAdmin={isAdmin(user?.email)}
               onRenameChecklist={renameChecklist}
+              // Flashcard Props
+              flashcardSessions={flashcardSessions}
+              currentFlashcardId={currentFlashcardId}
+              onFlashcardSelect={setCurrentFlashcardId}
+              onNewFlashcard={() => setCurrentFlashcardId(null)}
+              onDeleteFlashcard={deleteFlashcard}
+              onRenameFlashcard={renameFlashcard}
               adminMessagesCount={adminMessages.length}
               unreadCount={unreadCount}
               onOpenAdminMessages={() => setShowAdminMessageModal(true)}
@@ -1020,6 +1095,13 @@ ${targetMessage.content}
             onOpenAdmin={() => navigate('/admin')}
             isAdmin={isAdmin(user?.email)}
             onRenameChecklist={renameChecklist}
+            // Flashcard Props
+            flashcardSessions={flashcardSessions}
+            currentFlashcardId={currentFlashcardId}
+            onFlashcardSelect={setCurrentFlashcardId}
+            onNewFlashcard={() => setCurrentFlashcardId(null)}
+            onDeleteFlashcard={deleteFlashcard}
+            onRenameFlashcard={renameFlashcard}
             adminMessagesCount={adminMessages.length}
             unreadCount={unreadCount}
             onOpenAdminMessages={() => setShowAdminMessageModal(true)}
@@ -1071,6 +1153,16 @@ ${targetMessage.content}
               >
                 <ClipboardList className="w-4 h-4" />
                 <span>Chekiha</span>
+              </button>
+              <button
+                onClick={() => handleModeChange('flashcard')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${appMode === 'flashcard'
+                  ? 'bg-white dark:bg-dark-bg text-amber-500 shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
+                  }`}
+              >
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <span>FLASHIHA</span>
               </button>
             </div>
           </div>
@@ -1174,6 +1266,35 @@ ${targetMessage.content}
                     className="md:hidden absolute top-4 right-4 p-2 rounded-lg bg-white/80 dark:bg-dark-surface/80 shadow-sm z-50 text-gray-500 flex items-center gap-2"
                   >
                     {adminMessages.length > 0 ? (
+                      <div className="relative">
+                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-dark-surface animate-pulse"></span>
+                        <Bell size={18} className="text-amber-500" />
+                      </div>
+                    ) : (
+                      <Bell size={18} className="text-gray-300" />
+                    )}
+                    <ZGLogo />
+                  </button>
+                </div>
+              }
+            />
+            <Route
+              path="/flashcard"
+              element={
+                <div className="flex-1 overflow-hidden relative">
+                  <div className="absolute inset-0 overflow-y-auto">
+                    <FlashcardContainer
+                      files={files}
+                      activeSession={flashcardSessions.find(s => s.id === currentFlashcardId)}
+                      onSessionUpdate={updateFlashcardSession}
+                    />
+                  </div>
+                  {/* Mobile Sidebar Toggle for Flashcard Mode */}
+                  <button
+                    onClick={() => setIsSidebarOpen(true)}
+                    className="md:hidden absolute top-4 right-4 p-2 rounded-lg bg-white/80 dark:bg-dark-surface/80 shadow-sm z-50 text-gray-500 flex items-center gap-2"
+                  >
+                    {unreadCount > 0 ? (
                       <div className="relative">
                         <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-dark-surface animate-pulse"></span>
                         <Bell size={18} className="text-amber-500" />

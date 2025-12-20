@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { FileContext, ChatSession, QuizSession, ChecklistSession } from '../types';
+import { FlashcardSession } from '../services/flashcardService';
 import { useAuth } from '../contexts/AuthContext';
 import { FileIcon, TrashIcon, CloseIcon, BookOpen, SearchIcon, PlusIcon, ChatIcon, LayersIcon, EditIcon, CheckIcon, XIcon, LogOutIcon } from './Icons';
 import { Sparkles, Settings, Crown, Sun, Moon, ClipboardList, MessageSquare, Bell } from 'lucide-react';
@@ -38,9 +39,17 @@ interface SidebarProps {
   onDeleteChecklist: (id: string) => void;
   onRenameChecklist: (id: string, newTitle: string) => void;
 
+  // Flashcard
+  flashcardSessions?: FlashcardSession[];
+  currentFlashcardId?: string | null;
+  onFlashcardSelect?: (id: string) => void;
+  onNewFlashcard?: () => void;
+  onDeleteFlashcard?: (id: string) => void;
+  onRenameFlashcard?: (id: string, newTitle: string) => void;
+
   // App Mode
-  appMode: 'chat' | 'quiz' | 'mnemonics' | 'checklist';
-  onModeChange: (mode: 'chat' | 'quiz' | 'mnemonics' | 'checklist') => void;
+  appMode: 'chat' | 'quiz' | 'mnemonics' | 'checklist' | 'flashcard';
+  onModeChange: (mode: 'chat' | 'quiz' | 'mnemonics' | 'checklist' | 'flashcard') => void;
 
   // Theme & Settings
   isDarkMode: boolean;
@@ -91,7 +100,14 @@ const FileSidebar: React.FC<SidebarProps> = ({
   isAdmin: isUserAdmin,
   adminMessagesCount = 0,
   unreadCount = 0,
-  onOpenAdminMessages
+  onOpenAdminMessages,
+
+  flashcardSessions = [],
+  currentFlashcardId,
+  onFlashcardSelect,
+  onNewFlashcard,
+  onDeleteFlashcard,
+  onRenameFlashcard
 }) => {
   const { user, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
@@ -106,7 +122,7 @@ const FileSidebar: React.FC<SidebarProps> = ({
     setFiles(files.filter(f => f.id !== id));
   };
 
-  const startEditing = (session: ChatSession | QuizSession | ChecklistSession, e?: React.MouseEvent) => {
+  const startEditing = (session: ChatSession | QuizSession | ChecklistSession | FlashcardSession, e?: React.MouseEvent) => {
     e?.stopPropagation();
     setEditingSessionId(session.id);
     setNewTitle(session.title || '');
@@ -121,6 +137,8 @@ const FileSidebar: React.FC<SidebarProps> = ({
         onRenameQuiz(id, newTitle.trim());
       } else if (appMode === 'checklist') {
         onRenameChecklist(id, newTitle.trim());
+      } else if (appMode === 'flashcard' && onRenameFlashcard) {
+        onRenameFlashcard(id, newTitle.trim());
       }
       setEditingSessionId(null);
     }
@@ -145,6 +163,8 @@ const FileSidebar: React.FC<SidebarProps> = ({
       onDeleteQuiz(id);
     } else if (appMode === 'checklist') {
       onDeleteChecklist(id);
+    } else if (appMode === 'flashcard' && onDeleteFlashcard) {
+      onDeleteFlashcard(id);
     }
     setDeleteConfirmationId(null);
   };
@@ -173,6 +193,7 @@ const FileSidebar: React.FC<SidebarProps> = ({
   const sortedChatSessions = sortItems(chatSessions);
   const sortedQuizSessions = sortItems(quizSessions);
   const sortedChecklistSessions = sortItems(checklistSessions);
+  const sortedFlashcardSessions = sortItems(flashcardSessions);
 
   return (
     <>
@@ -279,6 +300,26 @@ const FileSidebar: React.FC<SidebarProps> = ({
               <Sparkles size={18} className="text-amber-600 dark:text-amber-400" />
             </div>
             <span className="text-sm font-bold">صانع الحيل الحفظية (Mnemonics)</span>
+          </button>
+        </div>
+
+        {/* FLASHIHA Tool (Flashcards) */}
+        <div className="px-5 pt-3 pb-0">
+          <button
+            onClick={() => {
+              if (onNewFlashcard) onNewFlashcard();
+              onModeChange('flashcard');
+              if (window.innerWidth < 768) onClose();
+            }}
+            className={`w-full flex items-center justify-center gap-3 py-3 rounded-2xl transition-all shadow-sm active:scale-95 border-2 ${appMode === 'flashcard'
+              ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-500 text-amber-600 dark:text-amber-400'
+              : 'bg-white dark:bg-dark-surface border-gray-200 dark:border-gray-700 text-gray-500 hover:border-amber-300 dark:hover:border-amber-700'
+              }`}
+          >
+            <div className="p-1.5 bg-gradient-to-br from-amber-200 to-orange-200 dark:from-amber-900/40 dark:to-orange-900/40 rounded-lg shadow-sm">
+              <Sparkles size={18} className="text-amber-600 dark:text-amber-400" />
+            </div>
+            <span className="text-sm font-bold">FLASHIHA (Flashcards)</span>
           </button>
         </div>
 
@@ -494,6 +535,73 @@ const FileSidebar: React.FC<SidebarProps> = ({
                       <TrashIcon />
                     </button>
                   </div>
+                </div>
+              ))}
+
+              {/* Flashcard Sessions List */}
+              {appMode === 'flashcard' && sortedFlashcardSessions.map((session) => (
+                <div
+                  key={session.id}
+                  className={`group relative p-3 rounded-xl cursor-pointer transition-all border ${session.id === currentFlashcardId
+                    ? 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 shadow-sm'
+                    : 'bg-transparent border-transparent hover:bg-gray-100 dark:hover:bg-dark-surface/50 text-gray-600 dark:text-gray-400'
+                    }`}
+                  onClick={() => {
+                    if (onFlashcardSelect) onFlashcardSelect(session.id);
+                    if (window.innerWidth < 768) onClose();
+                  }}
+                >
+                  {editingSessionId === session.id ? (
+                    <div className="flex items-center gap-2 p-1" onClick={e => e.stopPropagation()}>
+                      <input
+                        autoFocus
+                        value={newTitle}
+                        onChange={e => setNewTitle(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleRename(session.id)}
+                        className="flex-1 bg-white dark:bg-dark-bg border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm outline-none"
+                      />
+                      <button onClick={() => handleRename(session.id)} className="text-green-500 p-1"><CheckIcon /></button>
+                      <button onClick={cancelEdit} className="text-red-500 p-1"><XIcon /></button>
+                    </div>
+                  ) : deleteConfirmationId === session.id ? (
+                    <div className="flex items-center justify-between p-1 bg-red-50 dark:bg-red-900/20 rounded-lg" onClick={e => e.stopPropagation()}>
+                      <span className="text-[10px] font-bold text-red-600 dark:text-red-400 px-1">حذف؟</span>
+                      <div className="flex gap-1">
+                        <button onClick={(e) => confirmDelete(session.id, e)} className="px-2 py-0.5 bg-red-500 text-white text-[10px] rounded font-bold">نعم</button>
+                        <button onClick={cancelDelete} className="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-white text-[10px] rounded">لا</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Sparkles size={18} className={session.id === currentFlashcardId ? 'text-amber-500' : 'opacity-50'} />
+                        <div className="min-w-0">
+                          <h3 className={`font-medium text-sm truncate ${session.id === currentFlashcardId ? 'text-gray-900 dark:text-white' : ''}`}>
+                            {session.title}
+                          </h3>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            <span>{new Date(session.createdAt).toLocaleDateString('ar-EG')}</span>
+                            <span className="mx-2">•</span>
+                            <span>{session.cards.length} بطاقة</span>
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => startEditing(session, e)}
+                          className="p-1 text-gray-400 hover:text-blue-500 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                        >
+                          <EditIcon />
+                        </button>
+                        <button
+                          onClick={(e) => requestDelete(session.id, e)}
+                          className="p-1 text-gray-400 hover:text-red-500 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+                        >
+                          <TrashIcon />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

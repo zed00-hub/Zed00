@@ -664,3 +664,94 @@ export const generateChecklist = async (
     throw new Error("Échec de la génération de la check-list. / فشل إنشاء قائمة المهام.");
   }
 };
+// --- Flashcard Generation Service ---
+
+import { Flashcard, FlashcardConfig } from "./flashcardService";
+
+export const generateFlashcards = async (
+  config: FlashcardConfig,
+  fileContexts: FileContext[]
+): Promise<Flashcard[]> => {
+  try {
+    const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
+    const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+
+    let sourceContext = "";
+    let filePart: Part | undefined;
+
+    if (config.sourceType === 'subject' && config.subject) {
+      const relevantFiles = fileContexts.filter(f =>
+        f.name.toLowerCase().includes(config.subject!.toLowerCase()) ||
+        (f.content && f.content.toLowerCase().includes(config.subject!.toLowerCase()))
+      );
+
+      if (relevantFiles.length > 0) {
+        sourceContext = relevantFiles.map(f => f.content).join("\n\n");
+      } else {
+        sourceContext = `Sujet général: ${config.subject}.`;
+      }
+    } else if (config.sourceType === 'file' && config.fileContext) {
+      const file = fileContexts.find(f => f.id === config.fileContext?.id);
+      if (file) {
+        if (file.data) {
+          filePart = {
+            inlineData: {
+              mimeType: file.type,
+              data: file.data
+            }
+          };
+        } else if (file.content) {
+          sourceContext = file.content;
+        }
+      }
+    }
+
+    const systemInstruction = `
+      Rôle: Expert en pédagogie médicale et création de Flashcards (Anki style).
+      Tâche: Générer ${config.count} flashcards de haute qualité à partir du contenu fourni.
+      
+      RÈGLES DE RÉDACTION:
+      1. Recto (Front): Une question claire, un terme à définir, ou une phrase à trou.
+      2. Verso (Back): La réponse précise, courte et mémorable.
+      3. Explication (Optional): Un petit complément d'information pour mieux comprendre.
+      4. Langue: Français (Scientifique).
+      ${config.customization ? `5. Personnalisation demandée: ${config.customization}` : ""}
+      
+      FORMAT DE SORTIE (STRICT JSON):
+      Tu dois répondre UNIQUEMENT avec un tableau JSON.
+      [
+        {
+          "id": "1",
+          "front": "Texte recto",
+          "back": "Texte verso",
+          "explanation": "Explication optionnelle"
+        }
+      ]
+    `;
+
+    const prompt = `Génère les flashcards maintenant.
+    Contexte:
+    ${sourceContext.substring(0, 30000)}`;
+
+    const parts: Part[] = [{ text: prompt }];
+    if (filePart) parts.push(filePart);
+
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: parts }],
+      generationConfig: {
+        temperature: 0.5,
+        responseMimeType: "application/json",
+      },
+      systemInstruction: systemInstruction
+    });
+
+    const responseText = result.response.text();
+    if (!responseText) throw new Error("Réponse vide");
+
+    return JSON.parse(responseText);
+
+  } catch (error: any) {
+    console.error("Flashcard Generation Error:", error);
+    throw new Error(`فشل إنشاء الفلاش كاردس: ${error.message}`);
+  }
+};
