@@ -13,6 +13,7 @@ import MnemonicsContainer from './components/Mnemonics/MnemonicsContainer';
 import ChecklistContainer from './components/Checklist/ChecklistContainer';
 import FlashcardContainer from './components/Flashcard/FlashcardContainer';
 import { fileToBase64 } from './utils/fileHelpers';
+import { extractTextFromDocx } from './utils/docxUtils';
 import { INITIAL_COURSES } from './data/courses';
 import { useAuth } from './contexts/AuthContext';
 import { saveSessionToFirestore, loadSessionsFromFirestore, deleteSessionFromFirestore } from './services/chatService';
@@ -543,23 +544,37 @@ const AppContent: React.FC = () => {
     for (let i = 0; i < filesList.length; i++) {
       const file = filesList[i];
       try {
-        const base64Data = await fileToBase64(file);
+        const isDocx = file.name.toLowerCase().endsWith('.docx') ||
+          file.name.toLowerCase().endsWith('.doc') ||
+          file.type.includes('wordprocessing');
 
-        // Add to global knowledge base
-        newFiles.push({
-          id: Math.random().toString(36).substring(7),
-          name: file.name,
-          type: file.type,
-          data: base64Data, // Raw base64 for API
-          size: file.size
-        });
-
-        // Add all files to pending attachments for UI preview (images show preview, others show icon)
-        if (file.type.startsWith('image/')) {
-          newAttachments.push(`data:${file.type};base64,${base64Data}`);
-        } else {
+        if (isDocx) {
+          const text = await extractTextFromDocx(file);
+          newFiles.push({
+            id: Math.random().toString(36).substring(7),
+            name: file.name,
+            type: 'text/plain',
+            content: text,
+            size: file.size
+          });
           // For non-image files, store a special format: "file:name:type"
-          newAttachments.push(`file:${file.name}:${file.type}`);
+          newAttachments.push(`file:${file.name}:text/plain`);
+        } else {
+          const base64Data = await fileToBase64(file);
+          newFiles.push({
+            id: Math.random().toString(36).substring(7),
+            name: file.name,
+            type: file.type,
+            data: base64Data, // Raw base64 for API
+            size: file.size
+          });
+
+          // Add all files to pending attachments for UI preview
+          if (file.type.startsWith('image/')) {
+            newAttachments.push(`data:${file.type};base64,${base64Data}`);
+          } else {
+            newAttachments.push(`file:${file.name}:${file.type}`);
+          }
         }
 
       } catch (err) {

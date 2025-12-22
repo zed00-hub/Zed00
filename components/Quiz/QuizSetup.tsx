@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { QuizConfig, FileContext } from '../../types';
 import { BookOpen, Upload, FileText, Check } from 'lucide-react';
+import { extractTextFromDocx } from '../../utils/docxUtils';
 
 interface QuizSetupProps {
     files: FileContext[];
@@ -20,18 +21,38 @@ const QuizSetup: React.FC<QuizSetupProps> = ({ files, onStart, isLoading }) => {
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const base64 = (event.target?.result as string).split(',')[1];
-                setUploadedFile({
-                    id: 'temp-quiz-file',
-                    name: file.name,
-                    type: file.type,
-                    data: base64,
-                    size: file.size
-                });
-            };
-            reader.readAsDataURL(file);
+            const isDocx = file.name.toLowerCase().endsWith('.docx') ||
+                file.name.toLowerCase().endsWith('.doc') ||
+                file.type.includes('wordprocessing');
+
+            if (isDocx) {
+                try {
+                    const text = await extractTextFromDocx(file);
+                    setUploadedFile({
+                        id: 'temp-quiz-file',
+                        name: file.name,
+                        type: 'text/plain',
+                        content: text,
+                        size: file.size
+                    });
+                } catch (error) {
+                    console.error("Docx extraction error:", error);
+                    alert("فشل استخراج النص من ملف Word");
+                }
+            } else {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const base64 = (event.target?.result as string).split(',')[1];
+                    setUploadedFile({
+                        id: 'temp-quiz-file',
+                        name: file.name,
+                        type: file.type,
+                        data: base64,
+                        size: file.size
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
         }
     };
 
@@ -151,10 +172,10 @@ const QuizSetup: React.FC<QuizSetupProps> = ({ files, onStart, isLoading }) => {
                                         key={sub.id}
                                         onClick={() => handleSubjectClick(sub)}
                                         className={`px-3 py-3 rounded-lg text-sm border transition-all flex items-center gap-2 ${(sub.hasSubcategories && expandedSubject === sub.id) ||
-                                                (!sub.hasSubcategories && selectedSubject === sub.name) ||
-                                                (sub.id === 'anatomie' && selectedSubject.startsWith('Anatomie:'))
-                                                ? 'bg-medical-500 text-white border-medical-500'
-                                                : 'bg-gray-50 dark:bg-dark-bg text-gray-700 dark:text-gray-300 border-transparent hover:bg-gray-100'
+                                            (!sub.hasSubcategories && selectedSubject === sub.name) ||
+                                            (sub.id === 'anatomie' && selectedSubject.startsWith('Anatomie:'))
+                                            ? 'bg-medical-500 text-white border-medical-500'
+                                            : 'bg-gray-50 dark:bg-dark-bg text-gray-700 dark:text-gray-300 border-transparent hover:bg-gray-100'
                                             }`}
                                     >
                                         <span className="text-lg">{sub.icon}</span>
@@ -178,8 +199,8 @@ const QuizSetup: React.FC<QuizSetupProps> = ({ files, onStart, isLoading }) => {
                                                 key={index}
                                                 onClick={() => handleSubcategorySelect(subcat)}
                                                 className={`px-3 py-2 rounded-lg text-xs font-medium transition-all text-right ${selectedSubject === `Anatomie: ${subcat}`
-                                                        ? 'bg-medical-500 text-white shadow-md'
-                                                        : 'bg-white dark:bg-dark-surface text-gray-700 dark:text-gray-300 hover:bg-medical-100 dark:hover:bg-medical-900/30 border border-gray-200 dark:border-gray-700'
+                                                    ? 'bg-medical-500 text-white shadow-md'
+                                                    : 'bg-white dark:bg-dark-surface text-gray-700 dark:text-gray-300 hover:bg-medical-100 dark:hover:bg-medical-900/30 border border-gray-200 dark:border-gray-700'
                                                     }`}
                                             >
                                                 {index + 1}. {subcat}

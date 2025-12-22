@@ -1585,8 +1585,8 @@ const AdminPanel: React.FC = () => {
                                                         <div key={quiz.id} className="bg-white dark:bg-dark-surface p-4 rounded-xl border dark:border-gray-700 shadow-sm">
                                                             <div className="flex items-center justify-between mb-3">
                                                                 <span className={`text-xs px-2 py-1 rounded-lg font-bold ${(quiz.score / quiz.totalQuestions) >= 0.8 ? 'bg-green-100 text-green-700' :
-                                                                        (quiz.score / quiz.totalQuestions) >= 0.5 ? 'bg-yellow-100 text-yellow-700' :
-                                                                            'bg-red-100 text-red-700'
+                                                                    (quiz.score / quiz.totalQuestions) >= 0.5 ? 'bg-yellow-100 text-yellow-700' :
+                                                                        'bg-red-100 text-red-700'
                                                                     }`}>
                                                                     {Math.round((quiz.score / quiz.totalQuestions) * 100)}%
                                                                 </span>

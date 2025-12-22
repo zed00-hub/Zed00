@@ -33,11 +33,11 @@ const FlashcardActive: React.FC<FlashcardActiveProps> = ({ cards, theme = 'class
     const getThemeClasses = () => {
         switch (theme) {
             case 'modern':
-                return 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white';
+                return 'bg-indigo-600 text-white';
             case 'medical':
-                return 'bg-gradient-to-br from-sky-400 to-medical-600 text-white';
+                return 'bg-sky-500 text-white';
             case 'dark-gold':
-                return 'bg-gradient-to-br from-gray-900 to-gray-800 border-2 border-amber-500/30 text-amber-100';
+                return 'bg-gray-900 border-2 border-amber-500/30 text-amber-100';
             default:
                 return 'bg-white dark:bg-dark-surface text-gray-800 dark:text-white border-2 border-gray-100 dark:border-dark-border';
         }
@@ -71,21 +71,22 @@ const FlashcardActive: React.FC<FlashcardActiveProps> = ({ cards, theme = 'class
             <div
                 className="perspective-1000 w-full min-h-[400px] cursor-pointer group"
                 onClick={() => setIsFlipped(!isFlipped)}
+                style={{ willChange: 'transform' }}
             >
-                <div className={`relative w-full h-[400px] transition-transform duration-700 preserve-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
+                <div className={`relative w-full h-[400px] transition-transform duration-400 preserve-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
                     {/* Front */}
-                    <div className={`absolute inset-0 backface-hidden flex flex-col items-center justify-center p-8 rounded-[2rem] shadow-2xl ${getThemeClasses()} text-center`}>
+                    <div className={`absolute inset-0 backface-hidden flex flex-col items-center justify-center p-8 rounded-[1.5rem] shadow-xl ${getThemeClasses()} text-center`}>
                         <div className="absolute top-6 right-8 opacity-20"><Sparkles size={40} /></div>
-                        <h2 className="text-2xl md:text-3xl font-bold leading-relaxed">
+                        <h2 className="text-xl md:text-2xl font-bold leading-relaxed">
                             {currentCard.front}
                         </h2>
-                        <p className="absolute bottom-10 text-sm opacity-50 font-medium animate-pulse">
+                        <p className="absolute bottom-10 text-xs opacity-50 font-medium tracking-wide">
                             انقر للقلب
                         </p>
                     </div>
 
                     {/* Back */}
-                    <div className={`absolute inset-0 backface-hidden rotate-y-180 flex flex-col items-center justify-center p-8 rounded-[2rem] shadow-2xl ${theme === 'classic' ? 'bg-amber-50 dark:bg-amber-900/20' : getThemeClasses()} text-center overflow-y-auto`}>
+                    <div className={`absolute inset-0 backface-hidden rotate-y-180 flex flex-col items-center justify-center p-8 rounded-[1.5rem] shadow-xl ${theme === 'classic' ? 'bg-amber-50 dark:bg-amber-900/20' : getThemeClasses()} text-center overflow-y-auto`}>
                         <div className="absolute top-6 left-8 opacity-20"><CheckCircle2 size={40} /></div>
                         <h2 className={`text-xl md:text-2xl font-bold mb-6 ${theme === 'classic' ? 'text-amber-700 dark:text-amber-400' : ''}`}>
                             {currentCard.back}

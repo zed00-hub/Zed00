@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { BookOpen, Sparkles, FileText, Settings2, ArrowRight, UploadCloud, X, FileCheck, Image as ImageIcon } from 'lucide-react';
 import { FlashcardConfig } from '../../services/flashcardService';
 import { fileToBase64, formatFileSize } from '../../utils/fileHelpers';
+import { extractTextFromDocx } from '../../utils/docxUtils';
 import { FileContext } from '../../types';
 
 interface FlashcardSetupProps {
@@ -42,14 +43,29 @@ const FlashcardSetup: React.FC<FlashcardSetupProps> = ({ files, onStart }) => {
 
         setIsUploading(true);
         try {
-            const base64 = await fileToBase64(file);
-            setUploadedFile({
-                id: Math.random().toString(36).substring(7),
-                name: file.name,
-                type: file.type,
-                data: base64,
-                size: file.size
-            });
+            const isDocx = file.name.toLowerCase().endsWith('.docx') ||
+                file.name.toLowerCase().endsWith('.doc') ||
+                file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+            if (isDocx) {
+                const text = await extractTextFromDocx(file);
+                setUploadedFile({
+                    id: Math.random().toString(36).substring(7),
+                    name: file.name,
+                    type: 'text/plain',
+                    content: text,
+                    size: file.size
+                });
+            } else {
+                const base64 = await fileToBase64(file);
+                setUploadedFile({
+                    id: Math.random().toString(36).substring(7),
+                    name: file.name,
+                    type: file.type,
+                    data: base64,
+                    size: file.size
+                });
+            }
         } catch (error) {
             console.error("Upload error:", error);
             alert("حدث خطأ أثناء تحميل الملف");
